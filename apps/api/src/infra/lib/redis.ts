@@ -3,13 +3,13 @@ import { Redis as UpstashRedis } from '@upstash/redis';
 
 let redisClient: any;
 
-if (process.env.NODE_ENV === 'production') {
+if (process.env.UPSTASH_URL && process.env.UPSTASH_TOKEN) {
   redisClient = new UpstashRedis({
-    url: process.env.UPSTASH_URL!,
-    token: process.env.UPSTASH_TOKEN!,
+    url: process.env.UPSTASH_URL,
+    token: process.env.UPSTASH_TOKEN,
   });
 } else {
-  redisClient = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6303');
+  redisClient = new Redis(process.env.REDIS_URL as string);
 }
 
 export const redis = {

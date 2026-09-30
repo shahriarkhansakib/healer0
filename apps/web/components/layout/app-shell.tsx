@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
-      <Sidebar role={session.user.role as any} />
+      <Sidebar role={((session.user as any)?.role || 'patient') as any} />
       <div className="flex flex-col flex-1 min-w-0">
         <Topbar user={session.user} />
         <main className="flex-1 overflow-auto p-6">

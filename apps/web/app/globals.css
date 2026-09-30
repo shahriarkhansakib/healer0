@@ -1,60 +1,123 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Enforce Strict Semantics */
+  --color-*: initial;
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Radius Math */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #020817;
-  --card: #ffffff;
-  --card-foreground: #020817;
-  --popover: #ffffff;
-  --popover-foreground: #020817;
-  --primary: #0f172a;
-  --primary-foreground: #f8fafc;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
-  --destructive: #ff0000;
-  --destructive-foreground: #f8fafc;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #020817;
-  --radius: 0.5rem;
+  /* Mental Health Theme: Light Mode (Sage & Warm Creams) */
+  --background: oklch(0.98 0.01 160);
+  --foreground: oklch(0.25 0.02 160);
+  
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.25 0.02 160);
+  
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0.02 160);
+  
+  --primary: oklch(0.55 0.08 160);
+  --primary-foreground: oklch(0.98 0.01 160);
+  
+  --secondary: oklch(0.95 0.02 160);
+  --secondary-foreground: oklch(0.35 0.04 160);
+  
+  --muted: oklch(0.95 0.01 160);
+  --muted-foreground: oklch(0.55 0.02 160);
+  
+  --accent: oklch(0.93 0.02 160);
+  --accent-foreground: oklch(0.25 0.02 160);
+  
+  --destructive: oklch(0.6 0.15 20);
+  --destructive-foreground: oklch(0.98 0 0);
+  
+  --border: oklch(0.9 0.01 160);
+  --input: oklch(0.9 0.01 160);
+  --ring: oklch(0.55 0.08 160);
+  
+  --radius: 1rem; /* Soft, premium curves */
 }
 
 .dark {
-  --background: #020817;
-  --foreground: #f8fafc;
-  --card: #020817;
-  --card-foreground: #f8fafc;
-  --popover: #020817;
-  --popover-foreground: #f8fafc;
-  --primary: #f8fafc;
-  --primary-foreground: #0f172a;
-  --secondary: #1e293b;
-  --secondary-foreground: #f8fafc;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --accent: #1e293b;
-  --accent-foreground: #f8fafc;
-  --destructive: #7f1d1d;
-  --destructive-foreground: #f8fafc;
-  --border: #1e293b;
-  --input: #1e293b;
-  --ring: #cbd5e1;
+  /* Mental Health Theme: Dark Mode (Deep Soft Teals) */
+  --background: oklch(0.18 0.01 200);
+  --foreground: oklch(0.95 0.01 160);
+  
+  --card: oklch(0.22 0.01 200);
+  --card-foreground: oklch(0.95 0.01 160);
+  
+  --popover: oklch(0.22 0.01 200);
+  --popover-foreground: oklch(0.95 0.01 160);
+  
+  --primary: oklch(0.65 0.1 160);
+  --primary-foreground: oklch(0.18 0.01 200);
+  
+  --secondary: oklch(0.25 0.01 200);
+  --secondary-foreground: oklch(0.85 0.01 160);
+  
+  --muted: oklch(0.25 0.01 200);
+  --muted-foreground: oklch(0.65 0.01 160);
+  
+  --accent: oklch(0.25 0.01 200);
+  --accent-foreground: oklch(0.95 0.01 160);
+  
+  --destructive: oklch(0.4 0.15 20);
+  --destructive-foreground: oklch(0.95 0 0);
+  
+  --border: oklch(0.28 0.01 200);
+  --input: oklch(0.28 0.01 200);
+  --ring: oklch(0.65 0.1 160);
 }
 
-* {
-  border-color: var(--border);
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  
+  html, body {
+    height: 100%;
+    /* Zero Layout Shift via Scrollbar Locking */
+    overflow: hidden;
+  }
+  
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    /* 10ms Theme Transition */
+    transition: background-color 10ms cubic-bezier(0.4, 0, 0.2, 1), 
+                color 10ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
+/* Centralized Destructive Zone */
+.theme-destructive {
+  --primary: var(--destructive);
+  --primary-foreground: var(--destructive-foreground);
+  --ring: var(--destructive);
 }

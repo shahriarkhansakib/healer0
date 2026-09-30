@@ -4,21 +4,22 @@
   "private": true,
   "main": "src/index.ts",
   "dependencies": {
-    "hono": "^4.5.0",
-    "better-auth": "^0.3.0",
-    "zod": "^3.23.0",
-    "pino": "^9.0.0",
-    "ioredis": "^5.4.0",
-    "@upstash/redis": "^1.31.0",
-    "nodemailer": "^6.9.14",
-    "resend": "^3.5.0",
     "@aws-sdk/client-s3": "^3.600.0",
-    "@healer/db": "workspace:*"
+    "@healer/db": "workspace:*",
+    "@upstash/redis": "^1.31.0",
+    "better-auth": "^0.3.0",
+    "drizzle-orm": "0.33.0",
+    "hono": "^4.5.0",
+    "ioredis": "^5.4.0",
+    "nodemailer": "^6.9.14",
+    "pino": "^9.0.0",
+    "resend": "^3.5.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
-    "typescript": "^5.5.0",
-    "pino-pretty": "^11.0.0",
+    "@types/node": "^20.14.0",
     "@types/nodemailer": "^6.4.15",
-    "@types/node": "^20.14.0"
+    "pino-pretty": "^11.0.0",
+    "typescript": "^5.5.0"
   }
 }

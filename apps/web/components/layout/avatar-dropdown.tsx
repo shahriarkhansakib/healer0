@@ -39,8 +39,11 @@ export function AvatarDropdown({ user }: { user: any }) {
               Profile
             </button>
             <button 
-              onClick={() => signOut()}
-              className="flex w-full items-center px-4 py-2 text-sm hover:bg-muted text-left text-destructive"
+              onClick={async () => {
+                await signOut();
+                window.location.href = "/";
+              }}
+              className="flex w-full items-center px-4 py-2 text-sm hover:bg-muted text-left text-destructive cursor-pointer"
             >
               <LogOut className="w-4 h-4 mr-2" />
               Sign out

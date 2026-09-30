@@ -1,24 +1,23 @@
-import { Context, Next } from 'hono';
-import { AuthVariables } from './auth';
+import { createMiddleware } from 'hono/factory';
 
 const ROLE_HIERARCHY: Record<string, number> = {
-  patient: 1,
-  doctor: 2,
-  researcher: 3,
-  admin: 4,
-  super_admin: 5,
+  user: 1,
+  admin: 2,
+  super_admin: 3,
 };
 
-export const requireRole = (minimumRole: string) => {
-  return async (c: Context<{ Variables: AuthVariables }>, next: Next) => {
-    const user = c.get('user');
-    const minRank = ROLE_HIERARCHY[minimumRole] || 999;
-    const userRank = ROLE_HIERARCHY[user?.role] || 0;
-
-    if (userRank < minRank) {
-      return c.json({ error: 'Forbidden', message: 'Insufficient role permissions.' }, 403);
+export const requireRole = (minimumRole: keyof typeof ROLE_HIERARCHY) => {
+  return createMiddleware(async (c, next) => {
+    const sessionData = c.get('sessionData'); // Assuming auth middleware injects this
+    if (!sessionData) {
+      return c.json({ error: 'Unauthorized', message: 'No active session.' }, 401);
     }
-
+    
+    const userRole = sessionData.user.role || 'user';
+    
+    if (ROLE_HIERARCHY[userRole] < ROLE_HIERARCHY[minimumRole]) {
+      return c.json({ error: 'Forbidden', message: `Requires ${minimumRole} system role.` }, 403);
+    }
     await next();
-  };
+  });
 };

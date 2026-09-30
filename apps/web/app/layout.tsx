@@ -4,9 +4,11 @@ import { ThemeProvider } from '@/components/providers/theme-provider';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { Toaster } from 'sonner';
 
+import { ScrollArea } from '@/components/ui/scroll-area';
+
 export const metadata: Metadata = {
   title: 'Healer - Healthcare, Connected',
-  description: 'Multi-role SaaS application for healthcare professionals.',
+  description: 'Mental health and wellness platform for professionals and patients.',
 };
 
 export default function RootLayout({
@@ -19,7 +21,9 @@ export default function RootLayout({
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <QueryProvider>
-            {children}
+            <ScrollArea className="h-screen w-full">
+              {children}
+            </ScrollArea>
             <Toaster position="top-right" richColors />
           </QueryProvider>
         </ThemeProvider>

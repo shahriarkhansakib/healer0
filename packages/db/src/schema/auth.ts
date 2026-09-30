@@ -1,9 +1,7 @@
 import { pgTable, text, timestamp, boolean, jsonb, pgEnum } from 'drizzle-orm/pg-core';
 
 export const systemRoleEnum = pgEnum('system_role', [
-  'patient',
-  'doctor',
-  'researcher',
+  'user',
   'admin',
   'super_admin',
 ]);
@@ -20,7 +18,7 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
-  role: systemRoleEnum('role').notNull().default('patient'),
+  role: systemRoleEnum('role').notNull().default('user'),
   status: accountStatusEnum('status').notNull().default('active'),
   requiresPasswordReset: boolean('requires_password_reset').notNull().default(false),
   twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
@@ -34,7 +32,7 @@ export const users = pgTable('users', {
 export const sessions = pgTable('sessions', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  token: text('token').notNull().unique(),
+  token: text('token').notNull().unique().$defaultFn(() => crypto.randomUUID()),
   expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
@@ -65,6 +63,33 @@ export const verifications = pgTable('verifications', {
   expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull().$onUpdate(() => new Date()),
+});
+
+export const organizations = pgTable('organizations', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text('name').notNull(),
+  slug: text('slug').unique(),
+  logo: text('logo'),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  metadata: text('metadata')
+});
+
+export const members = pgTable('members', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull()
+});
+
+export const invitations = pgTable('invitations', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  organizationId: text('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  role: text('role'),
+  status: text('status').notNull(),
+  expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
+  inviterId: text('inviter_id').notNull().references(() => users.id, { onDelete: 'cascade' })
 });
 
 export type User = typeof users.$inferSelect;

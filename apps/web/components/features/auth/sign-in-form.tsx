@@ -4,7 +4,10 @@ import { useState } from "react";
 import { signIn } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 export function SignInForm() {
   const [email, setEmail] = useState("");
@@ -12,9 +15,10 @@ export function SignInForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
       const { data, error } = await signIn.email({
         email,
@@ -24,56 +28,50 @@ export function SignInForm() {
       if (error) {
         toast.error(error.message || "Invalid credentials");
       } else {
-        toast.success("Signed in successfully!");
-        // Middleware will handle redirect based on role
-        router.push("/"); 
+        toast.success("Welcome back!");
+        router.push("/patient"); // Middleware will auto-redirect if they have a higher role
       }
     } catch (err: any) {
-      toast.error(err.message || "Something went wrong.");
+      toast.error("Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium mb-1">Email</label>
-        <input 
+    <form onSubmit={handleLogin} className="space-y-5">
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input 
+          id="email"
           type="email" 
           value={email} 
           onChange={(e) => setEmail(e.target.value)} 
-          className="w-full p-2 border rounded-md bg-background"
+          className="bg-background/60 backdrop-blur-sm h-12"
+          placeholder="name@example.com"
           required 
         />
       </div>
-      <div>
-        <div className="flex justify-between mb-1 items-center">
-          <label className="block text-sm font-medium">Password</label>
-          <Link href="/forgot-password" className="text-xs text-primary hover:underline">
-            Forgot password?
-          </Link>
-        </div>
-        <input 
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <Input 
+          id="password"
           type="password" 
           value={password} 
           onChange={(e) => setPassword(e.target.value)} 
-          className="w-full p-2 border rounded-md bg-background"
+          className="bg-background/60 backdrop-blur-sm h-12"
+          placeholder="••••••••"
           required 
         />
       </div>
       
-      <button 
+      <Button 
         type="submit" 
+        className="w-full h-12 rounded-full font-semibold shadow-lg shadow-primary/10 mt-4" 
         disabled={loading}
-        className="w-full bg-primary text-primary-foreground py-2 rounded-md font-medium disabled:opacity-50 mt-2"
       >
-        {loading ? "Signing in..." : "Sign In"}
-      </button>
-      
-      <div className="text-center mt-4 text-sm text-muted-foreground">
-        Don't have an account? <Link href="/sign-up" className="text-primary hover:underline">Sign up</Link>
-      </div>
+        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Sign In"}
+      </Button>
     </form>
   );
 }
