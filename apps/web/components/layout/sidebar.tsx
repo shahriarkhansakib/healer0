@@ -4,7 +4,7 @@ import { useSidebarStore } from "@/hooks/use-sidebar-store";
 import { cn } from "@/lib/utils";
 import { 
   Users, Activity, Calendar, FileText, Settings, ShieldAlert, BookOpen, ShieldCheck, HeartPulse,
-  LayoutDashboard, MessageSquare, Pill, UserCheck
+  LayoutDashboard, MessageSquare, Pill, UserCheck, User
 } from "lucide-react";
 import { SidebarNavLink } from "./sidebar-nav-link";
 
@@ -39,6 +39,7 @@ const getSidebarConfig = (role: SystemRole): RoleSidebarConfig => {
         footerNav: [
           { href: '/doctor/profile', label: 'Doctor Profile', icon: <UserCheck className="w-4 h-4" /> },
           { href: '/doctor/settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
+          { href: '/patient', label: 'Switch to Patient View', icon: <User className="w-4 h-4" /> },
         ],
       };
     case 'patient':

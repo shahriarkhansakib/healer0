@@ -29,7 +29,21 @@ export function SignInForm() {
         toast.error(error.message || "Invalid credentials");
       } else {
         toast.success("Welcome back!");
-        router.push("/patient"); // Middleware will auto-redirect if they have a higher role
+        try {
+          const res = await fetch("/api/auth/me", { credentials: "include" });
+          const meData = await res.json().catch(() => null);
+          if (meData?.user?.role === "super_admin") {
+            router.push("/super-admin");
+          } else if (meData?.user?.role === "admin") {
+            router.push("/admin");
+          } else if (meData?.profiles?.isDoctor) {
+            router.push("/doctor");
+          } else {
+            router.push("/patient");
+          }
+        } catch {
+          router.push("/patient");
+        }
       }
     } catch (err: any) {
       toast.error("Something went wrong.");

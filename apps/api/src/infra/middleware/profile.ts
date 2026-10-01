@@ -5,16 +5,19 @@ type ProfileType = 'patient' | 'doctor' | 'researcher';
 
 export const requireProfile = (profileType: ProfileType) => {
   return createMiddleware(async (c, next) => {
-    const sessionData = c.get('sessionData');
-    if (!sessionData) {
+    /* Support both context shapes:
+       - requireAuth sets c.set('user', ...) and c.set('session', ...)
+       - some legacy paths set c.set('sessionData', { user, session }) */
+    const user = c.get('user') ?? (c.get('sessionData') as any)?.user;
+    if (!user) {
       return c.json({ error: 'Unauthorized', message: 'No active session.' }, 401);
     }
     
-    const userId = sessionData.user.id;
+    const userId = user.id;
     let hasProfile = false;
 
     // Super admins can bypass domain profile checks
-    if (sessionData.user.role === 'super_admin') {
+    if (user.role === 'super_admin') {
       await next();
       return;
     }
@@ -37,3 +40,4 @@ export const requireProfile = (profileType: ProfileType) => {
     await next();
   });
 };
+

@@ -1,14 +1,21 @@
 import { Context } from 'hono';
-import type { AuthVariables } from '../../infra/middleware/auth';
-import { PatientsService } from './patients.service';
+import { getDoctorPatientRecordsService, updatePatientRiskLevelService } from './patients.service';
 
-export const PatientsController = {
-  async list(c: Context<{ Variables: AuthVariables }>) {
-    try {
-      const result = await PatientsService.list();
-      return c.json(result, 200);
-    } catch (error: any) {
-      return c.json({ error: 'Internal Server Error', message: error.message }, 500);
-    }
-  }
-};
+export async function getDoctorPatientsHandler(c: Context) {
+  const user = c.get('user');
+  if (!user?.id) throw new Error('Unauthorized');
+  const risk = c.req.query('risk');
+  const records = await getDoctorPatientRecordsService(user.id, risk);
+  return c.json({ data: records });
+}
+
+export async function updatePatientRiskHandler(c: Context) {
+  const user = c.get('user');
+  if (!user?.id) throw new Error('Unauthorized');
+  const id = c.req.param('id');
+  if (!id) throw new Error('Record ID is required');
+  const body = await c.req.json();
+  const updated = await updatePatientRiskLevelService(user.id, id, body.riskLevel, body.notes);
+  return c.json({ data: updated });
+}
+
