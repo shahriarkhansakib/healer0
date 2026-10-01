@@ -37,12 +37,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className={cn(
       "flex h-screen bg-background text-foreground overflow-hidden",
-      isDoctor && "doctor-theme"
+      isDoctor && "doctor-theme bg-slate-50 text-slate-900"
     )}>
       <Sidebar role={activeRole} />
-      <div className="flex flex-col flex-1 min-w-0 bg-background text-foreground">
+      <div className={cn(
+        "flex flex-col flex-1 min-w-0 bg-background text-foreground",
+        isDoctor && "bg-slate-50 text-slate-900"
+      )}>
         <Topbar user={session.user} />
-        <main className="flex-1 overflow-auto p-6 bg-background text-foreground">
+        <main className={cn(
+          "flex-1 overflow-auto p-6 bg-background text-foreground",
+          isDoctor && "bg-slate-50 text-slate-900"
+        )}>
           {children}
         </main>
       </div>

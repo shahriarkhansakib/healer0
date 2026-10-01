@@ -139,41 +139,65 @@
   --ring: var(--destructive);
 }
 
-/* Hospital Light Theme for Doctor Dashboard ONLY */
-.doctor-theme,
-.dark .doctor-theme,
-html.dark .doctor-theme,
-[data-theme='dark'] .doctor-theme {
-  --background: #f8fafc !important;
-  --foreground: #0f172a !important;
-  
-  --card: #ffffff !important;
-  --card-foreground: #0f172a !important;
-  
-  --popover: #ffffff !important;
-  --popover-foreground: #0f172a !important;
-  
-  --primary: #0d9488 !important;
-  --primary-foreground: #ffffff !important;
-  
-  --secondary: #f1f5f9 !important;
-  --secondary-foreground: #334155 !important;
-  
-  --muted: #f1f5f9 !important;
-  --muted-foreground: #64748b !important;
-  
-  --accent: #f0fdfa !important;
-  --accent-foreground: #0f766e !important;
-  
-  --destructive: #ef4444 !important;
-  --destructive-foreground: #ffffff !important;
-  
-  --border: #e2e8f0 !important;
-  --input: #e2e8f0 !important;
-  --ring: #0d9488 !important;
-  
-  color: var(--foreground) !important;
-  background-color: var(--background) !important;
+@layer base {
+  /* Hospital Light Theme for Doctor Dashboard ONLY */
+  .doctor-theme,
+  .dark .doctor-theme,
+  html.dark .doctor-theme,
+  html.dark body .doctor-theme,
+  [data-theme='dark'] .doctor-theme {
+    --background: #f8fafc !important;
+    --foreground: #0f172a !important;
+    
+    --card: #ffffff !important;
+    --card-foreground: #0f172a !important;
+    
+    --popover: #ffffff !important;
+    --popover-foreground: #0f172a !important;
+    
+    --primary: #0d9488 !important;
+    --primary-foreground: #ffffff !important;
+    
+    --secondary: #f1f5f9 !important;
+    --secondary-foreground: #334155 !important;
+    
+    --muted: #f1f5f9 !important;
+    --muted-foreground: #64748b !important;
+    
+    --accent: #f0fdfa !important;
+    --accent-foreground: #0f766e !important;
+    
+    --destructive: #ef4444 !important;
+    --destructive-foreground: #ffffff !important;
+    
+    --border: #e2e8f0 !important;
+    --input: #e2e8f0 !important;
+    --ring: #0d9488 !important;
+
+    --color-background: #f8fafc !important;
+    --color-foreground: #0f172a !important;
+    --color-card: #ffffff !important;
+    --color-card-foreground: #0f172a !important;
+    --color-popover: #ffffff !important;
+    --color-popover-foreground: #0f172a !important;
+    --color-primary: #0d9488 !important;
+    --color-primary-foreground: #ffffff !important;
+    --color-secondary: #f1f5f9 !important;
+    --color-secondary-foreground: #334155 !important;
+    --color-muted: #f1f5f9 !important;
+    --color-muted-foreground: #64748b !important;
+    --color-accent: #f0fdfa !important;
+    --color-accent-foreground: #0f766e !important;
+    --color-destructive: #ef4444 !important;
+    --color-destructive-foreground: #ffffff !important;
+    --color-border: #e2e8f0 !important;
+    --color-input: #e2e8f0 !important;
+    --color-ring: #0d9488 !important;
+    
+    color: #0f172a !important;
+    background-color: #f8fafc !important;
+  }
 }
+
 
 
