@@ -86,17 +86,17 @@ export function Sidebar({ role }: { role: SystemRole }) {
 
   return (
     <aside className={cn(
-      "bg-card/95 backdrop-blur-md border-r border-border/60 flex flex-col transition-all duration-300 select-none",
+      "bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col transition-all duration-300 select-none shadow-sm",
       isOpen ? "w-64" : "w-16"
     )}>
       {/* Brand Header */}
-      <div className="h-14 flex items-center border-b border-border/60 px-4 shrink-0 justify-between">
+      <div className="h-14 flex items-center border-b border-sidebar-border px-4 shrink-0 justify-between">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="p-1.5 rounded-xl bg-primary/10 text-primary shrink-0">
-            <HeartPulse className="w-5 h-5 text-primary" />
+          <div className="p-1.5 rounded-xl bg-sidebar-primary/10 text-sidebar-primary border border-sidebar-primary/20 shrink-0">
+            <HeartPulse className="w-5 h-5 text-sidebar-primary" />
           </div>
           {isOpen && (
-            <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent truncate">
+            <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-sidebar-primary to-sidebar-primary/70 bg-clip-text text-transparent truncate">
               Healer
             </span>
           )}
@@ -120,13 +120,13 @@ export function Sidebar({ role }: { role: SystemRole }) {
 
         {/* Sessions Section (Grouped) */}
         {config.sessionsNav && config.sessionsNav.length > 0 && (
-          <div className="pt-2 border-t border-border/40 space-y-1">
+          <div className="pt-2 border-t border-sidebar-border/50 space-y-1">
             {isOpen ? (
-              <span className="px-3 text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider block mb-1">
+              <span className="px-3 text-[11px] font-bold text-sidebar-primary/80 uppercase tracking-widest block mb-1">
                 Sessions
               </span>
             ) : (
-              <div className="my-2 border-t border-border/40" />
+              <div className="my-2 border-t border-sidebar-border/50" />
             )}
             {config.sessionsNav.map((item) => (
               <SidebarNavLink 
@@ -143,7 +143,7 @@ export function Sidebar({ role }: { role: SystemRole }) {
 
       {/* Pinned Footer Section */}
       {config.footerNav && config.footerNav.length > 0 && (
-        <div className="p-3 border-t border-border/60 shrink-0 space-y-1 bg-muted/20">
+        <div className="p-3 border-t border-sidebar-border shrink-0 space-y-1 bg-sidebar-accent/30">
           {config.footerNav.map((item) => (
             <SidebarNavLink 
               key={item.href}
