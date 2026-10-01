@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       isDoctor && "doctor-theme"
     )}>
       <Sidebar role={activeRole} />
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 bg-background text-foreground">
         <Topbar user={session.user} />
         <main className="flex-1 overflow-auto p-6 bg-background text-foreground">
           {children}

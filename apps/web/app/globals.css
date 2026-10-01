@@ -140,36 +140,40 @@
 }
 
 /* Hospital Light Theme for Doctor Dashboard ONLY */
-.doctor-theme {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+.doctor-theme,
+.dark .doctor-theme,
+html.dark .doctor-theme,
+[data-theme='dark'] .doctor-theme {
+  --background: #f8fafc !important;
+  --foreground: #0f172a !important;
   
-  --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card: #ffffff !important;
+  --card-foreground: #0f172a !important;
   
-  --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --popover: #ffffff !important;
+  --popover-foreground: #0f172a !important;
   
-  --primary: #0d9488;
-  --primary-foreground: #ffffff;
+  --primary: #0d9488 !important;
+  --primary-foreground: #ffffff !important;
   
-  --secondary: #f1f5f9;
-  --secondary-foreground: #334155;
+  --secondary: #f1f5f9 !important;
+  --secondary-foreground: #334155 !important;
   
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --muted: #f1f5f9 !important;
+  --muted-foreground: #64748b !important;
   
-  --accent: #f0fdfa;
-  --accent-foreground: #0f766e;
+  --accent: #f0fdfa !important;
+  --accent-foreground: #0f766e !important;
   
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive: #ef4444 !important;
+  --destructive-foreground: #ffffff !important;
   
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #0d9488;
+  --border: #e2e8f0 !important;
+  --input: #e2e8f0 !important;
+  --ring: #0d9488 !important;
   
-  color: var(--foreground);
-  background-color: var(--background);
+  color: var(--foreground) !important;
+  background-color: var(--background) !important;
 }
+
 

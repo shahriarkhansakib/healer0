@@ -8,7 +8,7 @@ export function Topbar({ user }: { user: any }) {
   const { toggle } = useSidebarStore();
 
   return (
-    <header className="h-14 border-b bg-card flex items-center justify-between px-4 shrink-0">
+    <header className="h-14 border-b bg-card text-card-foreground flex items-center justify-between px-4 shrink-0">
       <div className="flex items-center gap-4">
         <button 
           onClick={toggle}
@@ -16,11 +16,11 @@ export function Topbar({ user }: { user: any }) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        <span className="font-medium">Welcome back, {user?.name}</span>
+        <span className="font-medium text-foreground">Welcome back, {user?.name}</span>
       </div>
       
       <div className="flex items-center gap-4">
-        <button className="p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors">
+        <button className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <Bell className="w-5 h-5" />
         </button>
         <AvatarDropdown user={user} />
