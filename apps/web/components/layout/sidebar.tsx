@@ -83,20 +83,35 @@ const getSidebarConfig = (role: SystemRole): RoleSidebarConfig => {
 export function Sidebar({ role }: { role: SystemRole }) {
   const { isOpen } = useSidebarStore();
   const config = getSidebarConfig(role);
+  const isDoctor = role === 'doctor';
 
   return (
     <aside className={cn(
-      "bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col transition-all duration-300 select-none shadow-sm",
+      "flex flex-col transition-all duration-300 select-none",
+      isDoctor 
+        ? "bg-white text-slate-800 border-r border-slate-200/80 shadow-xs" 
+        : "bg-card text-card-foreground border-r border-border",
       isOpen ? "w-64" : "w-16"
     )}>
       {/* Brand Header */}
-      <div className="h-14 flex items-center border-b border-sidebar-border px-4 shrink-0 justify-between">
+      <div className={cn(
+        "h-14 flex items-center px-4 shrink-0 justify-between border-b",
+        isDoctor ? "border-slate-200/80" : "border-border"
+      )}>
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="p-1.5 rounded-xl bg-sidebar-primary/10 text-sidebar-primary border border-sidebar-primary/20 shrink-0">
-            <HeartPulse className="w-5 h-5 text-sidebar-primary" />
+          <div className={cn(
+            "p-1.5 rounded-xl shrink-0 border",
+            isDoctor 
+              ? "bg-teal-50 text-teal-600 border-teal-200/70 shadow-2xs" 
+              : "bg-primary/10 text-primary border-primary/20"
+          )}>
+            <HeartPulse className="w-5 h-5" />
           </div>
           {isOpen && (
-            <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-sidebar-primary to-sidebar-primary/70 bg-clip-text text-transparent truncate">
+            <span className={cn(
+              "font-bold text-lg tracking-tight truncate",
+              isDoctor ? "text-slate-900" : "text-foreground"
+            )}>
               Healer
             </span>
           )}
@@ -120,13 +135,19 @@ export function Sidebar({ role }: { role: SystemRole }) {
 
         {/* Sessions Section (Grouped) */}
         {config.sessionsNav && config.sessionsNav.length > 0 && (
-          <div className="pt-2 border-t border-sidebar-border/50 space-y-1">
+          <div className={cn(
+            "pt-2 space-y-1 border-t",
+            isDoctor ? "border-slate-200/60" : "border-border/40"
+          )}>
             {isOpen ? (
-              <span className="px-3 text-[11px] font-bold text-sidebar-primary/80 uppercase tracking-widest block mb-1">
+              <span className={cn(
+                "px-3 text-[11px] font-bold uppercase tracking-wider block mb-1",
+                isDoctor ? "text-teal-700/90" : "text-muted-foreground/70"
+              )}>
                 Sessions
               </span>
             ) : (
-              <div className="my-2 border-t border-sidebar-border/50" />
+              <div className={cn("my-2 border-t", isDoctor ? "border-slate-200/60" : "border-border/40")} />
             )}
             {config.sessionsNav.map((item) => (
               <SidebarNavLink 
@@ -143,7 +164,10 @@ export function Sidebar({ role }: { role: SystemRole }) {
 
       {/* Pinned Footer Section */}
       {config.footerNav && config.footerNav.length > 0 && (
-        <div className="p-3 border-t border-sidebar-border shrink-0 space-y-1 bg-sidebar-accent/30">
+        <div className={cn(
+          "p-3 border-t shrink-0 space-y-1",
+          isDoctor ? "bg-slate-50/80 border-slate-200/80" : "bg-muted/20 border-border"
+        )}>
           {config.footerNav.map((item) => (
             <SidebarNavLink 
               key={item.href}
