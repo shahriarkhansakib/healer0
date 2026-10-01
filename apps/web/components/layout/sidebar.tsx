@@ -3,7 +3,8 @@
 import { useSidebarStore } from "@/hooks/use-sidebar-store";
 import { cn } from "@/lib/utils";
 import { 
-  Users, Activity, Calendar, FileText, Settings, ShieldAlert, BookOpen, ShieldCheck, HeartPulse
+  Users, Activity, Calendar, FileText, Settings, ShieldAlert, BookOpen, ShieldCheck, HeartPulse,
+  Bot, Smile, Sparkles, ClipboardList, BookMarked, AlertTriangle, Lock
 } from "lucide-react";
 import { SidebarNavLink } from "./sidebar-nav-link";
 
@@ -14,8 +15,16 @@ const getSidebarNav = (role: SystemRole) => {
     case 'patient':
       return [
         { href: '/patient', label: 'Overview', icon: <Activity className="w-4 h-4" /> },
-        { href: '/patient/records', label: 'My Records', icon: <FileText className="w-4 h-4" /> },
-        { href: '/patient/settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
+        { href: '/patient/counseling', label: 'AI Counseling', icon: <Bot className="w-4 h-4" /> },
+        { href: '/patient/mood', label: 'Mood & Wellness', icon: <Smile className="w-4 h-4" /> },
+        { href: '/patient/therapy', label: 'Therapy & Exercises', icon: <Sparkles className="w-4 h-4" /> },
+        { href: '/patient/assessments', label: 'Assessments', icon: <ClipboardList className="w-4 h-4" /> },
+        { href: '/patient/journal', label: 'Daily Journal', icon: <BookMarked className="w-4 h-4" /> },
+        { href: '/patient/appointments', label: 'Appointments', icon: <Calendar className="w-4 h-4" /> },
+        { href: '/patient/community', label: 'Community', icon: <Users className="w-4 h-4" /> },
+        { href: '/patient/emergency', label: 'Crisis Support', icon: <AlertTriangle className="w-4 h-4" /> },
+        { href: '/patient/privacy', label: 'Privacy & Consent', icon: <Lock className="w-4 h-4" /> },
+        { href: '/patient/settings', label: 'Account Settings', icon: <Settings className="w-4 h-4" /> },
       ];
     case 'doctor':
       return [

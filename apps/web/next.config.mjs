@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ['@healer/api', '@healer/db'],
+  serverExternalPackages: ['pino', 'pino-pretty'],
   async headers() {
     return [
       {
