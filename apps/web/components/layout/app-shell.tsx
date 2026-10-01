@@ -4,6 +4,7 @@ import { useSession } from "@/lib/auth-client";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
+import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
@@ -13,9 +14,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
+  const isDoctor = pathname.startsWith('/doctor');
+
   // Determine active domain role context from current path (e.g. /doctor -> 'doctor')
   let activeRole: 'patient' | 'doctor' | 'researcher' | 'admin' | 'super_admin' = 'patient';
-  if (pathname.startsWith('/doctor')) {
+  if (isDoctor) {
     activeRole = 'doctor';
   } else if (pathname.startsWith('/researcher')) {
     activeRole = 'researcher';
@@ -32,14 +35,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
+    <div className={cn(
+      "flex h-screen bg-background text-foreground overflow-hidden",
+      isDoctor && "doctor-theme"
+    )}>
       <Sidebar role={activeRole} />
       <div className="flex flex-col flex-1 min-w-0">
         <Topbar user={session.user} />
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-6 bg-background text-foreground">
           {children}
         </main>
       </div>
     </div>
   );
 }
+
