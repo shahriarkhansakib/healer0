@@ -11,7 +11,8 @@ interface SidebarNavLinkProps {
 
 export function SidebarNavLink({ href, icon, label, isCollapsed }: SidebarNavLinkProps) {
   const pathname = usePathname();
-  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+  const isRootDashboard = ['/patient', '/doctor', '/researcher', '/admin', '/super-admin'].includes(href);
+  const isActive = isRootDashboard ? pathname === href : (pathname === href || pathname.startsWith(`${href}/`));
 
   return (
     <Link
