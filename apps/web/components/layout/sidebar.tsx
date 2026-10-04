@@ -1,14 +1,16 @@
 "use client";
 
 import { useSidebarStore } from "@/hooks/use-sidebar-store";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { 
   Users, Activity, Calendar, FileText, Settings, ShieldAlert, BookOpen, ShieldCheck, HeartPulse,
-  LayoutDashboard, MessageSquare, Pill, UserCheck, User
+  LayoutDashboard, MessageSquare, Pill, UserCheck, User,
+  Bot, Smile, Sparkles, ClipboardList, BookMarked, AlertTriangle, Lock
 } from "lucide-react";
 import { SidebarNavLink } from "./sidebar-nav-link";
 
-type SystemRole = 'patient' | 'doctor' | 'researcher' | 'admin' | 'super_admin';
+export type SystemRole = 'patient' | 'doctor' | 'researcher' | 'admin' | 'super_admin' | 'user';
 
 export interface NavItem {
   href: string;
@@ -22,7 +24,7 @@ export interface RoleSidebarConfig {
   footerNav: NavItem[];
 }
 
-const getSidebarConfig = (role: SystemRole): RoleSidebarConfig => {
+export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig => {
   switch (role) {
     case 'doctor':
       return {
@@ -43,13 +45,22 @@ const getSidebarConfig = (role: SystemRole): RoleSidebarConfig => {
         ],
       };
     case 'patient':
+    case 'user':
       return {
         mainNav: [
           { href: '/patient', label: 'Overview', icon: <Activity className="w-4 h-4" /> },
-          { href: '/patient/records', label: 'My Records', icon: <FileText className="w-4 h-4" /> },
+          { href: '/patient/counseling', label: 'AI Counseling', icon: <Bot className="w-4 h-4" /> },
+          { href: '/patient/mood', label: 'Daily Mood Tracking', icon: <Smile className="w-4 h-4" /> },
+          { href: '/patient/therapy', label: 'Therapy & Relaxation', icon: <Sparkles className="w-4 h-4" /> },
+          { href: '/patient/assessments', label: 'Clinical Assessments', icon: <ClipboardList className="w-4 h-4" /> },
+          { href: '/patient/journal', label: 'Reflective Journal', icon: <BookMarked className="w-4 h-4" /> },
+          { href: '/patient/appointments', label: 'Appointments', icon: <Calendar className="w-4 h-4" /> },
+          { href: '/patient/community', label: 'Anonymous Community', icon: <Users className="w-4 h-4" /> },
+          { href: '/patient/emergency', label: 'Crisis Support', icon: <AlertTriangle className="w-4 h-4" /> },
+          { href: '/patient/privacy', label: 'Privacy & Consent', icon: <Lock className="w-4 h-4" /> },
         ],
         footerNav: [
-          { href: '/patient/settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
+          { href: '/patient/settings', label: 'Account Settings', icon: <Settings className="w-4 h-4" /> },
         ],
       };
     case 'researcher':
@@ -77,14 +88,48 @@ const getSidebarConfig = (role: SystemRole): RoleSidebarConfig => {
         footerNav: [],
       };
     default:
-      return { mainNav: [], footerNav: [] };
+      return {
+        mainNav: [
+          { href: '/patient', label: 'Overview', icon: <Activity className="w-4 h-4" /> },
+          { href: '/patient/counseling', label: 'AI Counseling', icon: <Bot className="w-4 h-4" /> },
+          { href: '/patient/mood', label: 'Daily Mood Tracking', icon: <Smile className="w-4 h-4" /> },
+          { href: '/patient/therapy', label: 'Therapy & Relaxation', icon: <Sparkles className="w-4 h-4" /> },
+          { href: '/patient/assessments', label: 'Clinical Assessments', icon: <ClipboardList className="w-4 h-4" /> },
+          { href: '/patient/journal', label: 'Reflective Journal', icon: <BookMarked className="w-4 h-4" /> },
+          { href: '/patient/appointments', label: 'Appointments', icon: <Calendar className="w-4 h-4" /> },
+          { href: '/patient/community', label: 'Anonymous Community', icon: <Users className="w-4 h-4" /> },
+          { href: '/patient/emergency', label: 'Crisis Support', icon: <AlertTriangle className="w-4 h-4" /> },
+          { href: '/patient/privacy', label: 'Privacy & Consent', icon: <Lock className="w-4 h-4" /> },
+        ],
+        footerNav: [
+          { href: '/patient/settings', label: 'Account Settings', icon: <Settings className="w-4 h-4" /> },
+        ],
+      };
   }
 };
 
-export function Sidebar({ role }: { role: SystemRole }) {
-  const { isOpen } = useSidebarStore();
+export const getSidebarNav = (role?: SystemRole | string): NavItem[] => {
   const config = getSidebarConfig(role);
-  const isDoctor = role === 'doctor';
+  return [...config.mainNav, ...(config.sessionsNav || []), ...config.footerNav];
+};
+
+export function Sidebar({ role }: { role?: SystemRole | string }) {
+  const { isOpen } = useSidebarStore();
+  const pathname = usePathname();
+
+  const getResolvedRole = (): SystemRole => {
+    if (pathname.startsWith('/doctor')) return 'doctor';
+    if (pathname.startsWith('/researcher')) return 'researcher';
+    if (pathname.startsWith('/admin')) return 'admin';
+    if (pathname.startsWith('/super-admin')) return 'super_admin';
+    if (pathname.startsWith('/patient')) return 'patient';
+    if (role === 'user' || !role) return 'patient';
+    return (role as SystemRole) || 'patient';
+  };
+
+  const resolvedRole = getResolvedRole();
+  const config = getSidebarConfig(resolvedRole);
+  const isDoctor = resolvedRole === 'doctor' || pathname.startsWith('/doctor');
 
   return (
     <aside className={cn(

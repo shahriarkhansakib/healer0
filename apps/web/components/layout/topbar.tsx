@@ -2,11 +2,15 @@
 
 import { useSidebarStore } from "@/hooks/use-sidebar-store";
 import { Menu, Bell } from "lucide-react";
-import { AvatarDropdown } from "./avatar-dropdown";
+import { AvatarDropdown, AvatarUser } from "./avatar-dropdown";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export function Topbar({ user }: { user: any }) {
+export interface TopbarProps {
+  user?: AvatarUser | null;
+}
+
+export function Topbar({ user }: TopbarProps) {
   const { toggle } = useSidebarStore();
   const pathname = usePathname();
   const isDoctor = pathname.startsWith('/doctor');
@@ -46,4 +50,3 @@ export function Topbar({ user }: { user: any }) {
     </header>
   );
 }
-

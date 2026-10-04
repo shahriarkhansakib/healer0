@@ -1,6 +1,8 @@
 import { pgTable, text, timestamp, boolean, jsonb, integer } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { doctorProfiles, patientProfiles } from './medical';
+import { appointments } from './consultations';
+import { counselingSessions } from './counseling';
 
 // Extended Doctor Qualifications
 export const doctorQualifications = pgTable('doctor_qualifications', {
@@ -34,37 +36,6 @@ export const doctorSettings = pgTable('doctor_settings', {
   dutyEndTime: text('duty_end_time').notNull().default('17:00'),
   offDay: text('off_day').notNull().default('Sunday'),
   bio: text('bio'),
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull().$onUpdate(() => new Date()),
-});
-
-// Appointments
-export const appointments = pgTable('appointments', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
-  doctorId: text('doctor_id').notNull().references(() => doctorProfiles.id, { onDelete: 'cascade' }),
-  patientId: text('patient_id').notNull().references(() => patientProfiles.id, { onDelete: 'cascade' }),
-  patientName: text('patient_name').notNull(),
-  appointmentDate: timestamp('appointment_date', { mode: 'date' }).notNull(),
-  consultationType: text('consultation_type').notNull().default('In-person'), // In-person, Online, Counseling
-  reason: text('reason').notNull(),
-  status: text('status').notNull().default('scheduled'), // scheduled, in-progress, completed, canceled
-  startAt: timestamp('start_at', { mode: 'date' }),
-  endAt: timestamp('end_at', { mode: 'date' }),
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull().$onUpdate(() => new Date()),
-});
-
-// Counseling Sessions Directory
-export const counselingSessions = pgTable('counseling_sessions', {
-  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
-  doctorId: text('doctor_id').notNull().references(() => doctorProfiles.id, { onDelete: 'cascade' }),
-  patientId: text('patient_id').notNull().references(() => patientProfiles.id, { onDelete: 'cascade' }),
-  patientName: text('patient_name').notNull(),
-  sessionType: text('session_type').notNull().default('Mental Health'), // Mental Health, Therapy, Stress Management
-  startTime: timestamp('start_time', { mode: 'date' }).notNull(),
-  endTime: timestamp('end_time', { mode: 'date' }),
-  status: text('status').notNull().default('upcoming'), // upcoming, in-progress, completed, canceled
-  notes: text('notes'),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull().$onUpdate(() => new Date()),
 });
@@ -121,10 +92,6 @@ export type DoctorReview = typeof doctorReviews.$inferSelect;
 export type NewDoctorReview = typeof doctorReviews.$inferInsert;
 export type DoctorSettings = typeof doctorSettings.$inferSelect;
 export type NewDoctorSettings = typeof doctorSettings.$inferInsert;
-export type Appointment = typeof appointments.$inferSelect;
-export type NewAppointment = typeof appointments.$inferInsert;
-export type CounselingSession = typeof counselingSessions.$inferSelect;
-export type NewCounselingSession = typeof counselingSessions.$inferInsert;
 export type PatientRecord = typeof patientRecords.$inferSelect;
 export type NewPatientRecord = typeof patientRecords.$inferInsert;
 export type SessionNote = typeof sessionNotes.$inferSelect;

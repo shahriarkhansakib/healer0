@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -11,13 +13,14 @@ interface SidebarNavLinkProps {
 
 export function SidebarNavLink({ href, icon, label, isCollapsed }: SidebarNavLinkProps) {
   const pathname = usePathname();
-  const isRootDashboard = ['/patient', '/doctor', '/researcher', '/admin', '/super-admin'].includes(href);
-  const isActive = isRootDashboard ? pathname === href : (pathname === href || pathname.startsWith(`${href}/`));
+  const isBaseDashboard = ['/patient', '/doctor', '/researcher', '/admin', '/super-admin'].includes(href);
+  const isActive = isBaseDashboard ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   const isDoctorRoute = pathname.startsWith('/doctor');
 
   return (
     <Link
       href={href}
+      title={isCollapsed ? label : undefined}
       className={cn(
         "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 group",
         isDoctorRoute

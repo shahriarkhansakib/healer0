@@ -3,9 +3,14 @@ import { users, accounts } from './schema/auth';
 import { doctorProfiles, patientProfiles } from './schema/medical';
 import { 
   doctorQualifications, doctorReviews, doctorSettings, 
-  appointments, counselingSessions, patientRecords, 
-  sessionNotes, prescriptions 
+  patientRecords, sessionNotes, prescriptions 
 } from './schema/doctor';
+import { appointments } from './schema/consultations';
+import { counselingSessions } from './schema/counseling';
+import { wellnessRules } from './schema/wellness';
+import { therapyPrograms } from './schema/therapy';
+import { assessments, assessmentQuestions } from './schema/assessments';
+import { communityGroups } from './schema/community';
 import { eq } from 'drizzle-orm';
 import { scrypt } from 'crypto';
 
@@ -38,7 +43,7 @@ async function hashPassword(password: string): Promise<string> {
 async function main() {
   const commonPassword = await hashPassword('password123');
 
-  // Seed super_admin
+  // 1. Seed super_admin
   let superAdminUser = await db.query.users.findFirst({ where: eq(users.email, 'superadmin@healer.app') });
   if (!superAdminUser) {
     [superAdminUser] = await db.insert(users).values({
@@ -57,9 +62,13 @@ async function main() {
         password: commonPassword,
       });
     }
+  } else {
+    await db.update(accounts)
+      .set({ password: commonPassword })
+      .where(eq(accounts.accountId, 'superadmin@healer.app'));
   }
 
-  // Seed admin
+  // 2. Seed admin
   let adminUser = await db.query.users.findFirst({ where: eq(users.email, 'admin@healer.app') });
   if (!adminUser) {
     [adminUser] = await db.insert(users).values({
@@ -78,51 +87,52 @@ async function main() {
         password: commonPassword,
       });
     }
+  } else {
+    await db.update(accounts)
+      .set({ password: commonPassword })
+      .where(eq(accounts.accountId, 'admin@healer.app'));
   }
 
-  // Seed Doctor user
+  // 3. Seed doctor
   let doctorUser = await db.query.users.findFirst({ where: eq(users.email, 'doctor@healer.app') });
   if (!doctorUser) {
     [doctorUser] = await db.insert(users).values({
       name: 'Dr. Asif Mahmud',
       email: 'doctor@healer.app',
       emailVerified: true,
-      role: 'user',
+      role: 'doctor',
       status: 'active',
     }).returning();
 
-    if (doctorUser) {
-      await db.insert(accounts).values({
-        userId: doctorUser.id,
-        accountId: 'doctor@healer.app',
-        providerId: 'credential',
-        password: commonPassword,
-      });
-    }
+    await db.insert(accounts).values({
+      userId: doctorUser.id,
+      accountId: 'doctor@healer.app',
+      providerId: 'credential',
+      password: commonPassword,
+    });
   }
 
-  if (!doctorUser) {
-    console.error('Failed to create doctor user');
-    return;
-  }
-
-  // Seed Doctor Profile
   let doctorProf = await db.query.doctorProfiles.findFirst({ where: eq(doctorProfiles.userId, doctorUser.id) });
   if (!doctorProf) {
     [doctorProf] = await db.insert(doctorProfiles).values({
       userId: doctorUser.id,
-      specialization: 'Neuropsychiatry & Behavioral Health',
-      licenseNumber: 'BMDC-MD-884920',
-      hospitalAffiliation: 'Metropolitan Central Hospital & Wellness Clinic',
+      specialization: 'Psychiatry & Behavioral Health',
+      licenseNumber: 'MD-948201-BD',
+      hospitalAffiliation: 'Central Neuroscience & Mental Health Institute',
     }).returning();
   }
 
-  if (!doctorProf) {
-    console.error('Failed to create doctor profile');
-    return;
+  // Seed Doctor Qualifications
+  const existingQuals = await db.query.doctorQualifications.findMany({ where: eq(doctorQualifications.doctorId, doctorProf.id) });
+  if (existingQuals.length === 0) {
+    await db.insert(doctorQualifications).values([
+      { doctorId: doctorProf.id, degree: 'MBBS (Clinical Medicine)', institution: 'Dhaka Medical College', year: 2012 },
+      { doctorId: doctorProf.id, degree: 'FCPS (Psychiatry)', institution: 'BCPS Bangladesh', year: 2017 },
+      { doctorId: doctorProf.id, degree: 'Fellowship in Cognitive Behavioral Therapy', institution: 'King\'s College London', year: 2020 },
+    ]);
   }
 
-  // Doctor Settings
+  // Seed Doctor Settings
   const existingSettings = await db.query.doctorSettings.findFirst({ where: eq(doctorSettings.doctorId, doctorProf.id) });
   if (!existingSettings) {
     await db.insert(doctorSettings).values({
@@ -130,42 +140,32 @@ async function main() {
       autoAcceptBooking: true,
       notificationEnabled: true,
       language: 'en',
-      dutyStartTime: '08:30',
-      dutyEndTime: '17:30',
+      dutyStartTime: '08:00',
+      dutyEndTime: '17:00',
       offDay: 'Sunday',
-      bio: 'Board-certified Psychiatrist specializing in stress management, cognitive wellness, and mood disorder treatments.',
+      bio: 'Senior Consultant Psychiatrist specializing in generalized anxiety disorders, depression therapy, and clinical neuro-rehabilitation.',
     });
   }
 
-  // Doctor Qualifications
-  const existingQualifications = await db.query.doctorQualifications.findMany({ where: eq(doctorQualifications.doctorId, doctorProf.id) });
-  if (existingQualifications.length === 0) {
-    await db.insert(doctorQualifications).values([
-      { doctorId: doctorProf.id, degree: 'MBBS (Bachelor of Medicine, Bachelor of Surgery)', institution: 'Dhaka Medical College', year: 2014 },
-      { doctorId: doctorProf.id, degree: 'MD in Clinical Psychiatry', institution: 'BSMMU', year: 2018 },
-      { doctorId: doctorProf.id, degree: 'Fellowship in Cognitive Behavioral Therapy', institution: 'Johns Hopkins Medicine (Online)', year: 2021 },
-    ]);
-  }
-
-  // Seed Patients
-  const patientData = [
-    { name: 'Sarah Jenkins', email: 'sarah.j@example.com', blood: 'A+', risk: 'Low', condition: 'Generalized Anxiety Disorder' },
-    { name: 'Michael Chen', email: 'mchen@example.com', blood: 'O-', risk: 'Critical', condition: 'Severe Panic Disorder with Agoraphobia' },
-    { name: 'Elena Rostova', email: 'elena.r@example.com', blood: 'B+', risk: 'High', condition: 'Major Depressive Episode' },
-    { name: 'David Miller', email: 'dmiller@example.com', blood: 'AB+', risk: 'Moderate', condition: 'Insomnia & Work Stress Syndrome' },
-    { name: 'Ayesha Rahman', email: 'ayesha.r@example.com', blood: 'O+', risk: 'Low', condition: 'Post-Traumatic Stress Recovery' },
+  // 4. Seed 5 Patients
+  const patientsData = [
+    { email: 'patient1@healer.app', name: 'Sarah Jenkins', blood: 'A+', condition: 'Generalized Anxiety Disorder (GAD)', risk: 'Moderate' },
+    { email: 'patient2@healer.app', name: 'Michael Chang', blood: 'O+', condition: 'Severe Panic Disorder with Agoraphobia', risk: 'High' },
+    { email: 'patient3@healer.app', name: 'Emily Davis', blood: 'B+', condition: 'Major Depressive Episode', risk: 'Critical' },
+    { email: 'patient4@healer.app', name: 'David Miller', blood: 'AB-', condition: 'Work-Related Burnout & Chronic Insomnia', risk: 'Low' },
+    { email: 'patient5@healer.app', name: 'Lisa Anderson', blood: 'O-', condition: 'Post-Traumatic Stress Symptoms', risk: 'Moderate' },
   ];
 
   const createdPatients: { profileId: string; name: string }[] = [];
 
-  for (const p of patientData) {
+  for (const p of patientsData) {
     let pUser = await db.query.users.findFirst({ where: eq(users.email, p.email) });
     if (!pUser) {
       [pUser] = await db.insert(users).values({
         name: p.name,
         email: p.email,
         emailVerified: true,
-        role: 'user',
+        role: 'patient',
         status: 'active',
       }).returning();
 
@@ -206,7 +206,7 @@ async function main() {
     }
   }
 
-  // Seed Appointments
+  // 5. Seed Appointments
   const existingAppts = await db.query.appointments.findMany({ where: eq(appointments.doctorId, doctorProf.id) });
   let firstApptId: string | null = null;
   if (existingAppts.length === 0) {
@@ -254,7 +254,9 @@ async function main() {
         appointmentDate: a.appointmentDate,
         consultationType: a.consultationType,
         reason: a.reason,
+        consultationReason: a.reason,
         status: a.status,
+        appointmentStatus: a.status === 'completed' ? 'Completed' : a.status === 'canceled' ? 'Cancelled' : 'Scheduled',
       }))
     ).returning();
 
@@ -265,7 +267,7 @@ async function main() {
     firstApptId = existingAppts[0].id;
   }
 
-  // Seed Counseling Sessions
+  // 6. Seed Counseling Sessions
   const existingCounseling = await db.query.counselingSessions.findMany({ where: eq(counselingSessions.doctorId, doctorProf.id) });
   if (existingCounseling.length === 0) {
     const today = new Date();
@@ -300,7 +302,7 @@ async function main() {
     ]);
   }
 
-  // Seed Session Notes
+  // 7. Seed Session Notes
   const existingNotes = await db.query.sessionNotes.findMany({ where: eq(sessionNotes.doctorId, doctorProf.id) });
   if (existingNotes.length === 0) {
     await db.insert(sessionNotes).values([
@@ -326,7 +328,7 @@ async function main() {
     ]);
   }
 
-  // Seed Prescriptions
+  // 8. Seed Prescriptions
   const existingRx = await db.query.prescriptions.findMany({ where: eq(prescriptions.doctorId, doctorProf.id) });
   if (existingRx.length === 0) {
     await db.insert(prescriptions).values([
@@ -355,7 +357,7 @@ async function main() {
     ]);
   }
 
-  // Seed Reviews
+  // 9. Seed Reviews
   const existingReviews = await db.query.doctorReviews.findMany({ where: eq(doctorReviews.doctorId, doctorProf.id) });
   if (existingReviews.length === 0) {
     await db.insert(doctorReviews).values([
@@ -364,7 +366,174 @@ async function main() {
     ]);
   }
 
-  console.log('Seeding completed successfully with rich relational Doctor data.');
+  // 10. Seed Deterministic Wellness Rules (Table 13 from PDF specification)
+  const existingRules = await db.query.wellnessRules.findMany();
+  if (existingRules.length === 0) {
+    await db.insert(wellnessRules).values([
+      {
+        conditionType: 'Stress',
+        minimumValue: 8,
+        recommendedGoal: 'Reduce Stress',
+        recommendedActivity: 'Breathing Exercise',
+        priority: 'High',
+      },
+      {
+        conditionType: 'Anxiety',
+        minimumValue: 7,
+        recommendedGoal: 'Manage Anxiety',
+        recommendedActivity: 'Relaxation Exercise',
+        priority: 'High',
+      },
+      {
+        conditionType: 'Sleep',
+        minimumValue: 4,
+        recommendedGoal: 'Improve Sleep',
+        recommendedActivity: 'Sleep Routine',
+        priority: 'Medium',
+      },
+      {
+        conditionType: 'Mood',
+        minimumValue: null,
+        recommendedGoal: 'Improve Mood',
+        recommendedActivity: 'Journaling',
+        priority: 'Medium',
+      },
+    ]);
+  }
+
+  // 11. Seed Clinical Therapy Programs (Table 6 from PDF specification)
+  const existingPrograms = await db.query.therapyPrograms.findMany();
+  if (existingPrograms.length === 0) {
+    await db.insert(therapyPrograms).values([
+      {
+        title: 'CBT Anxiety Control',
+        resourceType: 'Therapy',
+        category: 'Anxiety',
+        description: 'Evidence-based cognitive behavioral therapy exercises for interrupting negative thought loops.',
+        difficultyLevel: 'Intermediate',
+        durationMinutes: 15,
+      },
+      {
+        title: 'Calm Breathing & Box Meditation',
+        resourceType: 'Meditation',
+        category: 'Anxiety',
+        description: 'Guided 4-4-4-4 box breathing technique to lower heart rate and reduce physiological panic.',
+        difficultyLevel: 'Beginner',
+        durationMinutes: 10,
+      },
+      {
+        title: 'Sleep Relaxation & Wind Down',
+        resourceType: 'Relaxation',
+        category: 'Sleep',
+        description: 'Progressive muscle relaxation and binaural sleep soundscapes for deeper REM restorative cycles.',
+        difficultyLevel: 'Beginner',
+        durationMinutes: 20,
+      },
+      {
+        title: 'Better Sleep Program',
+        resourceType: 'Therapy',
+        category: 'Sleep',
+        description: 'Comprehensive 7-day sleep hygiene protocols, circadian alignment, and bedtime journaling.',
+        difficultyLevel: 'Beginner',
+        durationMinutes: 25,
+      },
+    ]);
+  }
+
+  // 12. Seed Standardized Assessments & Questions (Tables 8 & 9 from PDF specification)
+  const existingAssessments = await db.query.assessments.findMany();
+  if (existingAssessments.length === 0) {
+    const [as1] = await db.insert(assessments).values({
+      title: 'Depression Screening Test (PHQ-9)',
+      category: 'Depression',
+      description: 'Measures clinical depression severity, cognitive fatigue, and loss of interest in activities.',
+      totalQuestions: 2,
+    }).returning();
+
+    if (as1) {
+      await db.insert(assessmentQuestions).values([
+        {
+          assessmentId: as1.id,
+          questionText: 'Feeling tired, fatigued, or having little energy?',
+          optionA: 'Never',
+          optionB: 'Several days',
+          optionC: 'More than half the days',
+          optionD: 'Nearly every day',
+          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
+          orderIndex: 1,
+        },
+        {
+          assessmentId: as1.id,
+          questionText: 'Little interest or pleasure in doing everyday activities?',
+          optionA: 'Never',
+          optionB: 'Several days',
+          optionC: 'More than half the days',
+          optionD: 'Nearly every day',
+          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
+          orderIndex: 2,
+        },
+      ]);
+    }
+
+    const [as2] = await db.insert(assessments).values({
+      title: 'Anxiety Assessment (GAD-7)',
+      category: 'Anxiety',
+      description: 'Screens for generalized anxiety symptoms, persistent rumination, and somatic nervousness.',
+      totalQuestions: 2,
+    }).returning();
+
+    if (as2) {
+      await db.insert(assessmentQuestions).values([
+        {
+          assessmentId: as2.id,
+          questionText: 'Do you feel excessive worry that is difficult to control?',
+          optionA: 'Not at all',
+          optionB: 'Mild (Several days)',
+          optionC: 'Moderate (Half days)',
+          optionD: 'Severe (Nearly daily)',
+          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
+          orderIndex: 1,
+        },
+        {
+          assessmentId: as2.id,
+          questionText: 'Do you experience restlessness or find it difficult to sit still and relax?',
+          optionA: 'Not at all',
+          optionB: 'Rarely',
+          optionC: 'Frequently',
+          optionD: 'Almost constantly',
+          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
+          orderIndex: 2,
+        },
+      ]);
+    }
+  }
+
+  // 13. Seed Community Groups (Table 16 from PDF specification)
+  const existingGroups = await db.query.communityGroups.findMany();
+  if (existingGroups.length === 0) {
+    await db.insert(communityGroups).values([
+      {
+        groupName: 'Anxiety Support & Recovery',
+        topic: 'Anxiety Recovery',
+        description: 'A compassionate, peer-supported safe haven for individuals managing panic and anxiety.',
+        anonymousAllowed: true,
+      },
+      {
+        groupName: 'Student & Academic Stress',
+        topic: 'Academic Pressure',
+        description: 'Discuss exam pressure, university expectations, and healthy work-life boundaries.',
+        anonymousAllowed: true,
+      },
+      {
+        groupName: 'Sleep Improvement & Insomnia',
+        topic: 'Sleep Improvement',
+        description: 'Techniques, bedtime routines, and support for restoring natural sleep cycles.',
+        anonymousAllowed: true,
+      },
+    ]);
+  }
+
+  console.log('Seeding completed successfully with doctor data and patient datasets.');
 }
 
 main().catch(console.error).finally(() => process.exit(0));
