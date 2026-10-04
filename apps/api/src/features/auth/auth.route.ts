@@ -26,7 +26,7 @@ authRouter.get('/me', async (c) => {
 
   const { user } = session;
 
-  const [patientProfile, doctorProfile, researcherProfile] = await Promise.all([
+  let [patientProfile, doctorProfile, researcherProfile] = await Promise.all([
     db.query.patientProfiles.findFirst({
       where: eq(patientProfiles.userId, user.id),
       columns: { id: true },
@@ -41,12 +41,40 @@ authRouter.get('/me', async (c) => {
     }),
   ]);
 
+  if (!doctorProfile && (user.role === 'doctor' || user.role === 'super_admin')) {
+    const [created] = await db
+      .insert(doctorProfiles)
+      .values({
+        userId: user.id,
+        specialization: 'General Medicine',
+        licenseNumber: 'MD-ACTIVE',
+      })
+      .onConflictDoNothing()
+      .returning({ id: doctorProfiles.id });
+    if (created) doctorProfile = created;
+  }
+
+  if (!patientProfile && (user.role === 'user' || user.role === 'patient' || user.role === 'doctor' || user.role === 'super_admin')) {
+    const [created] = await db
+      .insert(patientProfiles)
+      .values({
+        userId: user.id,
+      })
+      .onConflictDoNothing()
+      .returning({ id: patientProfiles.id });
+    if (created) patientProfile = created;
+  }
+
+  const isDoc = !!doctorProfile || user.role === 'doctor' || user.role === 'super_admin';
+  const isPat = !!patientProfile || user.role === 'user' || user.role === 'patient' || user.role === 'super_admin';
+  const isRes = !!researcherProfile || user.role === 'researcher' || user.role === 'super_admin';
+
   return c.json({
     ...session,
     profiles: {
-      isPatient: !!patientProfile,
-      isDoctor: !!doctorProfile,
-      isResearcher: !!researcherProfile,
+      isPatient: isPat,
+      isDoctor: isDoc,
+      isResearcher: isRes,
     },
   });
 });

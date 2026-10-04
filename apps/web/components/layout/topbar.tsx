@@ -2,9 +2,13 @@
 
 import { useSidebarStore } from "@/hooks/use-sidebar-store";
 import { Menu, Bell } from "lucide-react";
-import { AvatarDropdown } from "./avatar-dropdown";
+import { AvatarDropdown, AvatarUser } from "./avatar-dropdown";
 
-export function Topbar({ user }: { user: any }) {
+export interface TopbarProps {
+  user?: AvatarUser | null;
+}
+
+export function Topbar({ user }: TopbarProps) {
   const { toggle } = useSidebarStore();
 
   return (
