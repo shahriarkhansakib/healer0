@@ -3,22 +3,29 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { Calendar, Clock, Video, MessageSquare, MapPin, Plus, XCircle, CheckCircle, UserCheck } from "lucide-react";
+import { Calendar, Clock, Video, MessageSquare, MapPin, Plus, XCircle, CheckCircle, UserCheck, Star } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { PendingReviewBanner } from "@/components/features/reviews/pending-review-banner";
+import { DoctorReviewDialog, PendingReview } from "@/components/features/reviews/doctor-review-dialog";
 
 interface Appointment {
   id: string;
   patientId: string;
   doctorId: string;
+  doctorName?: string;
+  doctorSpecialization?: string;
   appointmentDate: string;
   consultationType: 'Chat' | 'Video' | 'Physical';
   consultationReason: string | null;
   sessionDurationMinutes: number;
   appointmentStatus: 'Scheduled' | 'Completed' | 'Cancelled';
   doctorNotes: string | null;
+  isReviewed?: boolean;
+  reviewRating?: number | null;
+  reviewComment?: string | null;
 }
 
 interface VisitSummary {
@@ -49,6 +56,22 @@ export default function AppointmentsPage() {
   const [appointmentDate, setAppointmentDate] = useState('');
   const [consultationType, setConsultationType] = useState<'Chat' | 'Video' | 'Physical'>('Video');
   const [consultationReason, setConsultationReason] = useState('');
+  const [selectedApptForReview, setSelectedApptForReview] = useState<PendingReview | null>(null);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+
+  const handleOpenReview = (appt: Appointment) => {
+    setSelectedApptForReview({
+      id: appt.id,
+      appointmentId: appt.id,
+      doctorId: appt.doctorId,
+      doctorName: appt.doctorName || 'Doctor',
+      doctorSpecialization: appt.doctorSpecialization || null,
+      appointmentDate: appt.appointmentDate,
+      consultationType: appt.consultationType,
+      sessionDurationMinutes: appt.sessionDurationMinutes,
+    });
+    setIsReviewOpen(true);
+  };
 
   // Fetch verified doctors list
   const { data: doctors, isLoading: loadingDoctors } = useQuery<DoctorInfo[]>({
@@ -125,6 +148,9 @@ export default function AppointmentsPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Pending Doctor Review Banner */}
+      <PendingReviewBanner />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Clinical Consultations & Visits</h1>
@@ -234,12 +260,15 @@ export default function AppointmentsPage() {
                 </div>
 
                 <div className="space-y-1 text-xs">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <div className="flex items-center gap-1.5 text-muted-foreground flex-wrap">
                     <Clock className="w-3.5 h-3.5" />
                     {new Date(appt.appointmentDate).toLocaleString([], {
                       dateStyle: 'medium',
                       timeStyle: 'short',
                     })} ({appt.sessionDurationMinutes} mins)
+                    {appt.doctorName && (
+                      <span className="text-foreground font-semibold">• Dr. {appt.doctorName}</span>
+                    )}
                   </div>
                   {appt.consultationReason && (
                     <p className="text-foreground mt-1">
@@ -265,6 +294,28 @@ export default function AppointmentsPage() {
                     >
                       <XCircle className="w-3.5 h-3.5 mr-1" /> Cancel Appointment
                     </Button>
+                  </div>
+                )}
+
+                {appt.appointmentStatus === 'Completed' && (
+                  <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                    <span className="text-xs text-muted-foreground">
+                      {appt.doctorName ? `Dr. ${appt.doctorName}` : 'Session completed'}
+                    </span>
+                    {appt.isReviewed ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        Rated {appt.reviewRating || 5}★
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenReview(appt)}
+                        className="bg-amber-500 hover:bg-amber-600 text-white text-xs h-8 px-3 flex items-center gap-1.5 shadow-xs"
+                      >
+                        <Star className="w-3.5 h-3.5 fill-white" /> Rate Consultation
+                      </Button>
+                    )}
                   </div>
                 )}
               </Card>
@@ -309,6 +360,13 @@ export default function AppointmentsPage() {
           </p>
         )}
       </div>
+
+      {/* Doctor Review Dialog */}
+      <DoctorReviewDialog
+        isOpen={isReviewOpen}
+        onClose={() => setIsReviewOpen(false)}
+        appointment={selectedApptForReview}
+      />
     </div>
   );
 }

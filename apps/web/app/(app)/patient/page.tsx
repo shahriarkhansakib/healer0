@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PendingReviewBanner } from "@/components/features/reviews/pending-review-banner";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -230,6 +231,9 @@ export default function PatientOverviewPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Pending Doctor Review Notification Banner */}
+      <PendingReviewBanner />
+
       {/* Hero Welcome Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/10 via-primary/5 to-secondary p-8 border">
         <div className="max-w-2xl space-y-3">

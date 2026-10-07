@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "@/lib/auth-client";
-import { LogOut, User, Stethoscope, HeartPulse, ArrowLeftRight } from "lucide-react";
+import { LogOut, User, Stethoscope, HeartPulse, ArrowLeftRight, AlertTriangle, ShieldCheck } from "lucide-react";
 import { useAuthProfiles } from "@/hooks/use-auth-profiles";
 
 export interface AvatarUser {
@@ -72,12 +72,30 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
           
           <div className="py-1">
             <Link 
-              href="/patient/settings"
+              href={isDoctorView ? "/doctor/profile" : "/patient/settings?tab=profile"}
               onClick={() => setOpen(false)}
               className="flex w-full items-center px-4 py-2 text-sm hover:bg-muted text-foreground transition-colors cursor-pointer"
             >
               <User className="w-4 h-4 mr-2.5 text-muted-foreground" />
-              Profile
+              Profile & Settings
+            </Link>
+
+            <Link 
+              href="/patient/settings?tab=crisis"
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center px-4 py-2 text-sm hover:bg-muted text-foreground transition-colors cursor-pointer group"
+            >
+              <AlertTriangle className="w-4 h-4 mr-2.5 text-amber-500 group-hover:scale-110 transition-transform" />
+              Crisis Support
+            </Link>
+
+            <Link 
+              href="/patient/settings?tab=privacy"
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center px-4 py-2 text-sm hover:bg-muted text-foreground transition-colors cursor-pointer group"
+            >
+              <ShieldCheck className="w-4 h-4 mr-2.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              Privacy & Consent
             </Link>
 
             {isEligibleForTwoIdentities && (

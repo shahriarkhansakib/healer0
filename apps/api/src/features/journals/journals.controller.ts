@@ -11,6 +11,7 @@ const CreateJournalSchema = z.object({
   mood: z
     .enum(['Happy', 'Sad', 'Normal', 'Stressed', 'Anxious', 'Angry', 'Calm', 'Worried', 'Grateful'])
     .optional(),
+  entryDate: z.string().optional(),
 });
 
 const UpdateJournalSchema = z.object({
@@ -19,6 +20,7 @@ const UpdateJournalSchema = z.object({
   mood: z
     .enum(['Happy', 'Sad', 'Normal', 'Stressed', 'Anxious', 'Angry', 'Calm', 'Worried', 'Grateful'])
     .optional(),
+  entryDate: z.string().optional(),
 });
 
 export const JournalsController = {

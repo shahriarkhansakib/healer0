@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { Settings, User, Bell, Shield, Save, CheckCircle, Globe, Smartphone } from "lucide-react";
+import { Settings, User, Save, ShieldCheck, AlertTriangle } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { PrivacyView } from "@/components/features/privacy/privacy-view";
+import { EmergencyView } from "@/components/features/emergency/emergency-view";
 
 interface AccountProfileResponse {
   user: {
@@ -37,11 +40,26 @@ interface UserPreferences {
   notificationEnabled: boolean;
 }
 
-export default function PatientSettingsPage() {
-  const queryClient = useQueryClient();
+type TabType = 'profile' | 'preferences' | 'privacy' | 'crisis';
 
-  // Tab selection
-  const [activeTab, setActiveTab] = useState<'profile' | 'preferences'>('profile');
+function PatientSettingsContent() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<TabType>('profile');
+
+  useEffect(() => {
+    if (tabParam === 'preferences' || tabParam === 'privacy' || tabParam === 'crisis' || tabParam === 'profile') {
+      setActiveTab(tabParam as TabType);
+    }
+  }, [tabParam]);
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    router.replace(`/patient/settings?tab=${tab}`, { scroll: false });
+  };
 
   // Form states for Profile
   const [fullName, setFullName] = useState('');
@@ -137,17 +155,17 @@ export default function PatientSettingsPage() {
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Account Settings & Profile</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Account Settings & Safety</h1>
         <p className="text-sm text-muted-foreground">
-          Manage your personal demographics, communication details, and application preferences.
+          Manage your personal demographics, preferences, privacy permissions, and crisis support contacts.
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b pb-2">
+      <div className="flex flex-wrap gap-2 border-b pb-2">
         <button
-          onClick={() => setActiveTab('profile')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+          onClick={() => handleTabChange('profile')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
             activeTab === 'profile'
               ? 'bg-primary text-primary-foreground shadow-xs'
               : 'text-muted-foreground hover:bg-muted'
@@ -156,14 +174,34 @@ export default function PatientSettingsPage() {
           <User className="w-4 h-4" /> Personal Information
         </button>
         <button
-          onClick={() => setActiveTab('preferences')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+          onClick={() => handleTabChange('preferences')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
             activeTab === 'preferences'
               ? 'bg-primary text-primary-foreground shadow-xs'
               : 'text-muted-foreground hover:bg-muted'
           }`}
         >
           <Settings className="w-4 h-4" /> Application Preferences
+        </button>
+        <button
+          onClick={() => handleTabChange('privacy')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+            activeTab === 'privacy'
+              ? 'bg-primary text-primary-foreground shadow-xs'
+              : 'text-muted-foreground hover:bg-muted'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4" /> Privacy & Consent
+        </button>
+        <button
+          onClick={() => handleTabChange('crisis')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+            activeTab === 'crisis'
+              ? 'bg-destructive text-destructive-foreground shadow-xs'
+              : 'text-muted-foreground hover:bg-muted'
+          }`}
+        >
+          <AlertTriangle className="w-4 h-4" /> Crisis Support
         </button>
       </div>
 
@@ -329,6 +367,24 @@ export default function PatientSettingsPage() {
           )}
         </div>
       )}
+
+      {/* Privacy & Consent Tab */}
+      {activeTab === 'privacy' && (
+        <PrivacyView />
+      )}
+
+      {/* Crisis Support Tab */}
+      {activeTab === 'crisis' && (
+        <EmergencyView />
+      )}
     </div>
+  );
+}
+
+export default function PatientSettingsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-muted-foreground">Loading settings...</div>}>
+      <PatientSettingsContent />
+    </Suspense>
   );
 }

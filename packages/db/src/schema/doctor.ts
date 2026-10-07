@@ -19,6 +19,7 @@ export const doctorReviews = pgTable('doctor_reviews', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   doctorId: text('doctor_id').notNull().references(() => doctorProfiles.id, { onDelete: 'cascade' }),
   patientId: text('patient_id').references(() => patientProfiles.id, { onDelete: 'set null' }),
+  appointmentId: text('appointment_id').references(() => appointments.id, { onDelete: 'set null' }),
   patientName: text('patient_name').notNull().default('Anonymous Patient'),
   rating: integer('rating').notNull().default(5),
   comment: text('comment').notNull(),

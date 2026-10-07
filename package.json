@@ -9,6 +9,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "db:generate": "pnpm --filter @healer/db generate",
+    "db:migrate": "pnpm --filter @healer/db migrate",
     "db:push": "pnpm --filter @healer/db push --force",
     "db:seed": "pnpm --filter @healer/db seed",
     "db:reset": "docker compose down -v --remove-orphans && docker compose up -d && node -e \"setTimeout(()=>{},3000)\" && pnpm db:push && pnpm db:seed"

@@ -5,6 +5,7 @@ import {
   users,
   doctorProfiles,
   patientProfiles,
+  doctorReviews,
   eq,
   desc,
   and,
@@ -115,10 +116,185 @@ export const AppointmentsService = {
     const ids = [patientUserId];
     if (patientProfile) ids.push(patientProfile.id);
 
-    return db.query.appointments.findMany({
+    const appts = await db.query.appointments.findMany({
       where: inArray(appointments.patientId, ids),
       orderBy: [desc(appointments.appointmentDate)],
     });
+
+    if (appts.length === 0) return [];
+
+    const doctorProfileIds = Array.from(new Set(appts.map((a) => a.doctorId)));
+    const doctorList = await db.query.doctorProfiles.findMany({
+      where: or(
+        inArray(doctorProfiles.id, doctorProfileIds),
+        inArray(doctorProfiles.userId, doctorProfileIds)
+      ),
+      columns: { id: true, userId: true, specialization: true },
+    });
+
+    const doctorUserIds = doctorList.map((d) => d.userId);
+    const doctorUsers = doctorUserIds.length > 0
+      ? await db.query.users.findMany({
+          where: inArray(users.id, doctorUserIds),
+          columns: { id: true, name: true },
+        })
+      : [];
+
+    const userMap = new Map(doctorUsers.map((u) => [u.id, u.name]));
+    const doctorMap = new Map<string, { name: string; specialization: string | null }>();
+    doctorList.forEach((d) => {
+      const info = { name: userMap.get(d.userId) || 'Doctor', specialization: d.specialization };
+      doctorMap.set(d.id, info);
+      doctorMap.set(d.userId, info);
+    });
+
+    const apptIds = appts.map((a) => a.id);
+    const reviews = await db.query.doctorReviews.findMany({
+      where: inArray(doctorReviews.appointmentId, apptIds),
+    });
+    const reviewMap = new Map(reviews.map((r) => [r.appointmentId, r]));
+
+    return appts.map((a) => {
+      const doc = doctorMap.get(a.doctorId);
+      const rev = reviewMap.get(a.id);
+      return {
+        ...a,
+        doctorName: doc?.name || 'Doctor',
+        doctorSpecialization: doc?.specialization || 'Clinical Specialist',
+        isReviewed: !!rev,
+        reviewRating: rev?.rating ?? null,
+        reviewComment: rev?.comment ?? null,
+      };
+    });
+  },
+
+  async listPendingReviewsForPatient(patientUserId: string) {
+    const patientProfile = await db.query.patientProfiles.findFirst({
+      where: eq(patientProfiles.userId, patientUserId),
+      columns: { id: true },
+    });
+    const ids = [patientUserId];
+    if (patientProfile) ids.push(patientProfile.id);
+
+    const completedAppts = await db.query.appointments.findMany({
+      where: and(
+        inArray(appointments.patientId, ids),
+        or(
+          eq(appointments.appointmentStatus, 'Completed'),
+          eq(appointments.status, 'completed')
+        )
+      ),
+      orderBy: [desc(appointments.appointmentDate)],
+    });
+
+    if (completedAppts.length === 0) return [];
+
+    const apptIds = completedAppts.map((a) => a.id);
+    const existingReviews = await db.query.doctorReviews.findMany({
+      where: inArray(doctorReviews.appointmentId, apptIds),
+      columns: { appointmentId: true },
+    });
+    const reviewedSet = new Set(existingReviews.map((r) => r.appointmentId).filter(Boolean));
+
+    const unreviewed = completedAppts.filter((a) => !reviewedSet.has(a.id));
+    if (unreviewed.length === 0) return [];
+
+    const doctorProfileIds = Array.from(new Set(unreviewed.map((a) => a.doctorId)));
+    const doctorList = await db.query.doctorProfiles.findMany({
+      where: or(
+        inArray(doctorProfiles.id, doctorProfileIds),
+        inArray(doctorProfiles.userId, doctorProfileIds)
+      ),
+      columns: { id: true, userId: true, specialization: true },
+    });
+
+    const doctorUserIds = doctorList.map((d) => d.userId);
+    const doctorUsers = doctorUserIds.length > 0
+      ? await db.query.users.findMany({
+          where: inArray(users.id, doctorUserIds),
+          columns: { id: true, name: true },
+        })
+      : [];
+
+    const userMap = new Map(doctorUsers.map((u) => [u.id, u.name]));
+    const doctorMap = new Map<string, { name: string; specialization: string | null }>();
+    doctorList.forEach((d) => {
+      const info = { name: userMap.get(d.userId) || 'Doctor', specialization: d.specialization };
+      doctorMap.set(d.id, info);
+      doctorMap.set(d.userId, info);
+    });
+
+    return unreviewed.map((a) => {
+      const doc = doctorMap.get(a.doctorId);
+      return {
+        id: a.id,
+        appointmentId: a.id,
+        doctorId: a.doctorId,
+        doctorName: doc?.name || 'Doctor',
+        doctorSpecialization: doc?.specialization || 'Clinical Specialist',
+        appointmentDate: a.appointmentDate,
+        consultationType: a.consultationType,
+        sessionDurationMinutes: a.sessionDurationMinutes,
+      };
+    });
+  },
+
+  async submitAppointmentReview(
+    patientUserId: string,
+    appointmentId: string,
+    payload: { rating: number; comment?: string }
+  ) {
+    const patientProfile = await db.query.patientProfiles.findFirst({
+      where: eq(patientProfiles.userId, patientUserId),
+      columns: { id: true },
+    });
+    const ids = [patientUserId];
+    if (patientProfile) ids.push(patientProfile.id);
+
+    const appt = await db.query.appointments.findFirst({
+      where: and(
+        eq(appointments.id, appointmentId),
+        inArray(appointments.patientId, ids)
+      ),
+    });
+
+    if (!appt) {
+      throw new Error('Appointment not found or unauthorized');
+    }
+
+    const existing = await db.query.doctorReviews.findFirst({
+      where: eq(doctorReviews.appointmentId, appointmentId),
+    });
+    if (existing) {
+      throw new Error('This appointment has already been reviewed');
+    }
+
+    const docProfile = await db.query.doctorProfiles.findFirst({
+      where: or(
+        eq(doctorProfiles.id, appt.doctorId),
+        eq(doctorProfiles.userId, appt.doctorId)
+      ),
+      columns: { id: true },
+    });
+
+    const patientUser = await db.query.users.findFirst({
+      where: eq(users.id, patientUserId),
+      columns: { name: true },
+    });
+
+    const [review] = await db
+      .insert(doctorReviews)
+      .values({
+        doctorId: docProfile?.id || appt.doctorId,
+        patientId: patientProfile?.id || null,
+        appointmentId: appt.id,
+        patientName: patientUser?.name || 'Anonymous Patient',
+        rating: payload.rating,
+        comment: payload.comment?.trim() || 'Session completed.',
+      })
+      .returning();
+
+    return review;
   },
 
   async listAppointmentsForDoctor(doctorUserId: string) {

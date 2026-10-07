@@ -39,6 +39,11 @@ const CompleteAppointmentSchema = z.object({
   doctorNotes: z.string().max(5000).optional(),
 });
 
+const SubmitReviewSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().max(2000).optional(),
+});
+
 export const AppointmentsController = {
   async create(c: Context<{ Variables: AuthVariables }>) {
     const user = c.get('user');
@@ -161,6 +166,36 @@ export const AppointmentsController = {
       return c.json(doctors, 200);
     } catch (err: unknown) {
       logger.error({ err }, 'AppointmentsController.listDoctors failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+
+  async listPendingReviews(c: Context<{ Variables: AuthVariables }>) {
+    const user = c.get('user');
+    try {
+      const pending = await AppointmentsService.listPendingReviewsForPatient(user.id);
+      return c.json(pending, 200);
+    } catch (err: unknown) {
+      logger.error({ err }, 'AppointmentsController.listPendingReviews failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+
+  async submitReview(c: Context<{ Variables: AuthVariables }>) {
+    const user = c.get('user');
+    const id = requireParam(c, 'id');
+    const rawBody = await c.req.json().catch(() => null);
+    const parsed = SubmitReviewSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return c.json({ error: 'Bad Request', message: parsed.error.flatten().fieldErrors }, 400);
+    }
+    try {
+      const review = await AppointmentsService.submitAppointmentReview(user.id, id, parsed.data);
+      return c.json({ success: true, review }, 201);
+    } catch (err: unknown) {
+      logger.error({ err }, 'AppointmentsController.submitReview failed');
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       return c.json({ error: 'Internal Server Error', message }, 500);
     }

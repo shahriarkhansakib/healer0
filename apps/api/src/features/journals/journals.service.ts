@@ -4,12 +4,14 @@ export type CreateJournalPayload = {
   title: string;
   content: string;
   mood?: string;
+  entryDate?: string | Date;
 };
 
 export type UpdateJournalPayload = {
   title?: string;
   content?: string;
   mood?: string;
+  entryDate?: string | Date;
 };
 
 export const JournalsService = {
@@ -17,6 +19,7 @@ export const JournalsService = {
     // Deterministic sentiment analysis — derived from mood tag and keyword heuristics.
     const aiSentiment = deriveAiSentiment(payload.mood, payload.content);
     const aiSummary = deriveAiSummary(payload.content);
+    const entryDate = payload.entryDate ? new Date(payload.entryDate) : new Date();
 
     const [journal] = await db
       .insert(journals)
@@ -27,6 +30,7 @@ export const JournalsService = {
         mood: payload.mood ?? null,
         aiSentiment,
         aiSummary,
+        entryDate,
       })
       .returning();
     return journal;
@@ -35,7 +39,7 @@ export const JournalsService = {
   async listForUser(userId: string) {
     return db.query.journals.findMany({
       where: eq(journals.userId, userId),
-      orderBy: [desc(journals.createdAt)],
+      orderBy: [desc(journals.entryDate), desc(journals.createdAt)],
     });
   },
 
@@ -65,6 +69,7 @@ export const JournalsService = {
         mood: newMood ?? null,
         aiSentiment,
         aiSummary,
+        ...(payload.entryDate ? { entryDate: new Date(payload.entryDate) } : {}),
       })
       .where(and(eq(journals.id, id), eq(journals.userId, userId)))
       .returning();

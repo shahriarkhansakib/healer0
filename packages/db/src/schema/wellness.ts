@@ -9,6 +9,7 @@ export const journals = pgTable('journals', {
   mood: text('mood'), // e.g. 'Worried', 'Happy', 'Sad'
   aiSentiment: text('ai_sentiment'), // 'Positive', 'Negative', 'Low Mood'
   aiSummary: text('ai_summary'),
+  entryDate: timestamp('entry_date', { mode: 'date' }).defaultNow().notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull().$onUpdate(() => new Date()),
 });

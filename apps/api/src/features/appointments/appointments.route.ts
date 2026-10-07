@@ -23,6 +23,8 @@ appointmentsRouter.patch('/:id/status', updateAppointmentStatusHandler);
 // Patient-side specific routes
 appointmentsRouter.get('/doctors', AppointmentsController.listDoctors);
 appointmentsRouter.get('/summaries', AppointmentsController.listVisitSummaries);
+appointmentsRouter.get('/pending-reviews', AppointmentsController.listPendingReviews);
+appointmentsRouter.post('/:id/review', AppointmentsController.submitReview);
 appointmentsRouter.post('/', AppointmentsController.create);
 appointmentsRouter.patch('/:id/cancel', AppointmentsController.cancel);
 
