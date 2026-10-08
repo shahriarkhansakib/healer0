@@ -2,6 +2,9 @@ import { pgTable, text, timestamp, boolean, jsonb, pgEnum } from 'drizzle-orm/pg
 
 export const systemRoleEnum = pgEnum('system_role', [
   'user',
+  'patient',
+  'doctor',
+  'researcher',
   'admin',
   'super_admin',
 ]);
@@ -18,6 +21,7 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
+  phone: text('phone'),
   role: systemRoleEnum('role').notNull().default('user'),
   status: accountStatusEnum('status').notNull().default('active'),
   requiresPasswordReset: boolean('requires_password_reset').notNull().default(false),

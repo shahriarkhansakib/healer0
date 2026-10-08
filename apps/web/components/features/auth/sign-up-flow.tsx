@@ -49,8 +49,10 @@ export function SignUpFlow() {
       // Doctor profile is provisioned if the doctor option was enabled.
       const res = await fetch("/api/auth/setup-profiles", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          userId: (data as any)?.user?.id,
           isDoctor,
           specialization: isDoctor ? specialization : undefined,
           licenseNumber: isDoctor ? licenseNumber : undefined,

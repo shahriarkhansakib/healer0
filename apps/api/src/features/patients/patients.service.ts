@@ -1,4 +1,4 @@
-import { db, doctorProfiles, patientRecords, eq, desc } from '@healer/db';
+import { db, doctorProfiles, patientRecords, patientProfiles, eq, desc } from '@healer/db';
 
 export async function getDoctorPatientRecordsService(userId: string, riskFilter?: string) {
   const doctor = await db.query.doctorProfiles.findFirst({
@@ -34,3 +34,9 @@ export async function updatePatientRiskLevelService(userId: string, recordId: st
 
   return updated;
 }
+
+export const PatientsService = {
+  async list() {
+    return db.query.patientProfiles.findMany();
+  },
+};

@@ -1,5 +1,11 @@
-import { Context } from 'hono';
-import { getDoctorPatientRecordsService, updatePatientRiskLevelService } from './patients.service';
+import type { Context } from 'hono';
+import type { AuthVariables } from '../../infra/middleware/auth';
+import { 
+  getDoctorPatientRecordsService, 
+  updatePatientRiskLevelService, 
+  PatientsService 
+} from './patients.service';
+import { logger } from '../../infra/lib/logger';
 
 export async function getDoctorPatientsHandler(c: Context) {
   const user = c.get('user');
@@ -19,3 +25,15 @@ export async function updatePatientRiskHandler(c: Context) {
   return c.json({ data: updated });
 }
 
+export const PatientsController = {
+  async list(c: Context<{ Variables: AuthVariables }>) {
+    try {
+      const result = await PatientsService.list();
+      return c.json(result, 200);
+    } catch (err: unknown) {
+      logger.error({ err }, 'PatientsController.list failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+};

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -7,19 +9,22 @@ interface SidebarNavLinkProps {
   icon: React.ReactNode;
   label: string;
   isCollapsed?: boolean;
+  isSubItem?: boolean;
 }
 
-export function SidebarNavLink({ href, icon, label, isCollapsed }: SidebarNavLinkProps) {
+export function SidebarNavLink({ href, icon, label, isCollapsed, isSubItem }: SidebarNavLinkProps) {
   const pathname = usePathname();
-  const isRootDashboard = ['/patient', '/doctor', '/researcher', '/admin', '/super-admin'].includes(href);
-  const isActive = isRootDashboard ? pathname === href : (pathname === href || pathname.startsWith(`${href}/`));
+  const isBaseDashboard = ['/patient', '/doctor', '/researcher', '/admin', '/super-admin'].includes(href);
+  const isActive = isBaseDashboard ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   const isDoctorRoute = pathname.startsWith('/doctor');
 
   return (
     <Link
       href={href}
+      title={isCollapsed ? label : undefined}
       className={cn(
-        "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 group",
+        "relative flex items-center gap-3 rounded-xl transition-all duration-200 group cursor-pointer",
+        isSubItem ? "px-3 pl-8 py-2 text-[13px] font-medium" : "px-3 py-2.5 text-sm font-medium",
         isDoctorRoute
           ? isActive 
             ? "bg-teal-50/90 text-teal-800 font-semibold shadow-xs" 

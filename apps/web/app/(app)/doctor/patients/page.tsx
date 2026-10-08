@@ -54,7 +54,7 @@ export default function PatientRecordsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search patient or condition..."
+              placeholder="Search patients or condition..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
@@ -63,17 +63,17 @@ export default function PatientRecordsPage() {
         </div>
       </div>
 
-      {/* Risk Filter Buttons */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      {/* Risk Filter Tabs */}
+      <div className="flex flex-wrap gap-2">
         {["all", "Low", "Moderate", "High", "Critical"].map((risk) => (
           <button
             key={risk}
             onClick={() => setSelectedRisk(risk)}
             className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-semibold capitalize transition-colors",
+              "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
               selectedRisk === risk
                 ? "bg-teal-50 text-teal-700 border border-teal-200/80 shadow-2xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                : "text-slate-600 hover:bg-slate-100"
             )}
           >
             {risk === "all" ? "All Patients" : `${risk} Risk`}

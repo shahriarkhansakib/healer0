@@ -6,11 +6,18 @@ import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL,
-  secret: process.env.BETTER_AUTH_SECRET,
+  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:5007',
+  secret: process.env.BETTER_AUTH_SECRET || 'super-secret-better-auth-key-change-me',
   trustedOrigins: [
-    (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5007').replace(/['"]/g, '').replace(/\/+$/, ''),
-  ],
+    'http://localhost:5007',
+    'http://localhost:5002',
+    'http://localhost:3000',
+    'http://127.0.0.1:5007',
+    'http://127.0.0.1:5002',
+    'http://127.0.0.1:3000',
+    (process.env.NEXT_PUBLIC_APP_URL || '').replace(/['"]/g, '').replace(/\/+$/, ''),
+    (process.env.BETTER_AUTH_URL || '').replace(/['"]/g, '').replace(/\/+$/, ''),
+  ].filter(Boolean),
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema: {

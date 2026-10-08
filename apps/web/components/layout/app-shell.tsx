@@ -2,7 +2,7 @@
 
 import { useSession } from "@/lib/auth-client";
 import { usePathname } from "next/navigation";
-import { Sidebar } from "./sidebar";
+import { Sidebar, SystemRole } from "./sidebar";
 import { Topbar } from "./topbar";
 import { cn } from "@/lib/utils";
 
@@ -16,30 +16,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const isDoctor = pathname.startsWith('/doctor');
 
-  // Determine active domain role context from current path (e.g. /doctor -> 'doctor')
-  let activeRole: 'patient' | 'doctor' | 'researcher' | 'admin' | 'super_admin' = 'patient';
-  if (isDoctor) {
-    activeRole = 'doctor';
-  } else if (pathname.startsWith('/researcher')) {
-    activeRole = 'researcher';
-  } else if (pathname.startsWith('/admin')) {
-    activeRole = 'admin';
-  } else if (pathname.startsWith('/super-admin')) {
-    activeRole = 'super_admin';
-  } else if (pathname.startsWith('/patient')) {
-    activeRole = 'patient';
-  } else if (session.user.role === 'admin') {
-    activeRole = 'admin';
-  } else if (session.user.role === 'super_admin') {
-    activeRole = 'super_admin';
-  }
+  const getRoleFromPath = (path: string): SystemRole | null => {
+    if (path.startsWith('/doctor')) return 'doctor';
+    if (path.startsWith('/researcher')) return 'researcher';
+    if (path.startsWith('/admin')) return 'admin';
+    if (path.startsWith('/super-admin')) return 'super_admin';
+    if (path.startsWith('/patient')) return 'patient';
+    return null;
+  };
+
+  const rawRole = (session.user as any)?.role;
+  const mappedRole: SystemRole =
+    getRoleFromPath(pathname) ||
+    (rawRole === 'user' ? 'patient' : rawRole) ||
+    'patient';
 
   return (
     <div className={cn(
       "flex h-screen bg-background text-foreground overflow-hidden",
       isDoctor && "doctor-theme bg-slate-50 text-slate-900"
     )}>
-      <Sidebar role={activeRole} />
+      <Sidebar role={mappedRole} />
       <div className={cn(
         "flex flex-col flex-1 min-w-0 bg-background text-foreground",
         isDoctor && "bg-slate-50 text-slate-900"
@@ -55,4 +52,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

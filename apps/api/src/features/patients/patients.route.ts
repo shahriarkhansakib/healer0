@@ -1,14 +1,27 @@
 import { Hono } from 'hono';
-import { requireAuth } from '../../infra/middleware/auth';
-import { requireProfile } from '../../infra/middleware/profile';
-import { getDoctorPatientsHandler, updatePatientRiskHandler } from './patients.controller';
+import {
+  requireAuth,
+  requireActiveAccount,
+} from '../../infra/middleware';
+import type { AuthVariables } from '../../infra/middleware/auth';
+import { 
+  getDoctorPatientsHandler, 
+  updatePatientRiskHandler, 
+  PatientsController 
+} from './patients.controller';
 
-const patientsRouter = new Hono();
+const patientsRouter = new Hono<{ Variables: AuthVariables }>();
 
-patientsRouter.use('*', requireAuth);
-patientsRouter.use('*', requireProfile('doctor'));
+patientsRouter.use('*', requireAuth, requireActiveAccount);
 
-patientsRouter.get('/', getDoctorPatientsHandler);
+patientsRouter.get('/', async (c) => {
+  const user = c.get('user');
+  if (user?.role === 'admin' || user?.role === 'super_admin') {
+    return PatientsController.list(c);
+  }
+  return getDoctorPatientsHandler(c);
+});
+
 patientsRouter.patch('/:id/risk', updatePatientRiskHandler);
 
 export { patientsRouter };
