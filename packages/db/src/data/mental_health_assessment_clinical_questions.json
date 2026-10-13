@@ -1,0 +1,3446 @@
+{
+  "schemaVersion": "2.0.0",
+  "title": "Clinical Mental Health Assessment Battery — Standardized Instruments & Non-Redundant Supplemental Items",
+  "language": "en",
+  "totalQuestionCount": 78,
+  "numberOfAssessments": 7,
+  "skippedSimilarQuestionsCount": 22,
+  "assessments": [
+    {
+      "id": "PHQ9",
+      "name": "Depressive symptoms",
+      "basedOn": "Patient Health Questionnaire-9 (PHQ-9)",
+      "referenceSourceUrl": "https://www.pfizer.com/news/press-release/press-release-detail/pfizer_to_offer_free_public_access_to_mental_health_assessment_tools_to_improve_diagnosis_and_patient_care",
+      "questionCount": 14,
+      "questionIds": [
+        "PHQ9_01",
+        "PHQ9_02",
+        "PHQ9_03",
+        "PHQ9_04",
+        "PHQ9_05",
+        "PHQ9_06",
+        "PHQ9_07",
+        "PHQ9_08",
+        "PHQ9_09",
+        "PHQ9_S01",
+        "PHQ9_S03",
+        "PHQ9_S04",
+        "PHQ9_S05",
+        "PHQ9_S06"
+      ],
+      "timeframe": "past_2_weeks",
+      "scoring": {
+        "method": "sum_selected_option_scores",
+        "min": 0,
+        "max": 27,
+        "scoreDirection": "higher_indicates_more_symptoms",
+        "missingAnswers": "do_not_compute_until_all_items_answered_or_the_user_explicitly_ends_the_assessment",
+        "validForClinicalDecisions": false,
+        "interpretationDisplay": "Show the score and the construct measured, not a diagnosis. Wording here is not validated; professional review and official original wording are required before applying established cutoffs."
+      },
+      "officialReferenceBands": {
+        "enabled": false,
+        "reason": "The questions below are paraphrases, not the original validated scale items. Do not automatically use published clinical cutoffs on modified wording.",
+        "source": "https://www.cdc.gov/nchs/products/databriefs/db172.htm",
+        "ranges": [
+          {
+            "min": 0,
+            "max": 4,
+            "label": "minimal depressive symptom severity"
+          },
+          {
+            "min": 5,
+            "max": 9,
+            "label": "mild depressive symptom severity"
+          },
+          {
+            "min": 10,
+            "max": 14,
+            "label": "moderate depressive symptom severity"
+          },
+          {
+            "min": 15,
+            "max": 19,
+            "label": "moderately severe depressive symptom severity"
+          },
+          {
+            "min": 20,
+            "max": 27,
+            "label": "severe depressive symptom severity"
+          }
+        ]
+      },
+      "supplementalQuestionCount": 8,
+      "supplementalQuestionIds": [
+        "PHQ9_S01",
+        "PHQ9_S03",
+        "PHQ9_S04",
+        "PHQ9_S05",
+        "PHQ9_S06"
+      ],
+      "totalAvailableQuestionCount": 17,
+      "supplementalScoring": {
+        "mode": "prototype_only_raw_sum_separate_from_core",
+        "min": 0,
+        "max": 24,
+        "scoreDirection": "higher_indicates_more_reported_depressive_symptom_experiences",
+        "validatedCutoffs": null,
+        "predictsMentalHealthCondition": false,
+        "displayClinicalSeverity": false,
+        "note": "Added items are original and unvalidated. Never add their scores to the named reference scale, or infer disorders or severity from this subtotal."
+      }
+    },
+    {
+      "id": "GAD7",
+      "name": "Anxiety symptoms",
+      "basedOn": "Generalized Anxiety Disorder-7 (GAD-7)",
+      "referenceSourceUrl": "https://mc3michigan.org/gad-7-screener-scoring-tool/",
+      "questionCount": 11,
+      "questionIds": [
+        "GAD7_01",
+        "GAD7_02",
+        "GAD7_03",
+        "GAD7_04",
+        "GAD7_05",
+        "GAD7_06",
+        "GAD7_07",
+        "GAD7_S01",
+        "GAD7_S02",
+        "GAD7_S03",
+        "GAD7_S04"
+      ],
+      "timeframe": "past_2_weeks",
+      "scoring": {
+        "method": "sum_selected_option_scores",
+        "min": 0,
+        "max": 21,
+        "scoreDirection": "higher_indicates_more_symptoms",
+        "missingAnswers": "do_not_compute_until_all_items_answered_or_the_user_explicitly_ends_the_assessment",
+        "validForClinicalDecisions": false,
+        "interpretationDisplay": "Show the score and the construct measured, not a diagnosis. Wording here is not validated; professional review and official original wording are required before applying established cutoffs."
+      },
+      "officialReferenceBands": {
+        "enabled": false,
+        "reason": "The questions below are paraphrases, not the original validated scale items. Do not automatically use published clinical cutoffs on modified wording.",
+        "source": "https://mc3michigan.org/gad-7-screener-scoring-tool/",
+        "ranges": [
+          {
+            "min": 0,
+            "max": 4,
+            "label": "minimal anxiety symptom severity"
+          },
+          {
+            "min": 5,
+            "max": 9,
+            "label": "mild anxiety symptom severity"
+          },
+          {
+            "min": 10,
+            "max": 14,
+            "label": "moderate anxiety symptom severity"
+          },
+          {
+            "min": 15,
+            "max": 21,
+            "label": "severe anxiety symptom severity"
+          }
+        ]
+      },
+      "supplementalQuestionCount": 8,
+      "supplementalQuestionIds": [
+        "GAD7_S01",
+        "GAD7_S02",
+        "GAD7_S03",
+        "GAD7_S04"
+      ],
+      "totalAvailableQuestionCount": 15,
+      "supplementalScoring": {
+        "mode": "prototype_only_raw_sum_separate_from_core",
+        "min": 0,
+        "max": 24,
+        "scoreDirection": "higher_indicates_more_reported_anxiety_related_experiences",
+        "validatedCutoffs": null,
+        "predictsMentalHealthCondition": false,
+        "displayClinicalSeverity": false,
+        "note": "Added items are original and unvalidated. Never add their scores to the named reference scale, or infer disorders or severity from this subtotal."
+      }
+    },
+    {
+      "id": "K6",
+      "name": "General psychological distress",
+      "basedOn": "Kessler Psychological Distress Scale (K6)",
+      "referenceSourceUrl": "https://rckessler.scholars.harvard.edu/k10-and-k6-scales",
+      "questionCount": 10,
+      "questionIds": [
+        "K6_01",
+        "K6_02",
+        "K6_03",
+        "K6_04",
+        "K6_05",
+        "K6_06",
+        "K6_S03",
+        "K6_S05",
+        "K6_S06",
+        "K6_S07"
+      ],
+      "timeframe": "past_30_days",
+      "scoring": {
+        "method": "sum_selected_option_scores",
+        "min": 0,
+        "max": 24,
+        "scoreDirection": "higher_indicates_more_distress",
+        "missingAnswers": "do_not_compute_until_all_items_answered_or_the_user_explicitly_ends_the_assessment",
+        "validForClinicalDecisions": false,
+        "interpretationDisplay": "Show the score and the construct measured, not a diagnosis. Wording here is not validated; professional review and official original wording are required before applying established cutoffs."
+      },
+      "officialReferenceBands": {
+        "enabled": false,
+        "reason": "The questions below are paraphrases, not the original validated scale items. Do not automatically use published clinical cutoffs on modified wording.",
+        "source": "https://www.inspq.qc.ca/en/post-disaster-mental-health-impacts-surveillance-toolkit/standardized-measurement-instruments/information-sheets-standardized-measurement-instruments-recommended/psychological-distress",
+        "threshold_note": "A score of 13 or more is used as a high psychological distress screening cutpoint in some validated settings; population-specific validation matters.",
+        "threshold_score": 13
+      },
+      "supplementalQuestionCount": 7,
+      "supplementalQuestionIds": [
+        "K6_S03",
+        "K6_S05",
+        "K6_S06",
+        "K6_S07"
+      ],
+      "totalAvailableQuestionCount": 13,
+      "supplementalScoring": {
+        "mode": "prototype_only_raw_sum_separate_from_core",
+        "min": 0,
+        "max": 28,
+        "scoreDirection": "higher_indicates_more_reported_distress_experiences",
+        "validatedCutoffs": null,
+        "predictsMentalHealthCondition": false,
+        "displayClinicalSeverity": false,
+        "note": "Added items are original and unvalidated. Never add their scores to the named reference scale, or infer disorders or severity from this subtotal."
+      }
+    },
+    {
+      "id": "RSES",
+      "name": "Self-esteem",
+      "basedOn": "Rosenberg Self-Esteem Scale (RSES; 10 items)",
+      "referenceSourceUrl": "https://socy.umd.edu/about-us/using-rosenberg-self-esteem-scale",
+      "questionCount": 14,
+      "questionIds": [
+        "RSES_01",
+        "RSES_02",
+        "RSES_03",
+        "RSES_04",
+        "RSES_05",
+        "RSES_06",
+        "RSES_07",
+        "RSES_08",
+        "RSES_09",
+        "RSES_10",
+        "RSES_S01",
+        "RSES_S03",
+        "RSES_S05",
+        "RSES_S06"
+      ],
+      "timeframe": "general",
+      "scoring": {
+        "method": "sum_selected_option_scores",
+        "min": 0,
+        "max": 30,
+        "scoreDirection": "higher_indicates_greater_self_esteem",
+        "missingAnswers": "do_not_compute_until_all_items_answered_or_the_user_explicitly_ends_the_assessment",
+        "validForClinicalDecisions": false,
+        "interpretationDisplay": "Show the score and the construct measured, not a diagnosis. Wording here is not validated; professional review and official original wording are required before applying established cutoffs.",
+        "reverseCodeNote": "Items 3, 5, 8, 9, 10 are negative. Their option scores are ALREADY reversed. Do NOT reverse them again.",
+        "note": "Use as a continuous scale, not a diagnosis; no universal clinical cutoffs."
+      },
+      "officialReferenceBands": {
+        "enabled": false,
+        "reason": "The questions below are paraphrases, not the original validated scale items. Do not automatically use published clinical cutoffs on modified wording."
+      },
+      "supplementalQuestionCount": 7,
+      "supplementalQuestionIds": [
+        "RSES_S01",
+        "RSES_S03",
+        "RSES_S05",
+        "RSES_S06"
+      ],
+      "totalAvailableQuestionCount": 17,
+      "supplementalScoring": {
+        "mode": "prototype_only_raw_sum_separate_from_core",
+        "min": 0,
+        "max": 21,
+        "scoreDirection": "higher_indicates_more_positive_self_appraisal",
+        "validatedCutoffs": null,
+        "predictsMentalHealthCondition": false,
+        "displayClinicalSeverity": false,
+        "note": "Added items are original and unvalidated. Never add their scores to the named reference scale, or infer disorders or severity from this subtotal."
+      }
+    },
+    {
+      "id": "WHO5",
+      "name": "Positive mental well-being",
+      "basedOn": "WHO-Five Well-Being Index (WHO-5)",
+      "referenceSourceUrl": "https://www.who.int/publications/m/item/WHO-UCN-MSD-MHE-2024.01",
+      "questionCount": 9,
+      "questionIds": [
+        "WHO5_01",
+        "WHO5_02",
+        "WHO5_03",
+        "WHO5_04",
+        "WHO5_05",
+        "WHO5_S01",
+        "WHO5_S02",
+        "WHO5_S03",
+        "WHO5_S05"
+      ],
+      "timeframe": "past_2_weeks",
+      "scoring": {
+        "method": "sum_selected_option_scores",
+        "min": 0,
+        "max": 25,
+        "scoreDirection": "higher_indicates_better_well_being",
+        "missingAnswers": "do_not_compute_until_all_items_answered_or_the_user_explicitly_ends_the_assessment",
+        "validForClinicalDecisions": false,
+        "interpretationDisplay": "Show the score and the construct measured, not a diagnosis. Wording here is not validated; professional review and official original wording are required before applying established cutoffs.",
+        "additionalTransforms": [
+          {
+            "field": "wellBeingIndex_0_to_100",
+            "formula": "raw_sum * 4",
+            "min": 0,
+            "max": 100
+          }
+        ]
+      },
+      "officialReferenceBands": {
+        "enabled": false,
+        "reason": "The questions below are paraphrases, not the original validated scale items. Do not automatically use published clinical cutoffs on modified wording.",
+        "source": "https://www.oecd.org/en/publications/how-to-make-societies-thrive-coordinating-approaches-to-promote-well-being-and-mental-health_fc6b9844-en/full-report/component-2.html",
+        "threshold_note": "A 0–100 WHO-5 well-being score of 50 or less is often used to indicate reduced well-being and possible need for further evaluation.",
+        "threshold_score_at_or_below": 50
+      },
+      "supplementalQuestionCount": 7,
+      "supplementalQuestionIds": [
+        "WHO5_S01",
+        "WHO5_S02",
+        "WHO5_S03",
+        "WHO5_S05"
+      ],
+      "totalAvailableQuestionCount": 12,
+      "supplementalScoring": {
+        "mode": "prototype_only_raw_sum_separate_from_core",
+        "min": 0,
+        "max": 35,
+        "scoreDirection": "higher_indicates_more_positive_well_being",
+        "validatedCutoffs": null,
+        "predictsMentalHealthCondition": false,
+        "displayClinicalSeverity": false,
+        "note": "Added items are original and unvalidated. Never add their scores to the named reference scale, or infer disorders or severity from this subtotal."
+      }
+    },
+    {
+      "id": "GSE",
+      "name": "Self-efficacy / coping confidence",
+      "basedOn": "General Self-Efficacy Scale (GSE; 10 items)",
+      "referenceSourceUrl": "https://softoutcomes.org/questionnaires/general-self-efficacy-scale/",
+      "questionCount": 14,
+      "questionIds": [
+        "GSE_01",
+        "GSE_02",
+        "GSE_03",
+        "GSE_04",
+        "GSE_05",
+        "GSE_06",
+        "GSE_07",
+        "GSE_08",
+        "GSE_09",
+        "GSE_10",
+        "GSE_S01",
+        "GSE_S03",
+        "GSE_S05",
+        "GSE_S06"
+      ],
+      "timeframe": "general",
+      "scoring": {
+        "method": "sum_selected_option_scores",
+        "min": 10,
+        "max": 40,
+        "scoreDirection": "higher_indicates_greater_self_efficacy",
+        "missingAnswers": "do_not_compute_until_all_items_answered_or_the_user_explicitly_ends_the_assessment",
+        "validForClinicalDecisions": false,
+        "interpretationDisplay": "Show the score and the construct measured, not a diagnosis. Wording here is not validated; professional review and official original wording are required before applying established cutoffs.",
+        "additionalTransforms": [
+          {
+            "field": "selfEfficacyMean_1_to_4",
+            "formula": "raw_sum / 10",
+            "min": 1,
+            "max": 4
+          }
+        ],
+        "note": "Use as a continuous scale, not a diagnosis; no universal clinical cutoffs."
+      },
+      "officialReferenceBands": {
+        "enabled": false,
+        "reason": "The questions below are paraphrases, not the original validated scale items. Do not automatically use published clinical cutoffs on modified wording."
+      },
+      "supplementalQuestionCount": 7,
+      "supplementalQuestionIds": [
+        "GSE_S01",
+        "GSE_S03",
+        "GSE_S05",
+        "GSE_S06"
+      ],
+      "totalAvailableQuestionCount": 17,
+      "supplementalScoring": {
+        "mode": "prototype_only_raw_sum_separate_from_core",
+        "min": 7,
+        "max": 28,
+        "scoreDirection": "higher_indicates_more_reported_coping_confidence",
+        "validatedCutoffs": null,
+        "predictsMentalHealthCondition": false,
+        "displayClinicalSeverity": false,
+        "note": "Added items are original and unvalidated. Never add their scores to the named reference scale, or infer disorders or severity from this subtotal."
+      }
+    },
+    {
+      "id": "UCLA3",
+      "name": "Loneliness",
+      "basedOn": "Three-Item Loneliness Scale (Hughes et al., 2004)",
+      "referenceSourceUrl": "https://www.ons.gov.uk/peoplepopulationandcommunity/wellbeing/methodologies/measuringlonelinessguidanceforuseofthenationalindicatorsonsurveys",
+      "questionCount": 6,
+      "questionIds": [
+        "UCLA3_01",
+        "UCLA3_02",
+        "UCLA3_03",
+        "UCLA3_S02",
+        "UCLA3_S03",
+        "UCLA3_S04"
+      ],
+      "timeframe": "general",
+      "scoring": {
+        "method": "sum_selected_option_scores",
+        "min": 3,
+        "max": 9,
+        "scoreDirection": "higher_indicates_more_loneliness",
+        "missingAnswers": "do_not_compute_until_all_items_answered_or_the_user_explicitly_ends_the_assessment",
+        "validForClinicalDecisions": false,
+        "interpretationDisplay": "Show the score and the construct measured, not a diagnosis. Wording here is not validated; professional review and official original wording are required before applying established cutoffs.",
+        "note": "Higher score means more perceived loneliness; there is no universally diagnostic cutoff."
+      },
+      "officialReferenceBands": {
+        "enabled": false,
+        "reason": "The questions below are paraphrases, not the original validated scale items. Do not automatically use published clinical cutoffs on modified wording."
+      },
+      "supplementalQuestionCount": 6,
+      "supplementalQuestionIds": [
+        "UCLA3_S02",
+        "UCLA3_S03",
+        "UCLA3_S04"
+      ],
+      "totalAvailableQuestionCount": 9,
+      "supplementalScoring": {
+        "mode": "prototype_only_raw_sum_separate_from_core",
+        "min": 6,
+        "max": 18,
+        "scoreDirection": "higher_indicates_more_reported_loneliness_experiences",
+        "validatedCutoffs": null,
+        "predictsMentalHealthCondition": false,
+        "displayClinicalSeverity": false,
+        "note": "Added items are original and unvalidated. Never add their scores to the named reference scale, or infer disorders or severity from this subtotal."
+      }
+    }
+  ],
+  "questions": [
+    {
+      "id": "PHQ9_01",
+      "assessmentId": "PHQ9",
+      "order": 1,
+      "type": "single_choice",
+      "text": "Have activities that normally interest you seemed less enjoyable than usual?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "PHQ9",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "PHQ9_02",
+      "assessmentId": "PHQ9",
+      "order": 2,
+      "type": "single_choice",
+      "text": "Have you spent a lot of time feeling unhappy or without hope?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "PHQ9",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "PHQ9_03",
+      "assessmentId": "PHQ9",
+      "order": 3,
+      "type": "single_choice",
+      "text": "Has your sleep been disrupted or much longer than usual?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "PHQ9",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "PHQ9_04",
+      "assessmentId": "PHQ9",
+      "order": 4,
+      "type": "single_choice",
+      "text": "Have you struggled with tiredness or too little energy for daily tasks?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "PHQ9",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "PHQ9_05",
+      "assessmentId": "PHQ9",
+      "order": 5,
+      "type": "single_choice",
+      "text": "Has your appetite changed substantially, whether eating less or more?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "PHQ9",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "PHQ9_06",
+      "assessmentId": "PHQ9",
+      "order": 6,
+      "type": "single_choice",
+      "text": "Have you judged yourself harshly or felt you had let people down?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "PHQ9",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "PHQ9_07",
+      "assessmentId": "PHQ9",
+      "order": 7,
+      "type": "single_choice",
+      "text": "Has staying focused on reading, studying, or watching something been difficult?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "PHQ9",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "PHQ9_08",
+      "assessmentId": "PHQ9",
+      "order": 8,
+      "type": "single_choice",
+      "text": "Have you moved or spoken unusually slowly, or felt noticeably more restless?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "PHQ9",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "PHQ9_09",
+      "assessmentId": "PHQ9",
+      "order": 9,
+      "type": "single_choice",
+      "text": "Have thoughts about ending your life or deliberately hurting yourself occurred?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "PHQ9",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "safetyFlag": {
+        "name": "self_harm_thoughts",
+        "trigger": "selected_option_score_gt_zero",
+        "separate_from_total_score": true,
+        "human_review_required": true,
+        "show_immediate_support_information": true,
+        "instructions": "Never wait for a total score to respond to this item; offer urgent local help when there is immediate danger. Have a clinician design and review the workflow."
+      },
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "PHQ9_S01",
+      "assessmentId": "PHQ9",
+      "order": 10,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "Have you avoided starting everyday activities because it felt emotionally difficult to begin?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Depressive symptoms",
+      "referenceInstrumentId": "PHQ9",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "PHQ9_S03",
+      "assessmentId": "PHQ9",
+      "order": 11,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "Have small setbacks felt unusually discouraging?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Depressive symptoms",
+      "referenceInstrumentId": "PHQ9",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "PHQ9_S04",
+      "assessmentId": "PHQ9",
+      "order": 12,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "Have you withdrawn from conversations you would normally enjoy?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Depressive symptoms",
+      "referenceInstrumentId": "PHQ9",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "PHQ9_S05",
+      "assessmentId": "PHQ9",
+      "order": 13,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "Have you found it harder than usual to look forward to upcoming plans?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Depressive symptoms",
+      "referenceInstrumentId": "PHQ9",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "PHQ9_S06",
+      "assessmentId": "PHQ9",
+      "order": 14,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "Have ordinary decisions felt mentally exhausting?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Depressive symptoms",
+      "referenceInstrumentId": "PHQ9",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "GAD7_01",
+      "assessmentId": "GAD7",
+      "order": 1,
+      "type": "single_choice",
+      "text": "Have you felt tense, uneasy, or unusually on alert?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "GAD7",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GAD7_02",
+      "assessmentId": "GAD7",
+      "order": 2,
+      "type": "single_choice",
+      "text": "Once you begin worrying, has it been difficult to regain control of those thoughts?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "GAD7",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GAD7_03",
+      "assessmentId": "GAD7",
+      "order": 3,
+      "type": "single_choice",
+      "text": "Have concerns about many different things occupied your mind?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "GAD7",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GAD7_04",
+      "assessmentId": "GAD7",
+      "order": 4,
+      "type": "single_choice",
+      "text": "Has worry made it hard for you to settle down and feel relaxed?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "GAD7",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GAD7_05",
+      "assessmentId": "GAD7",
+      "order": 5,
+      "type": "single_choice",
+      "text": "Have you felt so restless that sitting comfortably was difficult?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "GAD7",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GAD7_06",
+      "assessmentId": "GAD7",
+      "order": 6,
+      "type": "single_choice",
+      "text": "Have minor frustrations made you irritated more easily than usual?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "GAD7",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GAD7_07",
+      "assessmentId": "GAD7",
+      "order": 7,
+      "type": "single_choice",
+      "text": "Have you frequently expected something very bad to happen?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "GAD7",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GAD7_S01",
+      "assessmentId": "GAD7",
+      "order": 8,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "Have you put off an activity because you were worried it might go wrong?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Anxiety symptoms",
+      "referenceInstrumentId": "GAD7",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "GAD7_S02",
+      "assessmentId": "GAD7",
+      "order": 9,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "Have worries made it hard to pay attention to the task in front of you?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Anxiety symptoms",
+      "referenceInstrumentId": "GAD7",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "GAD7_S03",
+      "assessmentId": "GAD7",
+      "order": 10,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "Have you repeatedly checked a decision because you feared making a mistake?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Anxiety symptoms",
+      "referenceInstrumentId": "GAD7",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "GAD7_S04",
+      "assessmentId": "GAD7",
+      "order": 11,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "Have ordinary upcoming conversations made you feel unusually tense?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Several days",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "More than half the days",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Nearly every day",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Anxiety symptoms",
+      "referenceInstrumentId": "GAD7",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "K6_01",
+      "assessmentId": "K6",
+      "order": 1,
+      "type": "single_choice",
+      "text": "How frequently have you experienced strong nervousness?",
+      "options": [
+        {
+          "id": "A",
+          "label": "None of the time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "A little of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Most of the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "All of the time",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "K6",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "K6_02",
+      "assessmentId": "K6",
+      "order": 2,
+      "type": "single_choice",
+      "text": "How frequently have you felt that your situation was unlikely to improve?",
+      "options": [
+        {
+          "id": "A",
+          "label": "None of the time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "A little of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Most of the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "All of the time",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "K6",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "K6_03",
+      "assessmentId": "K6",
+      "order": 3,
+      "type": "single_choice",
+      "text": "How frequently have you felt agitated or unable to stay still?",
+      "options": [
+        {
+          "id": "A",
+          "label": "None of the time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "A little of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Most of the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "All of the time",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "K6",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "K6_04",
+      "assessmentId": "K6",
+      "order": 4,
+      "type": "single_choice",
+      "text": "How frequently has sadness persisted even when others tried to cheer you up?",
+      "options": [
+        {
+          "id": "A",
+          "label": "None of the time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "A little of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Most of the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "All of the time",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "K6",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "K6_05",
+      "assessmentId": "K6",
+      "order": 5,
+      "type": "single_choice",
+      "text": "How frequently have ordinary responsibilities felt unusually effortful?",
+      "options": [
+        {
+          "id": "A",
+          "label": "None of the time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "A little of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Most of the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "All of the time",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "K6",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "K6_06",
+      "assessmentId": "K6",
+      "order": 6,
+      "type": "single_choice",
+      "text": "How frequently have you felt that you had very little personal value?",
+      "options": [
+        {
+          "id": "A",
+          "label": "None of the time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "A little of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Most of the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "All of the time",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "K6",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "K6_S03",
+      "assessmentId": "K6",
+      "order": 7,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "How frequently have you felt emotionally drained even on a relatively quiet day?",
+      "options": [
+        {
+          "id": "A",
+          "label": "None of the time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "A little of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Most of the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "All of the time",
+          "score": 4
+        }
+      ],
+      "referenceConstruct": "General psychological distress",
+      "referenceInstrumentId": "K6",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "K6_S05",
+      "assessmentId": "K6",
+      "order": 8,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "How frequently have stressful events disrupted your usual routine?",
+      "options": [
+        {
+          "id": "A",
+          "label": "None of the time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "A little of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Most of the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "All of the time",
+          "score": 4
+        }
+      ],
+      "referenceConstruct": "General psychological distress",
+      "referenceInstrumentId": "K6",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "K6_S06",
+      "assessmentId": "K6",
+      "order": 9,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "How frequently have your emotional reactions felt harder to manage than usual?",
+      "options": [
+        {
+          "id": "A",
+          "label": "None of the time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "A little of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Most of the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "All of the time",
+          "score": 4
+        }
+      ],
+      "referenceConstruct": "General psychological distress",
+      "referenceInstrumentId": "K6",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "K6_S07",
+      "assessmentId": "K6",
+      "order": 10,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "How frequently have you found it difficult to unwind after a demanding day?",
+      "options": [
+        {
+          "id": "A",
+          "label": "None of the time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "A little of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Most of the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "All of the time",
+          "score": 4
+        }
+      ],
+      "referenceConstruct": "General psychological distress",
+      "referenceInstrumentId": "K6",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "RSES_01",
+      "assessmentId": "RSES",
+      "order": 1,
+      "type": "single_choice",
+      "text": "I generally see myself as a person who matters.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 3
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 1
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 0
+        }
+      ],
+      "sourceInstrument": "RSES",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "RSES_02",
+      "assessmentId": "RSES",
+      "order": 2,
+      "type": "single_choice",
+      "text": "I can name several strengths or positive qualities in myself.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 3
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 1
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 0
+        }
+      ],
+      "sourceInstrument": "RSES",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "RSES_03",
+      "assessmentId": "RSES",
+      "order": 3,
+      "type": "single_choice",
+      "text": "I often see myself as an unsuccessful person.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "RSES",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "reverseCodedInOptionScores": true,
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "RSES_04",
+      "assessmentId": "RSES",
+      "order": 4,
+      "type": "single_choice",
+      "text": "I can manage tasks about as well as other people.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 3
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 1
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 0
+        }
+      ],
+      "sourceInstrument": "RSES",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "RSES_05",
+      "assessmentId": "RSES",
+      "order": 5,
+      "type": "single_choice",
+      "text": "There is not much about myself that makes me proud.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "RSES",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "reverseCodedInOptionScores": true,
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "RSES_06",
+      "assessmentId": "RSES",
+      "order": 6,
+      "type": "single_choice",
+      "text": "I usually have a positive view of who I am.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 3
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 1
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 0
+        }
+      ],
+      "sourceInstrument": "RSES",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "RSES_07",
+      "assessmentId": "RSES",
+      "order": 7,
+      "type": "single_choice",
+      "text": "Overall, I accept myself as a person.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 3
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 1
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 0
+        }
+      ],
+      "sourceInstrument": "RSES",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "RSES_08",
+      "assessmentId": "RSES",
+      "order": 8,
+      "type": "single_choice",
+      "text": "I wish I valued and respected myself more.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "RSES",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "reverseCodedInOptionScores": true,
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "RSES_09",
+      "assessmentId": "RSES",
+      "order": 9,
+      "type": "single_choice",
+      "text": "I sometimes feel that I am not useful.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "RSES",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "reverseCodedInOptionScores": true,
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "RSES_10",
+      "assessmentId": "RSES",
+      "order": 10,
+      "type": "single_choice",
+      "text": "At times, I believe that I am not good enough.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "RSES",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "reverseCodedInOptionScores": true,
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "RSES_S01",
+      "assessmentId": "RSES",
+      "order": 11,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I can appreciate the effort I put into difficult tasks.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 3
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 1
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 0
+        }
+      ],
+      "referenceConstruct": "Self-esteem",
+      "referenceInstrumentId": "RSES",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "RSES_S03",
+      "assessmentId": "RSES",
+      "order": 12,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I feel that my opinions are worth expressing.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 3
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 1
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 0
+        }
+      ],
+      "referenceConstruct": "Self-esteem",
+      "referenceInstrumentId": "RSES",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "RSES_S05",
+      "assessmentId": "RSES",
+      "order": 13,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I can accept a compliment without immediately dismissing it.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 3
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 1
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 0
+        }
+      ],
+      "referenceConstruct": "Self-esteem",
+      "referenceInstrumentId": "RSES",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "RSES_S06",
+      "assessmentId": "RSES",
+      "order": 14,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I feel comfortable acknowledging the progress I have made.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Strongly agree",
+          "score": 3
+        },
+        {
+          "id": "B",
+          "label": "Agree",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Disagree",
+          "score": 1
+        },
+        {
+          "id": "D",
+          "label": "Strongly disagree",
+          "score": 0
+        }
+      ],
+      "referenceConstruct": "Self-esteem",
+      "referenceInstrumentId": "RSES",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "WHO5_01",
+      "assessmentId": "WHO5",
+      "order": 1,
+      "type": "single_choice",
+      "text": "I experienced a cheerful, positive mood.",
+      "options": [
+        {
+          "id": "A",
+          "label": "At no time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Less than half the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "More than half the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "Most of the time",
+          "score": 4
+        },
+        {
+          "id": "F",
+          "label": "All of the time",
+          "score": 5
+        }
+      ],
+      "sourceInstrument": "WHO5",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "WHO5_02",
+      "assessmentId": "WHO5",
+      "order": 2,
+      "type": "single_choice",
+      "text": "I felt peaceful and at ease.",
+      "options": [
+        {
+          "id": "A",
+          "label": "At no time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Less than half the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "More than half the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "Most of the time",
+          "score": 4
+        },
+        {
+          "id": "F",
+          "label": "All of the time",
+          "score": 5
+        }
+      ],
+      "sourceInstrument": "WHO5",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "WHO5_03",
+      "assessmentId": "WHO5",
+      "order": 3,
+      "type": "single_choice",
+      "text": "I had enough vitality to be active.",
+      "options": [
+        {
+          "id": "A",
+          "label": "At no time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Less than half the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "More than half the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "Most of the time",
+          "score": 4
+        },
+        {
+          "id": "F",
+          "label": "All of the time",
+          "score": 5
+        }
+      ],
+      "sourceInstrument": "WHO5",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "WHO5_04",
+      "assessmentId": "WHO5",
+      "order": 4,
+      "type": "single_choice",
+      "text": "I woke up feeling restored after sleep.",
+      "options": [
+        {
+          "id": "A",
+          "label": "At no time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Less than half the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "More than half the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "Most of the time",
+          "score": 4
+        },
+        {
+          "id": "F",
+          "label": "All of the time",
+          "score": 5
+        }
+      ],
+      "sourceInstrument": "WHO5",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "WHO5_05",
+      "assessmentId": "WHO5",
+      "order": 5,
+      "type": "single_choice",
+      "text": "My day-to-day life included things I found engaging.",
+      "options": [
+        {
+          "id": "A",
+          "label": "At no time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Less than half the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "More than half the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "Most of the time",
+          "score": 4
+        },
+        {
+          "id": "F",
+          "label": "All of the time",
+          "score": 5
+        }
+      ],
+      "sourceInstrument": "WHO5",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "WHO5_S01",
+      "assessmentId": "WHO5",
+      "order": 6,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I felt able to enjoy simple moments in my day.",
+      "options": [
+        {
+          "id": "A",
+          "label": "At no time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Less than half the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "More than half the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "Most of the time",
+          "score": 4
+        },
+        {
+          "id": "F",
+          "label": "All of the time",
+          "score": 5
+        }
+      ],
+      "referenceConstruct": "Positive mental well-being",
+      "referenceInstrumentId": "WHO5",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "WHO5_S02",
+      "assessmentId": "WHO5",
+      "order": 7,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I looked forward to at least one part of my day.",
+      "options": [
+        {
+          "id": "A",
+          "label": "At no time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Less than half the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "More than half the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "Most of the time",
+          "score": 4
+        },
+        {
+          "id": "F",
+          "label": "All of the time",
+          "score": 5
+        }
+      ],
+      "referenceConstruct": "Positive mental well-being",
+      "referenceInstrumentId": "WHO5",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "WHO5_S03",
+      "assessmentId": "WHO5",
+      "order": 8,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I felt connected to things that matter to me.",
+      "options": [
+        {
+          "id": "A",
+          "label": "At no time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Less than half the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "More than half the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "Most of the time",
+          "score": 4
+        },
+        {
+          "id": "F",
+          "label": "All of the time",
+          "score": 5
+        }
+      ],
+      "referenceConstruct": "Positive mental well-being",
+      "referenceInstrumentId": "WHO5",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "WHO5_S05",
+      "assessmentId": "WHO5",
+      "order": 9,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I felt enough emotional energy to connect with other people.",
+      "options": [
+        {
+          "id": "A",
+          "label": "At no time",
+          "score": 0
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 1
+        },
+        {
+          "id": "C",
+          "label": "Less than half the time",
+          "score": 2
+        },
+        {
+          "id": "D",
+          "label": "More than half the time",
+          "score": 3
+        },
+        {
+          "id": "E",
+          "label": "Most of the time",
+          "score": 4
+        },
+        {
+          "id": "F",
+          "label": "All of the time",
+          "score": 5
+        }
+      ],
+      "referenceConstruct": "Positive mental well-being",
+      "referenceInstrumentId": "WHO5",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "GSE_01",
+      "assessmentId": "GSE",
+      "order": 1,
+      "type": "single_choice",
+      "text": "When I work hard enough, I can usually get through a difficult challenge.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "GSE",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GSE_02",
+      "assessmentId": "GSE",
+      "order": 2,
+      "type": "single_choice",
+      "text": "When someone disagrees with me, I can still find a way toward my goals.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "GSE",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GSE_03",
+      "assessmentId": "GSE",
+      "order": 3,
+      "type": "single_choice",
+      "text": "I am able to stick with my plans until I complete them.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "GSE",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GSE_04",
+      "assessmentId": "GSE",
+      "order": 4,
+      "type": "single_choice",
+      "text": "I feel capable of handling a surprising change in circumstances.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "GSE",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GSE_05",
+      "assessmentId": "GSE",
+      "order": 5,
+      "type": "single_choice",
+      "text": "When unexpected issues arise, I can usually figure out how to respond.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "GSE",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GSE_06",
+      "assessmentId": "GSE",
+      "order": 6,
+      "type": "single_choice",
+      "text": "With enough effort, I can work through most difficult problems.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "GSE",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GSE_07",
+      "assessmentId": "GSE",
+      "order": 7,
+      "type": "single_choice",
+      "text": "My coping skills help me stay calm during a challenge.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "GSE",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GSE_08",
+      "assessmentId": "GSE",
+      "order": 8,
+      "type": "single_choice",
+      "text": "I can usually think of several possible approaches to a problem.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "GSE",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GSE_09",
+      "assessmentId": "GSE",
+      "order": 9,
+      "type": "single_choice",
+      "text": "When I am in trouble, I can usually identify a practical next step.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "GSE",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GSE_10",
+      "assessmentId": "GSE",
+      "order": 10,
+      "type": "single_choice",
+      "text": "I feel prepared to deal with most ordinary challenges that come my way.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "sourceInstrument": "GSE",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "GSE_S01",
+      "assessmentId": "GSE",
+      "order": 11,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I can break a difficult task into smaller steps that I can manage.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "referenceConstruct": "Self-efficacy / coping confidence",
+      "referenceInstrumentId": "GSE",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "GSE_S03",
+      "assessmentId": "GSE",
+      "order": 12,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I can ask for help when it would help me finish a task.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "referenceConstruct": "Self-efficacy / coping confidence",
+      "referenceInstrumentId": "GSE",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "GSE_S05",
+      "assessmentId": "GSE",
+      "order": 13,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I can learn the skills I need to handle a new responsibility.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "referenceConstruct": "Self-efficacy / coping confidence",
+      "referenceInstrumentId": "GSE",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "GSE_S06",
+      "assessmentId": "GSE",
+      "order": 14,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "I can make a reasonable decision even when I do not have every detail.",
+      "options": [
+        {
+          "id": "A",
+          "label": "Not at all true",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Hardly true",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Moderately true",
+          "score": 3
+        },
+        {
+          "id": "D",
+          "label": "Exactly true",
+          "score": 4
+        }
+      ],
+      "referenceConstruct": "Self-efficacy / coping confidence",
+      "referenceInstrumentId": "GSE",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "UCLA3_01",
+      "assessmentId": "UCLA3",
+      "order": 1,
+      "type": "single_choice",
+      "text": "How often do you wish you had more companionship?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Hardly ever",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Often",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "UCLA3",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "UCLA3_02",
+      "assessmentId": "UCLA3",
+      "order": 2,
+      "type": "single_choice",
+      "text": "How often do you feel excluded from groups or social situations?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Hardly ever",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Often",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "UCLA3",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "UCLA3_03",
+      "assessmentId": "UCLA3",
+      "order": 3,
+      "type": "single_choice",
+      "text": "How often do you feel disconnected from other people?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Hardly ever",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Often",
+          "score": 3
+        }
+      ],
+      "sourceInstrument": "UCLA3",
+      "wordingStatus": "original_paraphrase_not_validated",
+      "questionSet": "core_adapted",
+      "eligibleForValidatedClinicalScoring": false
+    },
+    {
+      "id": "UCLA3_S02",
+      "assessmentId": "UCLA3",
+      "order": 4,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "How often do you feel unnoticed by the people around you?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Hardly ever",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Often",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Loneliness",
+      "referenceInstrumentId": "UCLA3",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "UCLA3_S03",
+      "assessmentId": "UCLA3",
+      "order": 5,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "How often do you feel that nobody understands what matters to you?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Hardly ever",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Often",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Loneliness",
+      "referenceInstrumentId": "UCLA3",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    },
+    {
+      "id": "UCLA3_S04",
+      "assessmentId": "UCLA3",
+      "order": 6,
+      "questionSet": "supplemental_original",
+      "type": "single_choice",
+      "text": "How often do you miss having regular conversations with people you trust?",
+      "options": [
+        {
+          "id": "A",
+          "label": "Hardly ever",
+          "score": 1
+        },
+        {
+          "id": "B",
+          "label": "Some of the time",
+          "score": 2
+        },
+        {
+          "id": "C",
+          "label": "Often",
+          "score": 3
+        }
+      ],
+      "referenceConstruct": "Loneliness",
+      "referenceInstrumentId": "UCLA3",
+      "wordingStatus": "original_question_for_prototype_not_validated",
+      "sourceStatus": "author_created; source instruments only inform the domain",
+      "eligibleForValidatedClinicalScoring": false,
+      "includeInCoreInstrumentScore": false
+    }
+  ],
+  "skippedQuestions": [
+    {
+      "id": "PHQ9_S02",
+      "assessmentId": "PHQ9",
+      "text": "Has a low mood made it harder to keep up with your usual responsibilities?",
+      "similarTo": [
+        "PHQ9_02",
+        "PHQ9_04",
+        "PHQ9_S01"
+      ],
+      "reason": "Redundant with depressed mood (PHQ9_02), fatigue/energy for daily tasks (PHQ9_04), and difficulty starting daily activities (PHQ9_S01)."
+    },
+    {
+      "id": "PHQ9_S07",
+      "assessmentId": "PHQ9",
+      "text": "Have you spent more time alone because socializing felt emotionally draining?",
+      "similarTo": [
+        "PHQ9_S04"
+      ],
+      "reason": "Redundant with social and conversational withdrawal (PHQ9_S04)."
+    },
+    {
+      "id": "PHQ9_S08",
+      "assessmentId": "PHQ9",
+      "text": "Have you felt less motivated to take care of your usual daily routines?",
+      "similarTo": [
+        "PHQ9_S01",
+        "PHQ9_04"
+      ],
+      "reason": "Redundant with emotional difficulty beginning everyday activities (PHQ9_S01) and tiredness/low energy for daily tasks (PHQ9_04)."
+    },
+    {
+      "id": "GAD7_S05",
+      "assessmentId": "GAD7",
+      "text": "Have you avoided unfamiliar situations because of worry?",
+      "similarTo": [
+        "GAD7_S01"
+      ],
+      "reason": "Redundant with worry-driven behavioral avoidance of activities (GAD7_S01)."
+    },
+    {
+      "id": "GAD7_S06",
+      "assessmentId": "GAD7",
+      "text": "Have you noticed physical tension when thinking about routine responsibilities?",
+      "similarTo": [
+        "GAD7_01",
+        "GAD7_04"
+      ],
+      "reason": "Redundant with core somatic tension/hyperarousal (GAD7_01) and trouble relaxing (GAD7_04)."
+    },
+    {
+      "id": "GAD7_S07",
+      "assessmentId": "GAD7",
+      "text": "Have you frequently sought reassurance before feeling comfortable with a decision?",
+      "similarTo": [
+        "GAD7_S03"
+      ],
+      "reason": "Redundant with repeatedly checking decisions due to fear of making a mistake (GAD7_S03)."
+    },
+    {
+      "id": "GAD7_S08",
+      "assessmentId": "GAD7",
+      "text": "Have future worries made it difficult to enjoy your free time?",
+      "similarTo": [
+        "GAD7_04"
+      ],
+      "reason": "Redundant with core inability to settle down and feel relaxed due to worry (GAD7_04)."
+    },
+    {
+      "id": "K6_S01",
+      "assessmentId": "K6",
+      "text": "How frequently have ordinary demands left you feeling emotionally overloaded?",
+      "similarTo": [
+        "K6_05"
+      ],
+      "reason": "Redundant with core item measuring ordinary responsibilities feeling unusually effortful (K6_05)."
+    },
+    {
+      "id": "K6_S02",
+      "assessmentId": "K6",
+      "text": "How frequently have daily pressures seemed difficult to manage?",
+      "similarTo": [
+        "K6_05",
+        "K6_S01"
+      ],
+      "reason": "Redundant with core item of ordinary responsibilities feeling effortful (K6_05)."
+    },
+    {
+      "id": "K6_S04",
+      "assessmentId": "K6",
+      "text": "How frequently have you felt that you had no mental energy for another task?",
+      "similarTo": [
+        "K6_S03",
+        "K6_05"
+      ],
+      "reason": "Redundant with baseline emotional exhaustion (K6_S03) and effortful responsibilities (K6_05)."
+    },
+    {
+      "id": "RSES_S02",
+      "assessmentId": "RSES",
+      "text": "I can recognize good qualities in myself even after a setback.",
+      "similarTo": [
+        "RSES_02"
+      ],
+      "reason": "Redundant with core item naming several strengths or positive qualities in oneself (RSES_02)."
+    },
+    {
+      "id": "RSES_S04",
+      "assessmentId": "RSES",
+      "text": "I believe I deserve the same respect as other people.",
+      "similarTo": [
+        "RSES_01",
+        "RSES_04"
+      ],
+      "reason": "Redundant with core items seeing oneself as a person who matters (RSES_01) and parity with others (RSES_04)."
+    },
+    {
+      "id": "RSES_S07",
+      "assessmentId": "RSES",
+      "text": "I can make a mistake without deciding that I am a failure as a person.",
+      "similarTo": [
+        "RSES_03",
+        "RSES_10"
+      ],
+      "reason": "Redundant with core items viewing oneself as an unsuccessful person (RSES_03) and not good enough (RSES_10)."
+    },
+    {
+      "id": "WHO5_S04",
+      "assessmentId": "WHO5",
+      "text": "I found moments of calm during regular activities.",
+      "similarTo": [
+        "WHO5_02"
+      ],
+      "reason": "Redundant with core item feeling peaceful and at ease (WHO5_02)."
+    },
+    {
+      "id": "WHO5_S06",
+      "assessmentId": "WHO5",
+      "text": "I felt refreshed after taking a break.",
+      "similarTo": [
+        "WHO5_04",
+        "WHO5_03"
+      ],
+      "reason": "Redundant with core item waking up feeling restored after sleep (WHO5_04) and vitality (WHO5_03)."
+    },
+    {
+      "id": "WHO5_S07",
+      "assessmentId": "WHO5",
+      "text": "I felt optimistic about something in my near future.",
+      "similarTo": [
+        "WHO5_S02"
+      ],
+      "reason": "Redundant with looking forward to at least one part of the day (WHO5_S02)."
+    },
+    {
+      "id": "GSE_S02",
+      "assessmentId": "GSE",
+      "text": "When my first plan does not work, I can find another approach.",
+      "similarTo": [
+        "GSE_08",
+        "GSE_05"
+      ],
+      "reason": "Redundant with thinking of several possible approaches to a problem (GSE_08) and figuring out how to respond (GSE_05)."
+    },
+    {
+      "id": "GSE_S04",
+      "assessmentId": "GSE",
+      "text": "I can continue making progress even when a task takes longer than expected.",
+      "similarTo": [
+        "GSE_03"
+      ],
+      "reason": "Redundant with core item sticking with plans until completed (GSE_03)."
+    },
+    {
+      "id": "GSE_S07",
+      "assessmentId": "GSE",
+      "text": "I can recover from a small setback and try again.",
+      "similarTo": [
+        "GSE_01",
+        "GSE_06"
+      ],
+      "reason": "Redundant with core items getting through difficult challenges with effort (GSE_01, GSE_06)."
+    },
+    {
+      "id": "UCLA3_S01",
+      "assessmentId": "UCLA3",
+      "text": "How often do you wish you had someone to share everyday news with?",
+      "similarTo": [
+        "UCLA3_01"
+      ],
+      "reason": "Redundant with core item wishing for more companionship (UCLA3_01)."
+    },
+    {
+      "id": "UCLA3_S05",
+      "assessmentId": "UCLA3",
+      "text": "How often do you feel disconnected from others even when you spend time together?",
+      "similarTo": [
+        "UCLA3_03"
+      ],
+      "reason": "Near-identical paraphrase to core item feeling disconnected from other people (UCLA3_03)."
+    },
+    {
+      "id": "UCLA3_S06",
+      "assessmentId": "UCLA3",
+      "text": "How often do you wish you had a group where you truly belong?",
+      "similarTo": [
+        "UCLA3_02"
+      ],
+      "reason": "Redundant with core item feeling excluded from groups or social situations (UCLA3_02)."
+    }
+  ]
+}

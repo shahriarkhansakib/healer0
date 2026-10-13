@@ -13,6 +13,8 @@ import { assessments, assessmentQuestions } from './schema/assessments';
 import { communityGroups } from './schema/community';
 import { eq } from 'drizzle-orm';
 import { scrypt } from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 function generateKey(password: string, salt: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -440,71 +442,62 @@ async function main() {
     ]);
   }
 
-  // 12. Seed Standardized Assessments & Questions (Tables 8 & 9 from PDF specification)
-  const existingAssessments = await db.query.assessments.findMany();
-  if (existingAssessments.length === 0) {
-    const [as1] = await db.insert(assessments).values({
-      title: 'Depression Screening Test (PHQ-9)',
-      category: 'Depression',
-      description: 'Measures clinical depression severity, cognitive fatigue, and loss of interest in activities.',
-      totalQuestions: 2,
-    }).returning();
+  // 12. Seed Standardized Assessments & MCQ Questions from JSON
+  const existingQuestions = await db.query.assessmentQuestions.findMany();
+  if (existingQuestions.length < 78) {
+    await db.delete(assessmentQuestions);
+    await db.delete(assessments);
 
-    if (as1) {
-      await db.insert(assessmentQuestions).values([
-        {
-          assessmentId: as1.id,
-          questionText: 'Feeling tired, fatigued, or having little energy?',
-          optionA: 'Never',
-          optionB: 'Several days',
-          optionC: 'More than half the days',
-          optionD: 'Nearly every day',
-          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
-          orderIndex: 1,
-        },
-        {
-          assessmentId: as1.id,
-          questionText: 'Little interest or pleasure in doing everyday activities?',
-          optionA: 'Never',
-          optionB: 'Several days',
-          optionC: 'More than half the days',
-          optionD: 'Nearly every day',
-          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
-          orderIndex: 2,
-        },
-      ]);
-    }
+    const clinicalJsonPath = path.join(__dirname, 'data', 'mental_health_assessment_clinical_questions.json');
+    const fallbackJsonPath = path.join(__dirname, 'data', 'mental_health_assessment_50_questions.json');
+    const jsonPath = fs.existsSync(clinicalJsonPath) ? clinicalJsonPath : fallbackJsonPath;
 
-    const [as2] = await db.insert(assessments).values({
-      title: 'Anxiety Assessment (GAD-7)',
-      category: 'Anxiety',
-      description: 'Screens for generalized anxiety symptoms, persistent rumination, and somatic nervousness.',
-      totalQuestions: 2,
-    }).returning();
+    if (fs.existsSync(jsonPath)) {
+      const rawData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+      const categoryMap: Record<string, string> = {
+        PHQ9: 'Depression',
+        GAD7: 'Anxiety',
+        K6: 'Psychological Distress',
+        RSES: 'Self-Esteem',
+        WHO5: 'Well-Being',
+        GSE: 'Self-Efficacy',
+        UCLA3: 'Loneliness',
+      };
 
-    if (as2) {
-      await db.insert(assessmentQuestions).values([
-        {
-          assessmentId: as2.id,
-          questionText: 'Do you feel excessive worry that is difficult to control?',
-          optionA: 'Not at all',
-          optionB: 'Mild (Several days)',
-          optionC: 'Moderate (Half days)',
-          optionD: 'Severe (Nearly daily)',
-          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
-          orderIndex: 1,
-        },
-        {
-          assessmentId: as2.id,
-          questionText: 'Do you experience restlessness or find it difficult to sit still and relax?',
-          optionA: 'Not at all',
-          optionB: 'Rarely',
-          optionC: 'Frequently',
-          optionD: 'Almost constantly',
-          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
-          orderIndex: 2,
-        },
-      ]);
+      for (const asmt of rawData.assessments) {
+        const relatedQuestions = rawData.questions.filter((q: any) => q.assessmentId === asmt.id);
+        const [insertedAsmt] = await db.insert(assessments).values({
+          code: asmt.id,
+          title: `${asmt.name} (${asmt.id})`,
+          category: categoryMap[asmt.id] || 'General Mental Health',
+          description: `Construct: ${asmt.basedOn}. Timeframe: ${asmt.timeframe ? asmt.timeframe.replace(/_/g, ' ') : 'general'}. ${asmt.scoring?.interpretationDisplay || ''}`,
+          totalQuestions: relatedQuestions.length,
+          timeframe: asmt.timeframe,
+          scoringConfig: asmt.scoring,
+          officialReferenceBands: asmt.officialReferenceBands,
+        }).returning();
+
+        if (relatedQuestions.length > 0) {
+          await db.insert(assessmentQuestions).values(
+            relatedQuestions.map((q: any) => ({
+              assessmentId: insertedAsmt.id,
+              questionCode: q.id,
+              questionText: q.text,
+              options: q.options,
+              optionA: q.options[0]?.label || '',
+              optionB: q.options[1]?.label || '',
+              optionC: q.options[2]?.label || '',
+              optionD: q.options[3]?.label || '',
+              scoreMapping: (q.options || []).reduce((acc: Record<string, number>, opt: any) => {
+                acc[opt.id] = opt.score;
+                return acc;
+              }, {}),
+              orderIndex: q.order,
+            }))
+          );
+        }
+      }
+      console.log(`Successfully seeded ${rawData.assessments.length} clinical assessments with ${rawData.questions.length} MCQ questions (${rawData.skippedSimilarQuestionsCount || 0} similar questions skipped).`);
     }
   }
 

@@ -94,6 +94,28 @@ async function runMigration() {
       await sqlClient.unsafe(`DROP TABLE IF EXISTS "assessments" CASCADE;`);
     }
 
+    // Assessments & Screening Schema Enhancements
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "code" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "timeframe" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "scoring_config" jsonb;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "official_reference_bands" jsonb;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "question_code" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "options" jsonb;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_a" DROP NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_b" DROP NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_c" DROP NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_d" DROP NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "score_mapping" DROP NOT NULL;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "max_score" integer;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "identified_problem" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "clinical_summary" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "suggested_follow_up" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "requires_follow_up" boolean DEFAULT false;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "crisis_alert" boolean DEFAULT false;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "answers" jsonb;`);
+
     // Community groups
     try {
       await sqlClient.unsafe(`SELECT "group_name" FROM "community_groups" LIMIT 1;`);
