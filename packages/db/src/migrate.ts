@@ -42,6 +42,11 @@ async function runMigration() {
     }
     await sqlClient.unsafe(`ALTER TABLE "journals" ADD COLUMN IF NOT EXISTS "entry_date" timestamp DEFAULT now() NOT NULL;`);
     await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "appointment_id" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "session_count" integer DEFAULT 8 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "duration_weeks" integer DEFAULT 8 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "daily_minutes" integer DEFAULT 25 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "emoji" text DEFAULT '🌿' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "gradient_style" text DEFAULT 'emerald' NOT NULL;`);
 
     // Emergency & Trusted Contacts
     try {
@@ -116,7 +121,7 @@ async function runMigration() {
     await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "crisis_alert" boolean DEFAULT false;`);
     await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "answers" jsonb;`);
 
-    // Community groups
+    // Community groups & chat messages
     try {
       await sqlClient.unsafe(`SELECT "group_name" FROM "community_groups" LIMIT 1;`);
     } catch {
@@ -127,6 +132,31 @@ async function runMigration() {
       await sqlClient.unsafe(`DROP TABLE IF EXISTS "community_group_members" CASCADE;`);
       await sqlClient.unsafe(`DROP TABLE IF EXISTS "community_groups" CASCADE;`);
     }
+
+    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "avatar_emoji" text DEFAULT '💬';`);
+    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "requires_approval" boolean DEFAULT false NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "creator_id" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "anonymous_name" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "avatar_color" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "role" text DEFAULT 'member' NOT NULL;`);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "community_messages" (
+        "id" text PRIMARY KEY NOT NULL,
+        "group_id" text NOT NULL REFERENCES "community_groups"("id") ON DELETE CASCADE,
+        "user_id" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "anonymous_name" text NOT NULL DEFAULT 'Anonymous Member',
+        "avatar_color" text NOT NULL DEFAULT 'sky',
+        "message_text" text NOT NULL,
+        "message_type" text NOT NULL DEFAULT 'text',
+        "reply_to_id" text,
+        "reply_to_text" text,
+        "reply_to_sender" text,
+        "ai_moderation_status" text NOT NULL DEFAULT 'Approved',
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
 
     // 4. Discover and execute all migration files in sorted order
     const drizzleDir = path.resolve(__dirname, '../drizzle');
