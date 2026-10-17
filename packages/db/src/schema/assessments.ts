@@ -25,6 +25,7 @@ export const assessmentQuestions = pgTable('assessment_questions', {
   optionB: text('option_b'),
   optionC: text('option_c'),
   optionD: text('option_d'),
+  optionE: text('option_e'),
   scoreMapping: jsonb('score_mapping'), // e.g. { A: 0, B: 1, C: 2, D: 3 }
   orderIndex: integer('order_index').default(0).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),

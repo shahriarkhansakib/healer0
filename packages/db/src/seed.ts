@@ -10,7 +10,6 @@ import { counselingSessions } from './schema/counseling';
 import { wellnessRules } from './schema/wellness';
 import { therapyPrograms } from './schema/therapy';
 import { assessments, assessmentQuestions } from './schema/assessments';
-import { communityGroups } from './schema/community';
 import { eq } from 'drizzle-orm';
 import { scrypt } from 'crypto';
 import fs from 'fs';
@@ -442,35 +441,78 @@ async function main() {
     ]);
   }
 
-  // 12. Seed Standardized Assessments & MCQ Questions from JSON
+  // 12. Seed Standardized Assessments & MCQ Questions from JSON (24 Assessments / 329 Questions)
   const existingQuestions = await db.query.assessmentQuestions.findMany();
-  if (existingQuestions.length < 78) {
+  const needsReseed = existingQuestions.length < 329 || existingQuestions.some(q => q.questionCode === 'src_ds_01' && /[\u0980-\u09FF]/.test(q.questionText));
+  if (needsReseed) {
     await db.delete(assessmentQuestions);
     await db.delete(assessments);
 
-    const clinicalJsonPath = path.join(__dirname, 'data', 'mental_health_assessment_clinical_questions.json');
-    const fallbackJsonPath = path.join(__dirname, 'data', 'mental_health_assessment_50_questions.json');
-    const jsonPath = fs.existsSync(clinicalJsonPath) ? clinicalJsonPath : fallbackJsonPath;
+    const questions174Path = path.join(__dirname, 'data', 'healer_assessments_174_questions.json');
+    const uploadedQuestionnairesPath = path.join(__dirname, 'data', 'healer_uploaded_questionnaires_original_numbering.json');
 
-    if (fs.existsSync(jsonPath)) {
-      const rawData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-      const categoryMap: Record<string, string> = {
-        PHQ9: 'Depression',
-        GAD7: 'Anxiety',
-        K6: 'Psychological Distress',
-        RSES: 'Self-Esteem',
-        WHO5: 'Well-Being',
-        GSE: 'Self-Efficacy',
-        UCLA3: 'Loneliness',
-      };
+    const categoryMap: Record<string, string> = {
+      depression: 'Depression',
+      anxiety: 'Anxiety',
+      stress: 'Stress',
+      burnout: 'Occupational & Burnout',
+      self_esteem: 'Self-Esteem',
+      emotional_intelligence: 'Emotional Intelligence',
+      personality: 'Personality',
+      sleep_quality: 'Sleep Quality',
+      relationship_satisfaction: 'Relationships',
+      resilience: 'Resilience',
+      life_satisfaction: 'Life Satisfaction',
+      social_anxiety: 'Social Anxiety',
+      ocd: 'Obsessive-Compulsive',
+      adhd: 'ADHD & Focus',
+      autism: 'Autism & Neurodiversity',
+      ptsd: 'Trauma & PTSD',
+      iq: 'Reasoning & Cognition',
+      src_dass21: 'Depression & Anxiety',
+      src_ds: 'Depression',
+      src_as: 'Anxiety',
+      src_duocs: 'Obsessive-Compulsive',
+      src_sias: 'Social Anxiety',
+      src_marital: 'Relationships',
+      src_love_obsession: 'Relationships',
+    };
 
+    const uploadedTitles: Record<string, string> = {
+      src_dass21: 'Depression Anxiety Stress Scale (DASS-21)',
+      src_ds: 'Depression Scale (DS)',
+      src_as: 'Anxiety Scale (AS)',
+      src_duocs: 'Dhaka University OCD Scale (DUOCS)',
+      src_sias: 'Social Interaction Anxiety Scale (SIAS)',
+      src_marital: 'Locke-Wallace Marital Adjustment Test (MAT)',
+      src_love_obsession: 'Love Obsessed Lover Checklist',
+    };
+
+    const uploadedDescriptions: Record<string, string> = {
+      src_dass21: 'Measures depression, anxiety, and tension/stress levels over the past week.',
+      src_ds: 'Standardized psychological evaluation of depressive symptoms and emotional well-being.',
+      src_as: 'Comprehensive assessment of physiological, cognitive, and somatic anxiety manifestations.',
+      src_duocs: 'Evaluation of obsessive doubts, repetitive checking compulsions, and contamination fears.',
+      src_sias: 'Measures distress and discomfort experienced in social and interpersonal interaction settings.',
+      src_marital: 'Standardized appraisal of marital satisfaction, shared decision-making, and relational harmony.',
+      src_love_obsession: 'Self-reflection checklist assessing romantic preoccupation, attachment boundaries, and safety.',
+    };
+
+    let totalAsmtsCount = 0;
+    let totalQuestionsCount = 0;
+
+    // A. Seed Battery 1 (17 Assessments / 174 Questions)
+    if (fs.existsSync(questions174Path)) {
+      const rawData = JSON.parse(fs.readFileSync(questions174Path, 'utf-8'));
       for (const asmt of rawData.assessments) {
-        const relatedQuestions = rawData.questions.filter((q: any) => q.assessmentId === asmt.id);
+        const relatedQuestions = rawData.questions.filter((q: { assessmentId: string }) => q.assessmentId === asmt.id);
         const [insertedAsmt] = await db.insert(assessments).values({
           code: asmt.id,
-          title: `${asmt.name} (${asmt.id})`,
+          title: asmt.name || asmt.title || `${asmt.id} Assessment`,
           category: categoryMap[asmt.id] || 'General Mental Health',
-          description: `Construct: ${asmt.basedOn}. Timeframe: ${asmt.timeframe ? asmt.timeframe.replace(/_/g, ' ') : 'general'}. ${asmt.scoring?.interpretationDisplay || ''}`,
+          description: asmt.basedOn
+            ? `${asmt.basedOn} ${asmt.scoring?.interpretationDisplay ? asmt.scoring.interpretationDisplay.replace('{score}', 'Your score') : ''}`.trim()
+            : asmt.description || 'Clinical self-reflection assessment.',
           totalQuestions: relatedQuestions.length,
           timeframe: asmt.timeframe,
           scoringConfig: asmt.scoring,
@@ -479,7 +521,12 @@ async function main() {
 
         if (relatedQuestions.length > 0) {
           await db.insert(assessmentQuestions).values(
-            relatedQuestions.map((q: any) => ({
+            relatedQuestions.map((q: {
+              id: string;
+              text: string;
+              options: Array<{ id: string; label: string; score: number }>;
+              order: number;
+            }) => ({
               assessmentId: insertedAsmt.id,
               questionCode: q.id,
               questionText: q.text,
@@ -488,7 +535,8 @@ async function main() {
               optionB: q.options[1]?.label || '',
               optionC: q.options[2]?.label || '',
               optionD: q.options[3]?.label || '',
-              scoreMapping: (q.options || []).reduce((acc: Record<string, number>, opt: any) => {
+              optionE: q.options[4]?.label || null,
+              scoreMapping: (q.options || []).reduce((acc: Record<string, number>, opt) => {
                 acc[opt.id] = opt.score;
                 return acc;
               }, {}),
@@ -496,34 +544,75 @@ async function main() {
             }))
           );
         }
+        totalAsmtsCount++;
+        totalQuestionsCount += relatedQuestions.length;
       }
-      console.log(`Successfully seeded ${rawData.assessments.length} clinical assessments with ${rawData.questions.length} MCQ questions (${rawData.skippedSimilarQuestionsCount || 0} similar questions skipped).`);
     }
-  }
 
-  // 13. Seed Community Groups (Table 16 from PDF specification)
-  const existingGroups = await db.query.communityGroups.findMany();
-  if (existingGroups.length === 0) {
-    await db.insert(communityGroups).values([
-      {
-        groupName: 'Anxiety Support & Recovery',
-        topic: 'Anxiety Recovery',
-        description: 'A compassionate, peer-supported safe haven for individuals managing panic and anxiety.',
-        anonymousAllowed: true,
-      },
-      {
-        groupName: 'Student & Academic Stress',
-        topic: 'Academic Pressure',
-        description: 'Discuss exam pressure, university expectations, and healthy work-life boundaries.',
-        anonymousAllowed: true,
-      },
-      {
-        groupName: 'Sleep Improvement & Insomnia',
-        topic: 'Sleep Improvement',
-        description: 'Techniques, bedtime routines, and support for restoring natural sleep cycles.',
-        anonymousAllowed: true,
-      },
-    ]);
+    // B. Seed Battery 2: Uploaded Digitized Bengali Clinical Questionnaires (7 Assessments / 155 Questions)
+    if (fs.existsSync(uploadedQuestionnairesPath)) {
+      const rawUploaded = JSON.parse(fs.readFileSync(uploadedQuestionnairesPath, 'utf-8'));
+      for (const asmt of rawUploaded.assessments) {
+        const relatedQuestions = rawUploaded.questions.filter((q: { assessmentId: string }) => q.assessmentId === asmt.id);
+        const [insertedAsmt] = await db.insert(assessments).values({
+          code: asmt.id,
+          title: uploadedTitles[asmt.id] || asmt.name || `${asmt.id} Assessment`,
+          category: categoryMap[asmt.id] || 'Clinical Screening',
+          description: uploadedDescriptions[asmt.id] || asmt.instructions || 'Standardized clinical assessment instrument.',
+          totalQuestions: relatedQuestions.length,
+          timeframe: asmt.timeframe || 'Recent everyday experiences.',
+          scoringConfig: asmt.scoring,
+          officialReferenceBands: asmt.officialReferenceBands,
+        }).returning();
+
+        if (relatedQuestions.length > 0) {
+          await db.insert(assessmentQuestions).values(
+            relatedQuestions.map((q: {
+              id: string;
+              text: string;
+              text_en?: string;
+              options?: Array<{ id: string; label: string; label_en?: string; score: number }>;
+              order?: number;
+              originalQuestionNumber?: number;
+            }) => {
+              const qOptions = (q.id === 'src_marital_12' && (!q.options || q.options.length === 0))
+                ? [
+                    { id: 'src_marital_12_opt_1', label: 'Both prefer staying at home', score: 10 },
+                    { id: 'src_marital_12_opt_2', label: 'Both prefer going out', score: 3 },
+                    { id: 'src_marital_12_opt_3', label: 'I prefer staying home, spouse prefers going out', score: 2 },
+                    { id: 'src_marital_12_opt_4', label: 'I prefer going out, spouse prefers staying home', score: 2 },
+                  ]
+                : (q.options || []).map((o) => ({
+                    id: o.id,
+                    label: o.label_en || o.label,
+                    score: o.score,
+                  }));
+
+              return {
+                assessmentId: insertedAsmt.id,
+                questionCode: q.id,
+                questionText: q.text_en || q.text,
+                options: qOptions,
+                optionA: qOptions[0]?.label || '',
+                optionB: qOptions[1]?.label || '',
+                optionC: qOptions[2]?.label || '',
+                optionD: qOptions[3]?.label || '',
+                optionE: qOptions[4]?.label || null,
+                scoreMapping: qOptions.reduce((acc: Record<string, number>, opt) => {
+                  acc[opt.id] = opt.score;
+                  return acc;
+                }, {}),
+                orderIndex: q.order || q.originalQuestionNumber || 0,
+              };
+            })
+          );
+        }
+        totalAsmtsCount++;
+        totalQuestionsCount += relatedQuestions.length;
+      }
+    }
+
+    console.log(`Successfully seeded ${totalAsmtsCount} clinical assessments with ${totalQuestionsCount} questions.`);
   }
 
   console.log('Seeding completed successfully with doctor data and patient datasets.');

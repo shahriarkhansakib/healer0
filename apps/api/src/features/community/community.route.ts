@@ -3,7 +3,6 @@ import {
   requireAuth,
   requireActiveAccount,
   requireProfile,
-  requireRole,
 } from '../../infra/middleware';
 import { CommunityController } from './community.controller';
 
@@ -11,24 +10,28 @@ const communityRouter = new Hono();
 
 communityRouter.use('*', requireAuth, requireActiveAccount, requireProfile('patient'));
 
-// Group catalogue — readable by all authenticated patients.
+// Group catalogue & creation — accessible to authenticated patients
 communityRouter.get('/groups', CommunityController.listGroups);
 communityRouter.get('/groups/:groupId', CommunityController.getGroup);
+communityRouter.post('/groups', CommunityController.createGroup);
 
-// Group creation is admin-curated to prevent spam communities.
-communityRouter.post('/groups', requireRole('admin'), CommunityController.createGroup);
-
-// Membership management — patient-scoped.
+// Membership, approval & anonymous pseudonym management
 communityRouter.post('/groups/:groupId/join', CommunityController.joinGroup);
 communityRouter.post('/groups/:groupId/leave', CommunityController.leaveGroup);
+communityRouter.patch('/groups/:groupId/profile', CommunityController.updateMemberProfile);
 
-// Posts within a group.
-communityRouter.get('/groups/:groupId/posts', CommunityController.listPosts);
-communityRouter.post('/groups/:groupId/posts', CommunityController.createPost);
+// Admin / Creator Member Approval workflows
+communityRouter.get('/groups/:groupId/pending-requests', CommunityController.listPendingRequests);
+communityRouter.post('/groups/:groupId/members/:memberId/approve', CommunityController.approveMember);
+communityRouter.post('/groups/:groupId/members/:memberId/reject', CommunityController.rejectMember);
 
-// Likes and comments on posts.
-communityRouter.post('/posts/:postId/like', CommunityController.likePost);
-communityRouter.get('/posts/:postId/comments', CommunityController.listComments);
-communityRouter.post('/posts/:postId/comments', CommunityController.createComment);
+// Group members roster & Admin moderation (Kick user, assign/choose admin role)
+communityRouter.get('/groups/:groupId/members', CommunityController.listMembers);
+communityRouter.post('/groups/:groupId/members/:memberId/kick', CommunityController.kickMember);
+communityRouter.post('/groups/:groupId/members/:memberId/role', CommunityController.updateMemberRole);
+
+// Real-time / polling chat messages within a group
+communityRouter.get('/groups/:groupId/messages', CommunityController.listMessages);
+communityRouter.post('/groups/:groupId/messages', CommunityController.sendMessage);
 
 export { communityRouter };

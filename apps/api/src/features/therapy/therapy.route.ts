@@ -20,6 +20,11 @@ therapyRouter.post('/programs', requireRole('admin'), TherapyController.createPr
 
 // Personal progress tracking.
 therapyRouter.get('/progress', TherapyController.listMyProgress);
+therapyRouter.post('/progress/reset-all', TherapyController.resetAllProgress);
+therapyRouter.delete('/progress/reset-all', TherapyController.resetAllProgress);
+therapyRouter.post('/progress/:resourceId/reset', TherapyController.resetProgramProgress);
+therapyRouter.delete('/progress/:resourceId/reset', TherapyController.resetProgramProgress);
+therapyRouter.delete('/progress/:resourceId', TherapyController.resetProgramProgress);
 therapyRouter.post('/progress/:resourceId', TherapyController.startProgress);
 therapyRouter.patch('/progress/:id', TherapyController.updateProgress);
 
