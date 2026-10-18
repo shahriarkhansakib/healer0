@@ -22,8 +22,8 @@ type RedisAdapter = {
 };
 
 function buildAdapter(): RedisAdapter {
-  const upstashUrl = process.env.UPSTASH_URL;
-  const upstashToken = process.env.UPSTASH_TOKEN;
+  const upstashUrl = process.env.UPSTASH_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const upstashToken = process.env.UPSTASH_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (upstashUrl && upstashToken) {
     // Prod: Upstash HTTP client — safe in serverless/edge runtimes.

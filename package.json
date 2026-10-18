@@ -15,9 +15,9 @@
     "db:reset": "docker compose down -v --remove-orphans && docker compose up -d && node -e \"setTimeout(()=>{},3000)\" && pnpm db:push && pnpm db:seed"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.8.3",
     "turbo": "^2.0.0",
-    "typescript": "^5.5.0",
-    "@biomejs/biome": "1.8.3"
+    "typescript": "^5.5.0"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -28,5 +28,9 @@
       "react": "19.0.0",
       "react-dom": "19.0.0"
     }
+  },
+  "dependencies": {
+    "@neon/config": "^1.9.2",
+    "@neon/env": "^1.6.3"
   }
 }

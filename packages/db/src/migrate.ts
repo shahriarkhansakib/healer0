@@ -12,14 +12,57 @@ async function runMigration() {
   console.log('Connecting to database:', connectionString.replace(/:[^:@]+@/, ':***@'));
 
   try {
-    // 1. Ensure system_role enum and essential user columns exist
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'user';`);
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'patient';`);
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'doctor';`);
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'researcher';`);
+    // 1. Discover and execute all baseline migration files in sorted order
+    const drizzleDir = path.resolve(__dirname, '../drizzle');
+    const sqlFiles = fs
+      .readdirSync(drizzleDir)
+      .filter((file) => file.endsWith('.sql'))
+      .sort();
+
+    console.log(`Found ${sqlFiles.length} migration file(s): ${sqlFiles.join(', ')}`);
+
+    for (const sqlFile of sqlFiles) {
+      const sqlFilePath = path.join(drizzleDir, sqlFile);
+      const sqlContent = fs.readFileSync(sqlFilePath, 'utf-8');
+
+      const statements = sqlContent
+        .split('--> statement-breakpoint')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      console.log(`Executing ${statements.length} statements from ${sqlFile}...`);
+
+      for (let i = 0; i < statements.length; i++) {
+        const stmt = statements[i];
+        try {
+          await sqlClient.unsafe(stmt);
+        } catch (err: any) {
+          // If column, table, enum value or constraint already exists, proceed gracefully
+          if (
+            err.code === '42701' || // duplicate_column
+            err.code === '42P07' || // duplicate_table
+            err.code === '42710' || // duplicate_object
+            err.message?.includes('already exists')
+          ) {
+            continue;
+          }
+          console.warn(`Warning on statement ${i + 1} of ${sqlFile}: ${err.message}`);
+        }
+      }
+    }
+
+    // 2. Ensure system_role enum and essential user columns exist
+    try {
+      await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'user';`);
+      await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'patient';`);
+      await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'doctor';`);
+      await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'researcher';`);
+    } catch (e: any) {
+      // Ignore if already added
+    }
     await sqlClient.unsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone" text;`);
 
-    // 2. Clean up legacy orphaned tables that do not exist in current schema
+    // 3. Clean up legacy orphaned tables that do not exist in current schema
     await sqlClient.unsafe(`
       DROP TABLE IF EXISTS "meditation_history", "meditation_contents", "wellness_plan_tasks", "wellness_plans" CASCADE;
     `);
@@ -107,6 +150,7 @@ async function runMigration() {
 
     await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "question_code" text;`);
     await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "options" jsonb;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "option_e" text;`);
     await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_a" DROP NOT NULL;`);
     await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_b" DROP NOT NULL;`);
     await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_c" DROP NOT NULL;`);
@@ -157,45 +201,6 @@ async function runMigration() {
         "updated_at" timestamp DEFAULT now() NOT NULL
       );
     `);
-
-    // 4. Discover and execute all migration files in sorted order
-    const drizzleDir = path.resolve(__dirname, '../drizzle');
-    const sqlFiles = fs
-      .readdirSync(drizzleDir)
-      .filter((file) => file.endsWith('.sql'))
-      .sort();
-
-    console.log(`Found ${sqlFiles.length} migration file(s): ${sqlFiles.join(', ')}`);
-
-    for (const sqlFile of sqlFiles) {
-      const sqlFilePath = path.join(drizzleDir, sqlFile);
-      const sqlContent = fs.readFileSync(sqlFilePath, 'utf-8');
-
-      const statements = sqlContent
-        .split('--> statement-breakpoint')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-
-      console.log(`Executing ${statements.length} statements from ${sqlFile}...`);
-
-      for (let i = 0; i < statements.length; i++) {
-        const stmt = statements[i];
-        try {
-          await sqlClient.unsafe(stmt);
-        } catch (err: any) {
-          // If column, table, enum value or constraint already exists, proceed gracefully
-          if (
-            err.code === '42701' || // duplicate_column
-            err.code === '42P07' || // duplicate_table
-            err.code === '42710' || // duplicate_object
-            err.message?.includes('already exists')
-          ) {
-            continue;
-          }
-          console.warn(`Warning on statement ${i + 1} of ${sqlFile}: ${err.message}`);
-        }
-      }
-    }
 
     console.log('Migration completed successfully!');
   } catch (error) {
