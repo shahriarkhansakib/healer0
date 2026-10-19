@@ -1,60 +1,220 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Enforce Strict Semantics */
+  --color-*: initial;
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Doctor Dashboard Hospital Light Theme — explicit color families
+     Required because --color-*: initial strips all Tailwind defaults */
+  --color-white: #ffffff;
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-400: #94a3b8;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-teal-50: #f0fdfa;
+  --color-teal-200: #99f6e4;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  --color-teal-800: #115e59;
+
+  /* Radius Math */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #020817;
-  --card: #ffffff;
-  --card-foreground: #020817;
-  --popover: #ffffff;
-  --popover-foreground: #020817;
-  --primary: #0f172a;
-  --primary-foreground: #f8fafc;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
-  --destructive: #ff0000;
-  --destructive-foreground: #f8fafc;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #020817;
-  --radius: 0.5rem;
+  /* Mental Health Theme: Light Mode (Sage & Warm Creams) */
+  --background: oklch(0.98 0.01 160);
+  --foreground: oklch(0.25 0.02 160);
+  
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.25 0.02 160);
+  
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0.02 160);
+  
+  --primary: oklch(0.55 0.08 160);
+  --primary-foreground: oklch(0.98 0.01 160);
+  
+  --secondary: oklch(0.95 0.02 160);
+  --secondary-foreground: oklch(0.35 0.04 160);
+  
+  --muted: oklch(0.95 0.01 160);
+  --muted-foreground: oklch(0.55 0.02 160);
+  
+  --accent: oklch(0.93 0.02 160);
+  --accent-foreground: oklch(0.25 0.02 160);
+  
+  --destructive: oklch(0.6 0.15 20);
+  --destructive-foreground: oklch(0.98 0 0);
+  
+  --border: oklch(0.9 0.01 160);
+  --input: oklch(0.9 0.01 160);
+  --ring: oklch(0.55 0.08 160);
+  
+  --radius: 1rem; /* Soft, premium curves */
 }
 
 .dark {
-  --background: #020817;
-  --foreground: #f8fafc;
-  --card: #020817;
-  --card-foreground: #f8fafc;
-  --popover: #020817;
-  --popover-foreground: #f8fafc;
-  --primary: #f8fafc;
-  --primary-foreground: #0f172a;
-  --secondary: #1e293b;
-  --secondary-foreground: #f8fafc;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --accent: #1e293b;
-  --accent-foreground: #f8fafc;
-  --destructive: #7f1d1d;
-  --destructive-foreground: #f8fafc;
-  --border: #1e293b;
-  --input: #1e293b;
-  --ring: #cbd5e1;
+  /* Mental Health Theme: Dark Mode (Deep Soft Teals) */
+  --background: oklch(0.18 0.01 200);
+  --foreground: oklch(0.95 0.01 160);
+  
+  --card: oklch(0.22 0.01 200);
+  --card-foreground: oklch(0.95 0.01 160);
+  
+  --popover: oklch(0.22 0.01 200);
+  --popover-foreground: oklch(0.95 0.01 160);
+  
+  --primary: oklch(0.65 0.1 160);
+  --primary-foreground: oklch(0.18 0.01 200);
+  
+  --secondary: oklch(0.25 0.01 200);
+  --secondary-foreground: oklch(0.85 0.01 160);
+  
+  --muted: oklch(0.25 0.01 200);
+  --muted-foreground: oklch(0.65 0.01 160);
+  
+  --accent: oklch(0.25 0.01 200);
+  --accent-foreground: oklch(0.95 0.01 160);
+  
+  --destructive: oklch(0.4 0.15 20);
+  --destructive-foreground: oklch(0.95 0 0);
+  
+  --border: oklch(0.28 0.01 200);
+  --input: oklch(0.28 0.01 200);
+  --ring: oklch(0.65 0.1 160);
 }
 
-* {
-  border-color: var(--border);
+@layer base {
+  * {
+    border-color: var(--border);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.45);
+  }
+  
+  html, body {
+    height: 100%;
+    /* Zero Layout Shift via Scrollbar Locking */
+    overflow: hidden;
+  }
+  
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    /* 10ms Theme Transition */
+    transition: background-color 10ms cubic-bezier(0.4, 0, 0.2, 1), 
+                color 10ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
+/* Centralized Destructive Zone */
+.theme-destructive {
+  --primary: var(--destructive);
+  --primary-foreground: var(--destructive-foreground);
+  --ring: var(--destructive);
 }
+
+@layer base {
+  /* Hospital Light Theme for Doctor Dashboard ONLY */
+  .doctor-theme,
+  .dark .doctor-theme,
+  html.dark .doctor-theme,
+  html.dark body .doctor-theme,
+  [data-theme='dark'] .doctor-theme {
+    --background: #f8fafc !important;
+    --foreground: #0f172a !important;
+    
+    --card: #ffffff !important;
+    --card-foreground: #0f172a !important;
+    
+    --popover: #ffffff !important;
+    --popover-foreground: #0f172a !important;
+    
+    --primary: #0d9488 !important;
+    --primary-foreground: #ffffff !important;
+    
+    --secondary: #f1f5f9 !important;
+    --secondary-foreground: #334155 !important;
+    
+    --muted: #f1f5f9 !important;
+    --muted-foreground: #64748b !important;
+    
+    --accent: #f0fdfa !important;
+    --accent-foreground: #0f766e !important;
+    
+    --destructive: #ef4444 !important;
+    --destructive-foreground: #ffffff !important;
+    
+    --border: #e2e8f0 !important;
+    --input: #e2e8f0 !important;
+    --ring: #0d9488 !important;
+
+    --color-background: #f8fafc !important;
+    --color-foreground: #0f172a !important;
+    --color-card: #ffffff !important;
+    --color-card-foreground: #0f172a !important;
+    --color-popover: #ffffff !important;
+    --color-popover-foreground: #0f172a !important;
+    --color-primary: #0d9488 !important;
+    --color-primary-foreground: #ffffff !important;
+    --color-secondary: #f1f5f9 !important;
+    --color-secondary-foreground: #334155 !important;
+    --color-muted: #f1f5f9 !important;
+    --color-muted-foreground: #64748b !important;
+    --color-accent: #f0fdfa !important;
+    --color-accent-foreground: #0f766e !important;
+    --color-destructive: #ef4444 !important;
+    --color-destructive-foreground: #ffffff !important;
+    --color-border: #e2e8f0 !important;
+    --color-input: #e2e8f0 !important;
+    --color-ring: #0d9488 !important;
+    
+    color: #0f172a !important;
+    background-color: #f8fafc !important;
+  }
+}
+
+
+
