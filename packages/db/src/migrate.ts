@@ -12,122 +12,159 @@ async function runMigration() {
   console.log('Connecting to database:', connectionString.replace(/:[^:@]+@/, ':***@'));
 
   try {
-    // 1. Ensure system_role enum and essential user columns exist
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'user';`);
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'patient';`);
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'doctor';`);
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'researcher';`);
-    await sqlClient.unsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone" text;`);
+    // 1. Discover and execute all baseline migration files in sorted order
+    const drizzleDir = path.resolve(__dirname, '../drizzle');
+    const sqlFiles = fs
+      .readdirSync(drizzleDir)
+      .filter((file) => file.endsWith('.sql'))
+      .sort();
 
-    // 2. Clean up legacy orphaned tables that do not exist in current schema
+    console.log(`Found ${sqlFiles.length} migration file(s): ${sqlFiles.join(', ')}`);
+
+    for (const sqlFile of sqlFiles) {
+      const sqlFilePath = path.join(drizzleDir, sqlFile);
+      const sqlContent = fs.readFileSync(sqlFilePath, 'utf-8');
+
+      const statements = sqlContent
+        .split('--> statement-breakpoint')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      console.log(`Executing ${statements.length} statements from ${sqlFile}...`);
+
+      for (let i = 0; i < statements.length; i++) {
+        const stmt = statements[i];
+        try {
+          await sqlClient.unsafe(stmt);
+        } catch (err: any) {
+          // If column, table, enum value or constraint already exists, proceed gracefully
+          if (
+            err.code === '42701' || // duplicate_column
+            err.code === '42P07' || // duplicate_table
+            err.code === '42710' || // duplicate_object
+            err.message?.includes('already exists')
+          ) {
+            continue;
+          }
+          console.warn(`Warning on statement ${i + 1} of ${sqlFile}: ${err.message}`);
+        }
+      }
+    }
+
+    // 2. Ensure schema enhancements and extensions exist
+    await sqlClient.unsafe(`ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "license_number" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "hospital_affiliation" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now() NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now() NOT NULL;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "consultation_reason" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "appointment_status" text DEFAULT 'Scheduled' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "session_duration_minutes" integer DEFAULT 50 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now() NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now() NOT NULL;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "prescriptions" ADD COLUMN IF NOT EXISTS "title" text DEFAULT 'Treatment Plan' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "prescriptions" ADD COLUMN IF NOT EXISTS "patient_name" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "prescriptions" ADD COLUMN IF NOT EXISTS "medications" jsonb DEFAULT '[]'::jsonb NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "prescriptions" ADD COLUMN IF NOT EXISTS "notes" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "prescriptions" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now() NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "prescriptions" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now() NOT NULL;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "patient_doctor_visit_summary" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now() NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "patient_doctor_visit_summary" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now() NOT NULL;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "doctor_settings" ADD COLUMN IF NOT EXISTS "off_day" text DEFAULT 'Sunday' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_settings" ADD COLUMN IF NOT EXISTS "bio" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_settings" ADD COLUMN IF NOT EXISTS "duty_start_time" text DEFAULT '08:00' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_settings" ADD COLUMN IF NOT EXISTS "duty_end_time" text DEFAULT '17:00' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_settings" ADD COLUMN IF NOT EXISTS "auto_accept_booking" boolean DEFAULT true NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_settings" ADD COLUMN IF NOT EXISTS "notification_enabled" boolean DEFAULT true NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_settings" ADD COLUMN IF NOT EXISTS "language" text DEFAULT 'en' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_settings" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now() NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_settings" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now() NOT NULL;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "doctor_qualifications" ADD COLUMN IF NOT EXISTS "degree" text NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_qualifications" ADD COLUMN IF NOT EXISTS "institution" text NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_qualifications" ADD COLUMN IF NOT EXISTS "year" integer NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_qualifications" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now() NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_qualifications" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now() NOT NULL;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "patient_name" text NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "rating" integer NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "comment" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "is_verified" boolean DEFAULT true NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now() NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now() NOT NULL;`);
+
     await sqlClient.unsafe(`
-      DROP TABLE IF EXISTS "meditation_history", "meditation_contents", "wellness_plan_tasks", "wellness_plans" CASCADE;
+      CREATE TABLE IF NOT EXISTS "therapy_programs" (
+        "id" text PRIMARY KEY NOT NULL,
+        "title" text NOT NULL,
+        "resource_type" text NOT NULL,
+        "category" text NOT NULL,
+        "description" text NOT NULL,
+        "difficulty_level" text NOT NULL,
+        "duration_minutes" integer NOT NULL,
+        "session_count" integer DEFAULT 1 NOT NULL,
+        "duration_weeks" integer DEFAULT 1 NOT NULL,
+        "daily_minutes" integer DEFAULT 15 NOT NULL,
+        "emoji" text DEFAULT '🌿',
+        "gradient_style" text DEFAULT 'teal',
+        "audio_url" text,
+        "video_url" text,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
     `);
 
-    // 3. Check for and recreate any outdated tables whose schema evolved
-    // Mood tracking
-    try {
-      await sqlClient.unsafe(`SELECT "mood_type" FROM "mood_tracking" LIMIT 1;`);
-    } catch {
-      console.log('Outdated or missing mood_tracking table detected, recreating...');
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "mood_tracking" CASCADE;`);
-    }
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "therapy_progress" (
+        "id" text PRIMARY KEY NOT NULL,
+        "user_id" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "resource_id" text NOT NULL REFERENCES "therapy_programs"("id") ON DELETE CASCADE,
+        "start_time" timestamp DEFAULT now() NOT NULL,
+        "completion_time" timestamp,
+        "status" text DEFAULT 'In Progress' NOT NULL,
+        "progress_percentage" integer DEFAULT 0 NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
 
-    // Journals
-    try {
-      await sqlClient.unsafe(`SELECT "ai_sentiment" FROM "journals" LIMIT 1;`);
-    } catch {
-      console.log('Outdated journals table detected, recreating...');
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "journals" CASCADE;`);
-    }
-    await sqlClient.unsafe(`ALTER TABLE "journals" ADD COLUMN IF NOT EXISTS "entry_date" timestamp DEFAULT now() NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "appointment_id" text;`);
-    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "session_count" integer DEFAULT 8 NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "duration_weeks" integer DEFAULT 8 NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "daily_minutes" integer DEFAULT 25 NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "emoji" text DEFAULT '🌿' NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "gradient_style" text DEFAULT 'emerald' NOT NULL;`);
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "wellness_rules" (
+        "id" text PRIMARY KEY NOT NULL,
+        "condition_type" text NOT NULL,
+        "minimum_value" integer,
+        "recommended_goal" text NOT NULL,
+        "recommended_activity" text NOT NULL,
+        "priority" text DEFAULT 'Medium' NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
 
-    // Emergency & Trusted Contacts
-    try {
-      await sqlClient.unsafe(`SELECT "risk_level" FROM "crisis_events" LIMIT 1;`);
-    } catch {
-      console.log('Outdated crisis_events table detected, recreating...');
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "crisis_events" CASCADE;`);
-    }
-    try {
-      await sqlClient.unsafe(`SELECT "contact_name" FROM "trusted_contacts" LIMIT 1;`);
-    } catch {
-      console.log('Outdated trusted_contacts table detected, recreating...');
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "trusted_contacts" CASCADE;`);
-    }
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "emergency_alerts" (
+        "id" text PRIMARY KEY NOT NULL,
+        "user_id" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "alert_type" text NOT NULL,
+        "latitude" numeric,
+        "longitude" numeric,
+        "status" text DEFAULT 'Active' NOT NULL,
+        "notified_contacts" jsonb,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
 
-    // Counseling
-    try {
-      await sqlClient.unsafe(`SELECT "session_type" FROM "counseling_sessions" LIMIT 1;`);
-    } catch {
-      console.log('Outdated counseling_sessions table detected, recreating...');
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "counseling_messages" CASCADE;`);
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "counseling_sessions" CASCADE;`);
-    }
-
-    // Appointments & Visit summary
-    try {
-      await sqlClient.unsafe(`SELECT "consultation_type" FROM "appointments" LIMIT 1;`);
-    } catch {
-      console.log('Outdated appointments table detected, recreating...');
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "patient_doctor_visit_summary" CASCADE;`);
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "appointments" CASCADE;`);
-    }
-
-    // Therapy programs
-    try {
-      await sqlClient.unsafe(`SELECT "resource_type" FROM "therapy_programs" LIMIT 1;`);
-    } catch {
-      console.log('Outdated therapy_programs table detected, recreating...');
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "user_therapy_progress" CASCADE;`);
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "therapy_programs" CASCADE;`);
-    }
-
-    // Assessments
-    try {
-      await sqlClient.unsafe(`SELECT "total_questions" FROM "assessments" LIMIT 1;`);
-    } catch {
-      console.log('Outdated assessments table detected, recreating...');
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "assessment_results" CASCADE;`);
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "assessment_questions" CASCADE;`);
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "assessments" CASCADE;`);
-    }
-
-    // Assessments & Screening Schema Enhancements
-    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "code" text;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "timeframe" text;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "scoring_config" jsonb;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "official_reference_bands" jsonb;`);
-
-    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "question_code" text;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "options" jsonb;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_a" DROP NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_b" DROP NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_c" DROP NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_d" DROP NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "score_mapping" DROP NOT NULL;`);
-
-    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "max_score" integer;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "identified_problem" text;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "clinical_summary" text;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "suggested_follow_up" text;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "requires_follow_up" boolean DEFAULT false;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "crisis_alert" boolean DEFAULT false;`);
-    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "answers" jsonb;`);
-
-    // Community groups & chat messages
-    try {
-      await sqlClient.unsafe(`SELECT "group_name" FROM "community_groups" LIMIT 1;`);
-    } catch {
-      console.log('Outdated community tables detected, recreating...');
+    // 3. Ensure community schema consistency
+    const legacyPostsExist = await sqlClient.unsafe(`
+      SELECT 1 FROM information_schema.tables WHERE table_name = 'community_posts';
+    `);
+    if (legacyPostsExist.length > 0) {
+      console.log('Detected legacy community schema with posts/comments. Migrating to real-time chat...');
       await sqlClient.unsafe(`DROP TABLE IF EXISTS "community_comments" CASCADE;`);
-      await sqlClient.unsafe(`DROP TABLE IF EXISTS "community_post_likes" CASCADE;`);
       await sqlClient.unsafe(`DROP TABLE IF EXISTS "community_posts" CASCADE;`);
       await sqlClient.unsafe(`DROP TABLE IF EXISTS "community_group_members" CASCADE;`);
       await sqlClient.unsafe(`DROP TABLE IF EXISTS "community_groups" CASCADE;`);
@@ -179,45 +216,6 @@ async function runMigration() {
       CREATE INDEX IF NOT EXISTS "doctor_patient_messages_thread_idx" ON "doctor_patient_messages" ("patient_user_id", "doctor_user_id");
       CREATE INDEX IF NOT EXISTS "doctor_patient_messages_created_at_idx" ON "doctor_patient_messages" ("created_at");
     `);
-
-    // 4. Discover and execute all migration files in sorted order
-    const drizzleDir = path.resolve(__dirname, '../drizzle');
-    const sqlFiles = fs
-      .readdirSync(drizzleDir)
-      .filter((file) => file.endsWith('.sql'))
-      .sort();
-
-    console.log(`Found ${sqlFiles.length} migration file(s): ${sqlFiles.join(', ')}`);
-
-    for (const sqlFile of sqlFiles) {
-      const sqlFilePath = path.join(drizzleDir, sqlFile);
-      const sqlContent = fs.readFileSync(sqlFilePath, 'utf-8');
-
-      const statements = sqlContent
-        .split('--> statement-breakpoint')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-
-      console.log(`Executing ${statements.length} statements from ${sqlFile}...`);
-
-      for (let i = 0; i < statements.length; i++) {
-        const stmt = statements[i];
-        try {
-          await sqlClient.unsafe(stmt);
-        } catch (err: any) {
-          // If column, table, enum value or constraint already exists, proceed gracefully
-          if (
-            err.code === '42701' || // duplicate_column
-            err.code === '42P07' || // duplicate_table
-            err.code === '42710' || // duplicate_object
-            err.message?.includes('already exists')
-          ) {
-            continue;
-          }
-          console.warn(`Warning on statement ${i + 1} of ${sqlFile}: ${err.message}`);
-        }
-      }
-    }
 
     console.log('Migration completed successfully!');
   } catch (error) {
