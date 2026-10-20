@@ -55,8 +55,10 @@ export function fetchDoctorReviews() {
 
 // Appointments
 export function fetchAppointments(status?: string) {
-  const query = status ? `?status=${status}` : '';
-  return apiFetch<{ data: any[] }>(`/appointments${query}`);
+  const params = new URLSearchParams();
+  if (status && status !== 'all') params.set('status', status);
+  params.set('role', 'doctor');
+  return apiFetch<{ data: any[] }>(`/appointments?${params.toString()}`);
 }
 
 export function updateAppointmentStatus(id: string, status: string) {
@@ -68,7 +70,7 @@ export function updateAppointmentStatus(id: string, status: string) {
 
 // Counseling
 export function fetchCounselingSessions() {
-  return apiFetch<{ data: any[] }>('/counseling/sessions');
+  return apiFetch<{ data: any[] }>('/counseling/sessions?role=doctor');
 }
 
 export function updateCounselingStatus(id: string, status: string, notes?: string) {

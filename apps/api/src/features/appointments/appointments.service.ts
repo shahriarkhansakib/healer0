@@ -6,39 +6,92 @@ import {
   doctorProfiles,
   patientProfiles,
   doctorReviews,
+  prescriptions,
+  doctorSettings,
   eq,
   asc,
   desc,
   and,
   or,
   inArray,
+  gte,
+  lte,
 } from '@healer/db';
+
+export interface TimeSlot {
+  time: string;           // "09:00"
+  formattedTime: string;  // "9:00 AM"
+  isoDateTime: string;    // "2026-10-20T09:00:00.000Z"
+  durationMinutes: number;
+  isAvailable: boolean;
+  reason?: 'Past time' | 'Already booked' | 'Doctor off duty';
+}
+
+export interface DoctorAvailabilityResult {
+  doctorId: string;
+  profileId: string;
+  doctorName: string;
+  specialization: string | null;
+  hospitalAffiliation: string | null;
+  date: string;
+  dayOfWeek: string;
+  isOffDay: boolean;
+  offDayName: string;
+  dutyStartTime: string;
+  dutyEndTime: string;
+  slots: TimeSlot[];
+}
 
 export async function getAppointmentsService(userId: string, statusFilter?: string) {
   const doctor = await db.query.doctorProfiles.findFirst({
-    where: eq(doctorProfiles.userId, userId),
+    where: or(eq(doctorProfiles.userId, userId), eq(doctorProfiles.id, userId)),
   });
   const ids = [userId];
-  if (doctor) ids.push(doctor.id);
+  if (doctor) {
+    ids.push(doctor.id);
+    if (doctor.userId && !ids.includes(doctor.userId)) ids.push(doctor.userId);
+  }
 
   const all = await db.query.appointments.findMany({
     where: inArray(appointments.doctorId, ids),
     orderBy: [desc(appointments.appointmentDate)],
   });
 
+  const enriched = await Promise.all(
+    all.map(async (a) => {
+      if (a.patientName) return a;
+      const pProf = await db.query.patientProfiles.findFirst({
+        where: or(eq(patientProfiles.id, a.patientId), eq(patientProfiles.userId, a.patientId)),
+      });
+      if (pProf) {
+        const u = await db.query.users.findFirst({
+          where: eq(users.id, pProf.userId),
+          columns: { name: true },
+        });
+        if (u?.name) return { ...a, patientName: u.name };
+      }
+      const directUser = await db.query.users.findFirst({
+        where: eq(users.id, a.patientId),
+        columns: { name: true },
+      });
+      if (directUser?.name) return { ...a, patientName: directUser.name };
+      return a;
+    })
+  );
+
   if (statusFilter && statusFilter !== 'all') {
-    return all.filter(a => 
+    return enriched.filter(a => 
       (a.status?.toLowerCase() === statusFilter.toLowerCase()) || 
       (a.appointmentStatus?.toLowerCase() === statusFilter.toLowerCase())
     );
   }
 
-  return all;
+  return enriched;
 }
 
 export async function updateAppointmentStatusService(userId: string, appointmentId: string, status: string) {
   const doctor = await db.query.doctorProfiles.findFirst({
-    where: eq(doctorProfiles.userId, userId),
+    where: or(eq(doctorProfiles.userId, userId), eq(doctorProfiles.id, userId)),
   });
   if (!doctor) throw new Error('Doctor profile not found');
 
@@ -85,6 +138,58 @@ export const AppointmentsService = {
     });
     if (!doctorProfile) return null;
 
+    // Check doctor duty hours and off-day constraints
+    const settings = await db.query.doctorSettings.findFirst({
+      where: eq(doctorSettings.doctorId, doctorProfile.id),
+    });
+    const apptDate = new Date(payload.appointmentDate);
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayName = dayNames[apptDate.getDay()];
+    const offDay = settings?.offDay || 'Sunday';
+
+    if (offDay.toLowerCase().includes(dayName.toLowerCase())) {
+      throw new Error(`Doctor is off duty on ${dayName}. Please choose another date.`);
+    }
+
+    const dutyStart = settings?.dutyStartTime || '08:00';
+    const dutyEnd = settings?.dutyEndTime || '17:00';
+    const [startH, startM] = dutyStart.split(':').map(Number);
+    const [endH, endM] = dutyEnd.split(':').map(Number);
+    const apptMinutes = apptDate.getHours() * 60 + apptDate.getMinutes();
+    const duration = payload.sessionDurationMinutes ?? 45;
+
+    if (apptMinutes < startH * 60 + startM || apptMinutes + duration > endH * 60 + endM) {
+      throw new Error(`Appointment must fall within doctor's duty hours (${dutyStart} - ${dutyEnd}).`);
+    }
+
+    // Check collision with existing active appointments for this doctor
+    const apptStart = apptDate.getTime();
+    const apptEnd = apptStart + duration * 60000;
+
+    const nearbyAppts = await db.query.appointments.findMany({
+      where: and(
+        inArray(appointments.doctorId, [doctorProfile.id, doctorProfile.userId]),
+        or(
+          eq(appointments.status, 'scheduled'),
+          eq(appointments.status, 'in-progress'),
+          eq(appointments.appointmentStatus, 'Scheduled')
+        ),
+        gte(appointments.appointmentDate, new Date(apptStart - 180 * 60000)),
+        lte(appointments.appointmentDate, new Date(apptEnd + 180 * 60000))
+      ),
+    });
+
+    const hasConflict = nearbyAppts.some((a) => {
+      const aStart = new Date(a.appointmentDate).getTime();
+      const aDur = a.sessionDurationMinutes || 45;
+      const aEnd = aStart + aDur * 60000;
+      return apptStart < aEnd && apptEnd > aStart;
+    });
+
+    if (hasConflict) {
+      throw new Error('This time slot is already booked. Please select an available slot.');
+    }
+
     const patientProfile = await db.query.patientProfiles.findFirst({
       where: eq(patientProfiles.userId, patientUserId),
       columns: { id: true },
@@ -101,11 +206,11 @@ export const AppointmentsService = {
         patientId: patientProfile?.id ?? patientUserId,
         doctorId: doctorProfile.id,
         patientName: patientUser?.name ?? 'Patient',
-        appointmentDate: new Date(payload.appointmentDate),
+        appointmentDate: apptDate,
         consultationType: payload.consultationType,
         reason: payload.consultationReason ?? '',
         consultationReason: payload.consultationReason ?? null,
-        sessionDurationMinutes: payload.sessionDurationMinutes ?? 50,
+        sessionDurationMinutes: duration,
         status: 'scheduled',
         appointmentStatus: 'Scheduled',
       })
@@ -536,19 +641,222 @@ export const AppointmentsService = {
     const userIds = doctors.map((d) => d.userId);
     const doctorUsers = await db.query.users.findMany({
       where: inArray(users.id, userIds),
-      columns: { id: true, name: true, email: true },
+      columns: { id: true, name: true, email: true, image: true },
     });
 
     const userMap = new Map(doctorUsers.map((u) => [u.id, u]));
 
-    return doctors.map((d) => ({
-      doctorId: d.userId,
-      profileId: d.id,
-      name: userMap.get(d.userId)?.name ?? 'Doctor',
-      email: userMap.get(d.userId)?.email ?? '',
-      specialization: d.specialization,
-      hospitalAffiliation: d.hospitalAffiliation,
-    }));
+    const profileIds = doctors.map((d) => d.id);
+    const settingsList = await db.query.doctorSettings.findMany({
+      where: inArray(doctorSettings.doctorId, profileIds),
+    });
+    const settingsMap = new Map(settingsList.map((s) => [s.doctorId, s]));
+
+    return doctors.map((d) => {
+      const user = userMap.get(d.userId);
+      const settings = settingsMap.get(d.id);
+      return {
+        doctorId: d.userId,
+        profileId: d.id,
+        name: user?.name ? (user.name.startsWith('Dr.') ? user.name : `Dr. ${user.name}`) : 'Doctor',
+        email: user?.email ?? '',
+        image: user?.image || null,
+        specialization: d.specialization,
+        hospitalAffiliation: d.hospitalAffiliation,
+        dutyStartTime: settings?.dutyStartTime || '08:00',
+        dutyEndTime: settings?.dutyEndTime || '17:00',
+        offDay: settings?.offDay || 'Sunday',
+        bio: settings?.bio || '',
+      };
+    });
+  },
+
+  async getDoctorAvailableSlots(
+    doctorId: string,
+    dateStr: string,
+    durationMinutes = 45
+  ): Promise<DoctorAvailabilityResult> {
+    const doctorProfile = await db.query.doctorProfiles.findFirst({
+      where: or(
+        eq(doctorProfiles.userId, doctorId),
+        eq(doctorProfiles.id, doctorId)
+      ),
+      columns: { id: true, userId: true, specialization: true, hospitalAffiliation: true },
+    });
+    if (!doctorProfile) {
+      throw new Error('Doctor profile not found');
+    }
+
+    const doctorUser = await db.query.users.findFirst({
+      where: eq(users.id, doctorProfile.userId),
+      columns: { name: true, image: true },
+    });
+
+    const settings = await db.query.doctorSettings.findFirst({
+      where: eq(doctorSettings.doctorId, doctorProfile.id),
+    });
+
+    const dutyStartTime = settings?.dutyStartTime || '08:00';
+    const dutyEndTime = settings?.dutyEndTime || '17:00';
+    const offDay = settings?.offDay || 'Sunday';
+
+    // Parse YYYY-MM-DD
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const targetDate = new Date(y, m - 1, d);
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayOfWeek = dayNames[targetDate.getDay()];
+
+    const isOffDay = offDay.toLowerCase().includes(dayOfWeek.toLowerCase());
+
+    const doctorName = doctorUser?.name
+      ? (doctorUser.name.startsWith('Dr.') ? doctorUser.name : `Dr. ${doctorUser.name}`)
+      : 'Doctor';
+
+    if (isOffDay) {
+      return {
+        doctorId: doctorProfile.userId,
+        profileId: doctorProfile.id,
+        doctorName,
+        specialization: doctorProfile.specialization,
+        hospitalAffiliation: doctorProfile.hospitalAffiliation,
+        date: dateStr,
+        dayOfWeek,
+        isOffDay: true,
+        offDayName: offDay,
+        dutyStartTime,
+        dutyEndTime,
+        slots: [],
+      };
+    }
+
+    // Load active appointments for this doctor on target date
+    const dayStart = new Date(y, m - 1, d, 0, 0, 0, 0);
+    const dayEnd = new Date(y, m - 1, d, 23, 59, 59, 999);
+
+    const existingAppts = await db.query.appointments.findMany({
+      where: and(
+        inArray(appointments.doctorId, [doctorProfile.id, doctorProfile.userId]),
+        gte(appointments.appointmentDate, dayStart),
+        lte(appointments.appointmentDate, dayEnd),
+        or(
+          eq(appointments.status, 'scheduled'),
+          eq(appointments.status, 'in-progress'),
+          eq(appointments.appointmentStatus, 'Scheduled')
+        )
+      ),
+    });
+
+    const [startH, startM] = dutyStartTime.split(':').map(Number);
+    const [endH, endM] = dutyEndTime.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+
+    const now = new Date();
+    const slots: TimeSlot[] = [];
+
+    for (let current = startMinutes; current + durationMinutes <= endMinutes; current += durationMinutes) {
+      const slotHour = Math.floor(current / 60);
+      const slotMinute = current % 60;
+
+      const slotStart = new Date(y, m - 1, d, slotHour, slotMinute, 0, 0);
+      const slotEnd = new Date(slotStart.getTime() + durationMinutes * 60000);
+
+      const isPast = slotStart.getTime() <= now.getTime();
+
+      const hasConflict = existingAppts.some((appt) => {
+        const apptStart = new Date(appt.appointmentDate).getTime();
+        const apptDuration = appt.sessionDurationMinutes || durationMinutes;
+        const apptEnd = apptStart + apptDuration * 60000;
+        return slotStart.getTime() < apptEnd && slotEnd.getTime() > apptStart;
+      });
+
+      const displayHour = slotHour % 12 === 0 ? 12 : slotHour % 12;
+      const ampm = slotHour >= 12 ? 'PM' : 'AM';
+      const formattedTime = `${displayHour}:${slotMinute.toString().padStart(2, '0')} ${ampm}`;
+      const time24 = `${slotHour.toString().padStart(2, '0')}:${slotMinute.toString().padStart(2, '0')}`;
+
+      slots.push({
+        time: time24,
+        formattedTime,
+        isoDateTime: slotStart.toISOString(),
+        durationMinutes,
+        isAvailable: !isPast && !hasConflict,
+        reason: isPast ? 'Past time' : hasConflict ? 'Already booked' : undefined,
+      });
+    }
+
+    return {
+      doctorId: doctorProfile.userId,
+      profileId: doctorProfile.id,
+      doctorName,
+      specialization: doctorProfile.specialization,
+      hospitalAffiliation: doctorProfile.hospitalAffiliation,
+      date: dateStr,
+      dayOfWeek,
+      isOffDay: false,
+      offDayName: offDay,
+      dutyStartTime,
+      dutyEndTime,
+      slots,
+    };
+  },
+
+  async listPrescriptionsForPatient(patientUserId: string) {
+    const patientProfile = await db.query.patientProfiles.findFirst({
+      where: eq(patientProfiles.userId, patientUserId),
+      columns: { id: true },
+    });
+    const ids = [patientUserId];
+    if (patientProfile) ids.push(patientProfile.id);
+
+    const rxList = await db.query.prescriptions.findMany({
+      where: inArray(prescriptions.patientId, ids),
+      orderBy: [desc(prescriptions.createdAt)],
+    });
+
+    if (rxList.length === 0) return [];
+
+    const doctorProfileIds = Array.from(new Set(rxList.map((r) => r.doctorId)));
+    const doctorList = await db.query.doctorProfiles.findMany({
+      where: or(
+        inArray(doctorProfiles.id, doctorProfileIds),
+        inArray(doctorProfiles.userId, doctorProfileIds)
+      ),
+      columns: { id: true, userId: true, specialization: true, hospitalAffiliation: true },
+    });
+
+    const doctorUserIds = doctorList.map((d) => d.userId);
+    const doctorUsers = doctorUserIds.length > 0
+      ? await db.query.users.findMany({
+          where: inArray(users.id, doctorUserIds),
+          columns: { id: true, name: true, image: true },
+        })
+      : [];
+
+    const userMap = new Map(doctorUsers.map((u) => [u.id, u]));
+    const doctorMap = new Map<string, { name: string; specialization: string | null; hospitalAffiliation: string | null; image: string | null }>();
+    doctorList.forEach((d) => {
+      const user = userMap.get(d.userId);
+      const info = {
+        name: user?.name ? (user.name.startsWith('Dr.') ? user.name : `Dr. ${user.name}`) : 'Doctor',
+        specialization: d.specialization,
+        hospitalAffiliation: d.hospitalAffiliation,
+        image: user?.image || null,
+      };
+      doctorMap.set(d.id, info);
+      doctorMap.set(d.userId, info);
+    });
+
+    return rxList.map((rx) => {
+      const doc = doctorMap.get(rx.doctorId);
+      return {
+        ...rx,
+        doctorName: doc?.name || 'Licensed Clinician',
+        doctorSpecialization: doc?.specialization || 'Clinical Specialist',
+        doctorHospital: doc?.hospitalAffiliation || null,
+        doctorImage: doc?.image || null,
+      };
+    });
   },
 };
 

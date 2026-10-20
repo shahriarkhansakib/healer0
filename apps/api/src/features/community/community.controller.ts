@@ -12,11 +12,30 @@ const CreateGroupSchema = z.object({
   avatarEmoji: z.string().max(10).optional(),
   anonymousAllowed: z.boolean().optional(),
   requiresApproval: z.boolean().optional(),
+  isHidden: z.boolean().optional(),
+  isInviteOnly: z.boolean().optional(),
 });
 
 const JoinGroupSchema = z.object({
   anonymousName: z.string().max(100).optional(),
   avatarColor: z.string().max(50).optional(),
+  inviteCode: z.string().max(50).optional(),
+});
+
+const JoinByCodeSchema = z.object({
+  inviteCode: z.string().min(1).max(50),
+  anonymousName: z.string().max(100).optional(),
+  avatarColor: z.string().max(50).optional(),
+});
+
+const UpdateGroupSettingsSchema = z.object({
+  groupName: z.string().min(1).max(255).optional(),
+  topic: z.string().min(1).max(255).optional(),
+  description: z.string().max(2000).optional(),
+  avatarEmoji: z.string().max(10).optional(),
+  requiresApproval: z.boolean().optional(),
+  isHidden: z.boolean().optional(),
+  isInviteOnly: z.boolean().optional(),
 });
 
 const UpdateProfileSchema = z.object({
@@ -62,6 +81,20 @@ export const CommunityController = {
     }
   },
 
+  async getGroupByInviteCode(c: Context<{ Variables: AuthVariables }>) {
+    const user = c.get('user');
+    const inviteCode = requireParam(c, 'inviteCode');
+    try {
+      const group = await CommunityService.getGroupByInviteCode(inviteCode, user.id, user.role);
+      if (!group) return c.json({ error: 'Not Found', message: 'Invalid or expired invite code.' }, 404);
+      return c.json(group, 200);
+    } catch (err: unknown) {
+      logger.error({ err }, 'CommunityController.getGroupByInviteCode failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+
   async createGroup(c: Context<{ Variables: AuthVariables }>) {
     const user = c.get('user');
     const rawBody = await c.req.json().catch(() => null);
@@ -79,6 +112,45 @@ export const CommunityController = {
     }
   },
 
+  async updateGroupSettings(c: Context<{ Variables: AuthVariables }>) {
+    const user = c.get('user');
+    const groupId = requireParam(c, 'groupId');
+    const rawBody = await c.req.json().catch(() => null);
+    const parsed = UpdateGroupSettingsSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return c.json({ error: 'Bad Request', message: parsed.error.flatten().fieldErrors }, 400);
+    }
+    try {
+      const result = await CommunityService.updateGroupSettings(groupId, user.id, parsed.data, user.role);
+      if ('error' in result) {
+        const status = result.error === 'forbidden' ? 403 : result.error === 'not_found' ? 404 : 400;
+        return c.json({ error: result.error, message: result.message }, status);
+      }
+      return c.json(result, 200);
+    } catch (err: unknown) {
+      logger.error({ err }, 'CommunityController.updateGroupSettings failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+
+  async regenerateInviteCode(c: Context<{ Variables: AuthVariables }>) {
+    const user = c.get('user');
+    const groupId = requireParam(c, 'groupId');
+    try {
+      const result = await CommunityService.regenerateInviteCode(groupId, user.id, user.role);
+      if ('error' in result) {
+        const status = result.error === 'forbidden' ? 403 : result.error === 'not_found' ? 404 : 400;
+        return c.json({ error: result.error, message: result.message }, status);
+      }
+      return c.json(result, 200);
+    } catch (err: unknown) {
+      logger.error({ err }, 'CommunityController.regenerateInviteCode failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+
   async joinGroup(c: Context<{ Variables: AuthVariables }>) {
     const user = c.get('user');
     const groupId = requireParam(c, 'groupId');
@@ -86,13 +158,46 @@ export const CommunityController = {
     const parsed = JoinGroupSchema.safeParse(rawBody);
     const customName = parsed.success ? parsed.data.anonymousName : undefined;
     const customColor = parsed.success ? parsed.data.avatarColor : undefined;
+    const inviteCode = parsed.success ? parsed.data.inviteCode : undefined;
 
     try {
-      const member = await CommunityService.joinGroup(groupId, user.id, customName, customColor);
-      if (!member) return c.json({ error: 'Not Found', message: 'Group not found.' }, 404);
-      return c.json(member, 201);
+      const result = await CommunityService.joinGroup(groupId, user.id, customName, customColor, inviteCode, user.role);
+      if (!result) return c.json({ error: 'Not Found', message: 'Group not found.' }, 404);
+      if ('error' in result) {
+        const status = result.error === 'forbidden' ? 403 : result.error === 'not_found' ? 404 : 400;
+        return c.json({ error: result.error, message: result.message }, status);
+      }
+      return c.json(result, 201);
     } catch (err: unknown) {
       logger.error({ err }, 'CommunityController.joinGroup failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+
+  async joinGroupByCode(c: Context<{ Variables: AuthVariables }>) {
+    const user = c.get('user');
+    const rawBody = await c.req.json().catch(() => ({}));
+    const parsed = JoinByCodeSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return c.json({ error: 'Bad Request', message: parsed.error.flatten().fieldErrors }, 400);
+    }
+    try {
+      const result = await CommunityService.joinGroupByCode(
+        parsed.data.inviteCode,
+        user.id,
+        parsed.data.anonymousName,
+        parsed.data.avatarColor,
+        user.role,
+      );
+      if (!result) return c.json({ error: 'Not Found', message: 'Group not found.' }, 404);
+      if ('error' in result) {
+        const status = result.error === 'forbidden' ? 403 : result.error === 'not_found' ? 404 : 400;
+        return c.json({ error: result.error, message: result.message }, status);
+      }
+      return c.json(result, 201);
+    } catch (err: unknown) {
+      logger.error({ err }, 'CommunityController.joinGroupByCode failed');
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       return c.json({ error: 'Internal Server Error', message }, 500);
     }

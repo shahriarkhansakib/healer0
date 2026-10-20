@@ -6,23 +6,29 @@ import {
   eq,
   desc,
   and,
+  or,
+  inArray,
 } from '@healer/db';
 
 export async function getCounselingSessionsService(userId: string) {
   const doctor = await db.query.doctorProfiles.findFirst({
-    where: eq(doctorProfiles.userId, userId),
+    where: or(eq(doctorProfiles.userId, userId), eq(doctorProfiles.id, userId)),
   });
-  if (!doctor) return [];
+  const ids = [userId];
+  if (doctor) {
+    ids.push(doctor.id);
+    if (doctor.userId && !ids.includes(doctor.userId)) ids.push(doctor.userId);
+  }
 
   return db.query.counselingSessions.findMany({
-    where: eq(counselingSessions.doctorId, doctor.id),
+    where: inArray(counselingSessions.doctorId, ids),
     orderBy: [desc(counselingSessions.startTime)],
   });
 }
 
 export async function updateCounselingStatusService(userId: string, sessionId: string, status: string, notes?: string) {
   const doctor = await db.query.doctorProfiles.findFirst({
-    where: eq(doctorProfiles.userId, userId),
+    where: or(eq(doctorProfiles.userId, userId), eq(doctorProfiles.id, userId)),
   });
   if (!doctor) throw new Error('Doctor profile not found');
 

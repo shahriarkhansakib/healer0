@@ -1,6 +1,6 @@
 import { 
   db, users, doctorProfiles, doctorSettings, doctorQualifications, 
-  doctorReviews, appointments, patientRecords, prescriptions, counselingSessions, eq, desc, count 
+  doctorReviews, appointments, patientRecords, prescriptions, counselingSessions, eq, desc, count, inArray, or 
 } from '@healer/db';
 
 export async function getDoctorProfileByUserId(userId: string) {
@@ -68,7 +68,7 @@ export async function getOverviewStats(userId: string) {
 
   const avgRating = reviews.length > 0 
     ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
-    : '5.0';
+    : null;
 
   const todayStr = new Date().toDateString();
   const todayAppointments = allAppointments.filter(a => new Date(a.appointmentDate).toDateString() === todayStr);
@@ -178,3 +178,241 @@ export async function getReviewsService(userId: string) {
     orderBy: [desc(doctorReviews.createdAt)],
   });
 }
+
+export interface DoctorDirectoryItem {
+  doctorId: string;
+  profileId: string;
+  name: string;
+  email: string;
+  image: string | null;
+  specialization: string;
+  licenseNumber: string;
+  hospitalAffiliation: string | null;
+  dutyStartTime: string;
+  dutyEndTime: string;
+  offDay: string;
+  bio: string;
+  isAvailableToday: boolean;
+  qualifications: {
+    id: string;
+    degree: string;
+    institution: string;
+    year: number;
+  }[];
+  averageRating: number;
+  reviewCount: number;
+  recentReviews: {
+    id: string;
+    patientName: string;
+    rating: number;
+    comment: string;
+    createdAt: Date;
+  }[];
+}
+
+export async function getDoctorDirectoryService(filters?: {
+  search?: string;
+  specialization?: string;
+  availableToday?: boolean;
+}): Promise<DoctorDirectoryItem[]> {
+  const doctors = await db.query.doctorProfiles.findMany({
+    columns: { id: true, userId: true, specialization: true, licenseNumber: true, hospitalAffiliation: true },
+  });
+
+  if (doctors.length === 0) return [];
+
+  const userIds = doctors.map((d) => d.userId);
+  const profileIds = doctors.map((d) => d.id);
+
+  const [doctorUsers, settingsList, qualificationsList, reviewsList] = await Promise.all([
+    db.query.users.findMany({
+      where: inArray(users.id, userIds),
+      columns: { id: true, name: true, email: true, image: true },
+    }),
+    db.query.doctorSettings.findMany({
+      where: inArray(doctorSettings.doctorId, profileIds),
+    }),
+    db.query.doctorQualifications.findMany({
+      where: inArray(doctorQualifications.doctorId, profileIds),
+      orderBy: [desc(doctorQualifications.year)],
+    }),
+    db.query.doctorReviews.findMany({
+      where: inArray(doctorReviews.doctorId, profileIds),
+      orderBy: [desc(doctorReviews.createdAt)],
+    }),
+  ]);
+
+  const userMap = new Map(doctorUsers.map((u) => [u.id, u]));
+  const settingsMap = new Map(settingsList.map((s) => [s.doctorId, s]));
+
+  const qualsMap = new Map<string, typeof qualificationsList>();
+  for (const q of qualificationsList) {
+    const arr = qualsMap.get(q.doctorId) || [];
+    arr.push(q);
+    qualsMap.set(q.doctorId, arr);
+  }
+
+  const reviewsMap = new Map<string, typeof reviewsList>();
+  for (const r of reviewsList) {
+    const arr = reviewsMap.get(r.doctorId) || [];
+    arr.push(r);
+    reviewsMap.set(r.doctorId, arr);
+  }
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const todayDayName = dayNames[new Date().getDay()];
+
+  let directory: DoctorDirectoryItem[] = doctors.map((d) => {
+    const user = userMap.get(d.userId);
+    const settings = settingsMap.get(d.id);
+    const quals = qualsMap.get(d.id) || [];
+    const reviews = reviewsMap.get(d.id) || [];
+
+    const offDay = settings?.offDay || 'Sunday';
+    const isAvailableToday = !offDay.toLowerCase().includes(todayDayName.toLowerCase());
+
+    const totalScore = reviews.reduce((sum, r) => sum + r.rating, 0);
+    const averageRating = reviews.length > 0 ? Number((totalScore / reviews.length).toFixed(1)) : 5.0;
+
+    const rawName = user?.name || 'Dr. Specialist';
+    const formattedName = rawName.startsWith('Dr.') ? rawName : `Dr. ${rawName}`;
+
+    return {
+      doctorId: d.userId,
+      profileId: d.id,
+      name: formattedName,
+      email: user?.email || '',
+      image: user?.image || null,
+      specialization: d.specialization || 'Clinical Specialist',
+      licenseNumber: d.licenseNumber || 'Verified',
+      hospitalAffiliation: d.hospitalAffiliation || null,
+      dutyStartTime: settings?.dutyStartTime || '08:00',
+      dutyEndTime: settings?.dutyEndTime || '17:00',
+      offDay,
+      bio: settings?.bio || 'Certified specialist dedicated to evidence-based healthcare.',
+      isAvailableToday,
+      qualifications: quals.map((q) => ({
+        id: q.id,
+        degree: q.degree,
+        institution: q.institution,
+        year: q.year,
+      })),
+      averageRating,
+      reviewCount: reviews.length,
+      recentReviews: reviews.slice(0, 3).map((r) => ({
+        id: r.id,
+        patientName: r.patientName,
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.createdAt,
+      })),
+    };
+  });
+
+  if (filters?.search) {
+    const q = filters.search.toLowerCase();
+    directory = directory.filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        d.specialization.toLowerCase().includes(q) ||
+        (d.hospitalAffiliation && d.hospitalAffiliation.toLowerCase().includes(q)) ||
+        d.bio.toLowerCase().includes(q)
+    );
+  }
+
+  if (filters?.specialization && filters.specialization !== 'all') {
+    directory = directory.filter(
+      (d) => d.specialization.toLowerCase() === filters.specialization?.toLowerCase()
+    );
+  }
+
+  if (filters?.availableToday) {
+    directory = directory.filter((d) => d.isAvailableToday);
+  }
+
+  directory.sort((a, b) => b.averageRating - a.averageRating);
+
+  return directory;
+}
+
+export async function getPublicDoctorProfileById(idOrUserId: string): Promise<DoctorDirectoryItem | null> {
+  const doctor = await db.query.doctorProfiles.findFirst({
+    where: or(
+      eq(doctorProfiles.id, idOrUserId),
+      eq(doctorProfiles.userId, idOrUserId)
+    ),
+  });
+  if (!doctor) return null;
+
+  const [user, settings, qualifications, reviews] = await Promise.all([
+    db.query.users.findFirst({
+      where: eq(users.id, doctor.userId),
+      columns: { id: true, name: true, email: true, image: true },
+    }),
+    db.query.doctorSettings.findFirst({
+      where: eq(doctorSettings.doctorId, doctor.id),
+    }),
+    db.query.doctorQualifications.findMany({
+      where: eq(doctorQualifications.doctorId, doctor.id),
+      orderBy: [desc(doctorQualifications.year)],
+    }),
+    db.query.doctorReviews.findMany({
+      where: eq(doctorReviews.doctorId, doctor.id),
+      orderBy: [desc(doctorReviews.createdAt)],
+    }),
+  ]);
+
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const todayDayName = dayNames[new Date().getDay()];
+  const offDay = settings?.offDay || 'Sunday';
+  const isAvailableToday = !offDay.toLowerCase().includes(todayDayName.toLowerCase());
+
+  const totalScore = reviews.reduce((sum, r) => sum + r.rating, 0);
+  const averageRating = reviews.length > 0 ? Number((totalScore / reviews.length).toFixed(1)) : 5.0;
+
+  const rawName = user?.name || 'Dr. Specialist';
+  const formattedName = rawName.startsWith('Dr.') ? rawName : `Dr. ${rawName}`;
+
+  return {
+    doctorId: doctor.userId,
+    profileId: doctor.id,
+    name: formattedName,
+    email: user?.email || '',
+    image: user?.image || null,
+    specialization: doctor.specialization || 'Clinical Specialist',
+    licenseNumber: doctor.licenseNumber || 'Verified',
+    hospitalAffiliation: doctor.hospitalAffiliation || null,
+    dutyStartTime: settings?.dutyStartTime || '08:00',
+    dutyEndTime: settings?.dutyEndTime || '17:00',
+    offDay,
+    bio: settings?.bio || 'Certified specialist dedicated to evidence-based healthcare.',
+    isAvailableToday,
+    qualifications: qualifications.map((q) => ({
+      id: q.id,
+      degree: q.degree,
+      institution: q.institution,
+      year: q.year,
+    })),
+    averageRating,
+    reviewCount: reviews.length,
+    recentReviews: reviews.map((r) => ({
+      id: r.id,
+      patientName: r.patientName,
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: r.createdAt,
+    })),
+  };
+}
+
+export async function listDoctorSpecializationsService(): Promise<string[]> {
+  const doctors = await db.query.doctorProfiles.findMany({
+    columns: { specialization: true },
+  });
+  const set = new Set<string>();
+  doctors.forEach((d) => {
+    if (d.specialization) set.add(d.specialization.trim());
+  });
+  return Array.from(set);
+}
+

@@ -9,6 +9,7 @@ import { doctorsRouter } from './features/doctors/doctors.route';
 import { appointmentsRouter } from './features/appointments/appointments.route';
 import { counselingRouter } from './features/counseling/counseling.route';
 import { sessionsRouter } from './features/sessions/sessions.route';
+import { messagesRouter } from './features/messages/messages.route';
 
 // Patient feature modules
 import { moodTrackingRouter } from './features/mood-tracking/mood-tracking.route';
@@ -47,6 +48,7 @@ app.route('/patients', patientsRouter);
 // Shared features (Integrated for both Doctor & Patient)
 app.route('/appointments', appointmentsRouter);
 app.route('/counseling', counselingRouter);
+app.route('/messages', messagesRouter);
 
 // Patient feature modules
 app.route('/mood-tracking', moodTrackingRouter);

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { 
   Users, Activity, Calendar, FileText, Settings, ShieldAlert, BookOpen, ShieldCheck, HeartPulse,
   LayoutDashboard, MessageSquare, Pill, UserCheck, User,
-  Bot, Smile, Sparkles, ClipboardList, BookMarked, FolderHeart
+  Bot, Smile, ClipboardList, BookMarked, FolderHeart, Stethoscope
 } from "lucide-react";
 import { SidebarNavLink } from "./sidebar-nav-link";
 import { SidebarNavFolder, SidebarNavFolderChild } from "./sidebar-nav-folder";
@@ -64,11 +64,11 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
             label: 'Therapy & Assessments',
             icon: <ClipboardList className="w-4 h-4" />,
             children: [
-              { href: '/patient/therapy', label: 'Therapy & Relaxation', icon: <Sparkles className="w-4 h-4" /> },
+              { href: '/patient/therapy', label: 'Therapy & Relaxation', icon: <HeartPulse className="w-4 h-4" /> },
               { href: '/patient/assessments', label: 'Clinical Assessments', icon: <FileText className="w-4 h-4" /> },
             ],
           },
-          { href: '/patient/appointments', label: 'Appointments', icon: <Calendar className="w-4 h-4" /> },
+          { href: '/patient/appointments', label: 'Appointments & Prescriptions', icon: <Calendar className="w-4 h-4" /> },
           { href: '/patient/community', label: 'Anonymous Community', icon: <Users className="w-4 h-4" /> },
         ],
         footerNav: [
@@ -116,11 +116,19 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
             label: 'Therapy & Assessments',
             icon: <ClipboardList className="w-4 h-4" />,
             children: [
-              { href: '/patient/therapy', label: 'Therapy & Relaxation', icon: <Sparkles className="w-4 h-4" /> },
+              { href: '/patient/therapy', label: 'Therapy & Relaxation', icon: <HeartPulse className="w-4 h-4" /> },
               { href: '/patient/assessments', label: 'Clinical Assessments', icon: <FileText className="w-4 h-4" /> },
             ],
           },
-          { href: '/patient/appointments', label: 'Appointments', icon: <Calendar className="w-4 h-4" /> },
+          {
+            label: 'Clinical Care',
+            icon: <Stethoscope className="w-4 h-4" />,
+            children: [
+              { href: '/patient/doctors', label: 'Doctor Directory', icon: <UserCheck className="w-4 h-4" /> },
+              { href: '/patient/messages', label: 'Direct Doctor Chat', icon: <MessageSquare className="w-4 h-4" /> },
+              { href: '/patient/appointments', label: 'Appointments & Prescriptions', icon: <Calendar className="w-4 h-4" /> },
+            ],
+          },
           { href: '/patient/community', label: 'Anonymous Community', icon: <Users className="w-4 h-4" /> },
         ],
         footerNav: [
@@ -167,7 +175,7 @@ export function Sidebar({ role }: { role?: SystemRole | string }) {
       isDoctor 
         ? "bg-white text-slate-800 border-r border-slate-200/80 shadow-xs" 
         : "bg-card text-card-foreground border-r border-border",
-      isOpen ? "w-64" : "w-16"
+      isOpen ? "w-72" : "w-16"
     )}>
       {/* Brand Header */}
       <div className={cn(

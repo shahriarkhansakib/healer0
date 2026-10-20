@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Star, Sparkles, UserCheck, CheckCircle2 } from "lucide-react";
+import { Star, UserCheck, CheckCircle2 } from "lucide-react";
 
 export interface PendingReview {
   id: string;
@@ -185,7 +185,7 @@ export function DoctorReviewDialog({
           {/* Quick Compliment Badges */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <UserCheck className="w-3.5 h-3.5 text-primary" />
               What stood out during your session? (Optional)
             </label>
             <div className="flex flex-wrap gap-1.5 pt-1">

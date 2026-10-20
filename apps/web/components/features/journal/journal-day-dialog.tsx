@@ -19,7 +19,7 @@ import {
   Calendar as CalendarIcon,
   Plus,
   Trash2,
-  Sparkles,
+  Brain,
   Smile,
   Clock,
   BookOpen,
@@ -250,10 +250,7 @@ export function JournalDayDialog({
                       {createMutation.isPending ? (
                         "Saving..."
                       ) : (
-                        <>
-                          <Sparkles className="w-3.5 h-3.5" />
-                          Save & Analyze Entry
-                        </>
+                        "Save & Analyze Entry"
                       )}
                     </Button>
                   </div>
@@ -334,7 +331,7 @@ export function JournalDayDialog({
                       {entry.aiSummary && (
                         <div className="p-2.5 rounded-lg bg-muted/60 border border-border/40 text-[11px] space-y-1">
                           <span className="font-semibold text-primary flex items-center gap-1">
-                            <Sparkles className="w-3 h-3" /> AI Summary:
+                            <Brain className="w-3 h-3" /> AI Summary:
                           </span>
                           <p className="text-muted-foreground leading-relaxed">
                             {entry.aiSummary}

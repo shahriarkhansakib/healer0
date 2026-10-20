@@ -40,6 +40,16 @@ export default function SessionNotesPage() {
   const notes = notesData?.data || [];
   const appointments = appointmentsData?.data || [];
 
+  const handleOpenAddModal = () => {
+    if (!appointmentId) {
+      const active = appointments.find(
+        (a: any) => a.status?.toLowerCase() === 'in-progress' || a.appointmentStatus?.toLowerCase() === 'inprogress'
+      );
+      if (active) setAppointmentId(active.id);
+    }
+    setShowAddModal(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -51,8 +61,8 @@ export default function SessionNotesPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors inline-flex items-center gap-1.5 self-start sm:self-auto"
+          onClick={handleOpenAddModal}
+          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors inline-flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Add Session Note
@@ -71,7 +81,7 @@ export default function SessionNotesPage() {
       ) : (
         <div className="space-y-4">
           {notes.map((note: any) => {
-            const patientName = note.appointment?.patient?.user?.name || "Patient";
+            const patientName = note.patientName || note.appointment?.patient?.user?.name || "Patient";
 
             return (
               <div
@@ -129,11 +139,15 @@ export default function SessionNotesPage() {
                   className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                 >
                   <option value="">-- Choose appointment --</option>
-                  {appointments.map((app: any) => (
-                    <option key={app.id} value={app.id}>
-                      {app.patient?.user?.name || "Patient"} - {new Date(app.appointmentDate).toLocaleDateString()} ({app.status})
-                    </option>
-                  ))}
+                  {appointments.map((app: any) => {
+                    const pName = app.patientName || app.patient?.user?.name || "Patient";
+                    const isInProgress = app.status?.toLowerCase() === 'in-progress' || app.appointmentStatus?.toLowerCase() === 'inprogress';
+                    return (
+                      <option key={app.id} value={app.id}>
+                        {isInProgress ? '⭐ [IN-PROGRESS] ' : ''}{pName} - {new Date(app.appointmentDate).toLocaleDateString()} ({app.status})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

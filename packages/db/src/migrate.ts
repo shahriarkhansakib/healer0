@@ -136,6 +136,11 @@ async function runMigration() {
     await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "avatar_emoji" text DEFAULT '💬';`);
     await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "requires_approval" boolean DEFAULT false NOT NULL;`);
     await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "creator_id" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "is_hidden" boolean DEFAULT false NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "is_invite_only" boolean DEFAULT false NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "invite_code" text;`);
+    await sqlClient.unsafe(`UPDATE "community_groups" SET "invite_code" = UPPER(SUBSTRING(MD5(RANDOM()::TEXT), 1, 8)) WHERE "invite_code" IS NULL;`);
+    await sqlClient.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "community_groups_invite_code_unique" ON "community_groups" ("invite_code");`);
     await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "anonymous_name" text;`);
     await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "avatar_color" text;`);
     await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "role" text DEFAULT 'member' NOT NULL;`);
@@ -156,6 +161,23 @@ async function runMigration() {
         "created_at" timestamp DEFAULT now() NOT NULL,
         "updated_at" timestamp DEFAULT now() NOT NULL
       );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "doctor_patient_messages" (
+        "id" text PRIMARY KEY NOT NULL,
+        "patient_user_id" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "doctor_user_id" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "sender_id" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "sender_role" text NOT NULL,
+        "message_text" text NOT NULL,
+        "attachment_url" text,
+        "is_read" boolean DEFAULT false NOT NULL,
+        "read_at" timestamp,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "doctor_patient_messages_thread_idx" ON "doctor_patient_messages" ("patient_user_id", "doctor_user_id");
+      CREATE INDEX IF NOT EXISTS "doctor_patient_messages_created_at_idx" ON "doctor_patient_messages" ("created_at");
     `);
 
     // 4. Discover and execute all migration files in sorted order

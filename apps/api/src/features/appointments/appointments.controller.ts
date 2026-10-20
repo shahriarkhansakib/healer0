@@ -44,7 +44,36 @@ const SubmitReviewSchema = z.object({
   comment: z.string().max(2000).optional(),
 });
 
+const GetAvailableSlotsSchema = z.object({
+  doctorId: z.string().min(1, 'Doctor ID is required'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be formatted as YYYY-MM-DD'),
+  durationMinutes: z.coerce.number().int().min(15).max(180).optional(),
+});
+
 export const AppointmentsController = {
+  async getAvailableSlots(c: Context<{ Variables: AuthVariables }>) {
+    const query = {
+      doctorId: c.req.query('doctorId'),
+      date: c.req.query('date'),
+      durationMinutes: c.req.query('durationMinutes'),
+    };
+    const parsed = GetAvailableSlotsSchema.safeParse(query);
+    if (!parsed.success) {
+      return c.json({ error: 'Bad Request', message: parsed.error.flatten().fieldErrors }, 400);
+    }
+    try {
+      const availability = await AppointmentsService.getDoctorAvailableSlots(
+        parsed.data.doctorId,
+        parsed.data.date,
+        parsed.data.durationMinutes
+      );
+      return c.json(availability, 200);
+    } catch (err: unknown) {
+      logger.error({ err }, 'AppointmentsController.getAvailableSlots failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
   async create(c: Context<{ Variables: AuthVariables }>) {
     const user = c.get('user');
     const rawBody = await c.req.json().catch(() => null);
@@ -196,6 +225,18 @@ export const AppointmentsController = {
       return c.json({ success: true, review }, 201);
     } catch (err: unknown) {
       logger.error({ err }, 'AppointmentsController.submitReview failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+
+  async listPatientPrescriptions(c: Context<{ Variables: AuthVariables }>) {
+    const user = c.get('user');
+    try {
+      const rxList = await AppointmentsService.listPrescriptionsForPatient(user.id);
+      return c.json(rxList, 200);
+    } catch (err: unknown) {
+      logger.error({ err }, 'AppointmentsController.listPatientPrescriptions failed');
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       return c.json({ error: 'Internal Server Error', message }, 500);
     }

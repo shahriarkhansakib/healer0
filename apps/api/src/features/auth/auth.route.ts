@@ -54,6 +54,14 @@ authRouter.get('/me', async (c) => {
     if (created) doctorProfile = created;
   }
 
+  if (doctorProfile && user.role !== 'doctor' && user.role !== 'admin' && user.role !== 'super_admin') {
+    await db
+      .update(users)
+      .set({ role: 'doctor' })
+      .where(eq(users.id, user.id));
+    user.role = 'doctor';
+  }
+
   if (!patientProfile && (user.role === 'user' || user.role === 'patient' || user.role === 'doctor' || user.role === 'super_admin')) {
     const [created] = await db
       .insert(patientProfiles)
@@ -155,6 +163,11 @@ authRouter.post('/setup-profiles', async (c) => {
               : null,
         })
         .onConflictDoNothing();
+
+      await db
+        .update(users)
+        .set({ role: 'doctor' })
+        .where(eq(users.id, userId));
     }
 
     // Provision demographic profile record (Table 2)

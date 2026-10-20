@@ -4,6 +4,7 @@ import {
   requireActiveAccount,
 } from '../../infra/middleware';
 import type { AuthVariables } from '../../infra/middleware/auth';
+import { db, doctorProfiles, eq } from '@healer/db';
 import { 
   getAppointmentsHandler, 
   updateAppointmentStatusHandler, 
@@ -21,8 +22,10 @@ appointmentsRouter.patch('/:id/complete', AppointmentsController.complete);
 appointmentsRouter.patch('/:id/status', updateAppointmentStatusHandler);
 
 // Patient-side specific routes
+appointmentsRouter.get('/available-slots', AppointmentsController.getAvailableSlots);
 appointmentsRouter.get('/doctors', AppointmentsController.listDoctors);
 appointmentsRouter.get('/summaries', AppointmentsController.listVisitSummaries);
+appointmentsRouter.get('/prescriptions', AppointmentsController.listPatientPrescriptions);
 appointmentsRouter.get('/pending-reviews', AppointmentsController.listPendingReviews);
 appointmentsRouter.post('/:id/review', AppointmentsController.submitReview);
 appointmentsRouter.post('/', AppointmentsController.create);
@@ -34,9 +37,16 @@ appointmentsRouter.get('/:id', AppointmentsController.getOne);
 appointmentsRouter.get('/', async (c) => {
   const user = c.get('user');
   const status = c.req.query('status');
-  if (user?.role === 'doctor' || status !== undefined) {
+  const role = c.req.query('role');
+
+  if (role === 'patient') {
+    return AppointmentsController.listMyAppointments(c);
+  }
+
+  if (role === 'doctor' || (status !== undefined && status !== 'all')) {
     return getAppointmentsHandler(c);
   }
+
   return AppointmentsController.listMyAppointments(c);
 });
 

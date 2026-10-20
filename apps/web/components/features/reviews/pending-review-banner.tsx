@@ -8,7 +8,7 @@ import {
   PendingReview,
 } from "@/components/features/reviews/doctor-review-dialog";
 import { Button } from "@/components/ui/button";
-import { Star, X, UserCheck, Sparkles } from "lucide-react";
+import { Star, X, UserCheck } from "lucide-react";
 
 interface PendingReviewBannerProps {
   className?: string;
@@ -49,8 +49,8 @@ export function PendingReviewBanner({ className = "" }: PendingReviewBannerProps
 
             <div className="space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5" /> Rate Your Doctor
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                  Rate Your Doctor
                 </span>
                 <span className="text-[11px] text-muted-foreground">• Completed Session</span>
               </div>

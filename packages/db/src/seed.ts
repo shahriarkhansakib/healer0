@@ -10,6 +10,7 @@ import { counselingSessions } from './schema/counseling';
 import { wellnessRules } from './schema/wellness';
 import { therapyPrograms } from './schema/therapy';
 import { assessments, assessmentQuestions } from './schema/assessments';
+import { doctorPatientMessages } from './schema/messages';
 import { eq } from 'drizzle-orm';
 import { scrypt } from 'crypto';
 import fs from 'fs';
@@ -111,6 +112,10 @@ async function main() {
       providerId: 'credential',
       password: commonPassword,
     });
+  } else {
+    await db.update(accounts)
+      .set({ password: commonPassword })
+      .where(eq(accounts.accountId, 'doctor@healer.app'));
   }
 
   let doctorProf = await db.query.doctorProfiles.findFirst({ where: eq(doctorProfiles.userId, doctorUser.id) });
@@ -148,224 +153,140 @@ async function main() {
     });
   }
 
-  // 4. Seed 5 Patients
-  const patientsData = [
-    { email: 'patient1@healer.app', name: 'Sarah Jenkins', blood: 'A+', condition: 'Generalized Anxiety Disorder (GAD)', risk: 'Moderate' },
-    { email: 'patient2@healer.app', name: 'Michael Chang', blood: 'O+', condition: 'Severe Panic Disorder with Agoraphobia', risk: 'High' },
-    { email: 'patient3@healer.app', name: 'Emily Davis', blood: 'B+', condition: 'Major Depressive Episode', risk: 'Critical' },
-    { email: 'patient4@healer.app', name: 'David Miller', blood: 'AB-', condition: 'Work-Related Burnout & Chronic Insomnia', risk: 'Low' },
-    { email: 'patient5@healer.app', name: 'Lisa Anderson', blood: 'O-', condition: 'Post-Traumatic Stress Symptoms', risk: 'Moderate' },
+  // 3b. Seed Additional Verified Doctors
+  const additionalDoctors = [
+    {
+      name: 'Dr. Farhana Rahman',
+      email: 'doctor2@healer.app',
+      specialization: 'Clinical Psychology & Cognitive Therapy',
+      licenseNumber: 'MD-832104-BD',
+      hospitalAffiliation: 'Center for Cognitive Behavioral Health',
+      dutyStartTime: '09:00',
+      dutyEndTime: '17:00',
+      offDay: 'Friday',
+      bio: 'Specialist in evidence-based cognitive behavioral therapy, acute trauma recovery, emotional regulation frameworks, and mindfulness-based stress reduction.',
+      qualifications: [
+        { degree: 'B.Sc (Hons) Clinical Psychology', institution: 'University of Dhaka', year: 2013 },
+        { degree: 'M.S. in Clinical Psychology', institution: 'University of Dhaka', year: 2015 },
+        { degree: 'Ph.D. in Cognitive Neuropsychology', institution: 'University of Melbourne', year: 2020 },
+      ],
+      reviews: [
+        { patientName: 'Sarah J.', rating: 5, comment: 'Dr. Farhana provided a safe, non-judgmental space and gave me actionable breathing exercises that immediately eased my panic symptoms.' },
+        { patientName: 'Michael C.', rating: 5, comment: 'Exceptional clinician. Her CBT frameworks are clear, empathetic, and genuinely life-changing.' },
+      ],
+    },
+    {
+      name: 'Dr. Tanvir Ahmed',
+      email: 'doctor3@healer.app',
+      specialization: 'Neuropsychiatry & Sleep Disorders',
+      licenseNumber: 'MD-741908-BD',
+      hospitalAffiliation: 'National Institute of Mental Health & Neurosciences',
+      dutyStartTime: '10:00',
+      dutyEndTime: '18:00',
+      offDay: 'Saturday',
+      bio: 'Consultant Neuropsychiatrist focusing on severe refractory mood disorders, circadian rhythm alignment, chronic insomnia, and neurological sleep cycle restoration.',
+      qualifications: [
+        { degree: 'MBBS', institution: 'Chittagong Medical College', year: 2011 },
+        { degree: 'MD (Psychiatry)', institution: 'BSMMU Bangladesh', year: 2017 },
+        { degree: 'Fellowship in Sleep Medicine', institution: 'International Neuropsychiatric Association (INA)', year: 2021 },
+      ],
+      reviews: [
+        { patientName: 'David M.', rating: 5, comment: 'Dr. Tanvir identified the root cause of my chronic insomnia after years of struggle. Cannot recommend him enough.' },
+        { patientName: 'Emily D.', rating: 4, comment: 'Very knowledgeable on neurological sleep cycles and safe medication tapering.' },
+      ],
+    },
+    {
+      name: 'Dr. Tasneem Kabir',
+      email: 'doctor4@healer.app',
+      specialization: 'Child, Adolescent & Family Psychiatry',
+      licenseNumber: 'MD-652390-BD',
+      hospitalAffiliation: 'Apollo Mind Health Center',
+      dutyStartTime: '08:30',
+      dutyEndTime: '16:30',
+      offDay: 'Wednesday',
+      bio: 'Dedicated to adolescent behavioral health, family systemic counseling, academic anxiety management, and neurodevelopmental support.',
+      qualifications: [
+        { degree: 'MBBS', institution: 'Sir Salimullah Medical College', year: 2014 },
+        { degree: 'FCPS (Child & Adolescent Psychiatry)', institution: 'BCPS Bangladesh', year: 2019 },
+      ],
+      reviews: [
+        { patientName: 'Lisa A.', rating: 5, comment: 'Extremely patient, compassionate, and gentle. Guided our family through difficult transitions with immense skill.' },
+        { patientName: 'Michael C.', rating: 5, comment: 'Wonderful bedside manner. Explained teenage emotional dynamics in a way that truly resonated.' },
+      ],
+    },
   ];
 
-  const createdPatients: { profileId: string; name: string }[] = [];
-
-  for (const p of patientsData) {
-    let pUser = await db.query.users.findFirst({ where: eq(users.email, p.email) });
-    if (!pUser) {
-      [pUser] = await db.insert(users).values({
-        name: p.name,
-        email: p.email,
+  for (const doc of additionalDoctors) {
+    let dUser = await db.query.users.findFirst({ where: eq(users.email, doc.email) });
+    if (!dUser) {
+      [dUser] = await db.insert(users).values({
+        name: doc.name,
+        email: doc.email,
         emailVerified: true,
-        role: 'patient',
+        role: 'doctor',
         status: 'active',
       }).returning();
 
       await db.insert(accounts).values({
-        userId: pUser.id,
-        accountId: p.email,
+        userId: dUser.id,
+        accountId: doc.email,
         providerId: 'credential',
         password: commonPassword,
       });
     }
 
-    let pProf = await db.query.patientProfiles.findFirst({ where: eq(patientProfiles.userId, pUser.id) });
-    if (!pProf) {
-      [pProf] = await db.insert(patientProfiles).values({
-        userId: pUser.id,
-        bloodType: p.blood,
-        allergies: ['Penicillin'],
-        medicalHistory: { notes: 'No major surgeries reported.' },
+    let dProf = await db.query.doctorProfiles.findFirst({ where: eq(doctorProfiles.userId, dUser.id) });
+    if (!dProf) {
+      [dProf] = await db.insert(doctorProfiles).values({
+        userId: dUser.id,
+        specialization: doc.specialization,
+        licenseNumber: doc.licenseNumber,
+        hospitalAffiliation: doc.hospitalAffiliation,
       }).returning();
     }
 
-    createdPatients.push({ profileId: pProf.id, name: p.name });
+    const docQuals = await db.query.doctorQualifications.findMany({ where: eq(doctorQualifications.doctorId, dProf.id) });
+    if (docQuals.length === 0) {
+      await db.insert(doctorQualifications).values(
+        doc.qualifications.map(q => ({
+          doctorId: dProf.id,
+          degree: q.degree,
+          institution: q.institution,
+          year: q.year,
+        }))
+      );
+    }
 
-    // Seed Patient Record
-    const existingRecord = await db.query.patientRecords.findFirst({ where: eq(patientRecords.patientId, pProf.id) });
-    if (!existingRecord) {
-      await db.insert(patientRecords).values({
-        doctorId: doctorProf.id,
-        patientId: pProf.id,
-        patientName: p.name,
-        condition: p.condition,
-        medicalHistory: 'Managed with weekly cognitive sessions and light lifestyle routine.',
-        previousSessions: 4,
-        riskLevel: p.risk,
-        allergies: 'Penicillin',
-        notes: 'Patient shows consistent progress during scheduled counseling sessions.',
+    const docSet = await db.query.doctorSettings.findFirst({ where: eq(doctorSettings.doctorId, dProf.id) });
+    if (!docSet) {
+      await db.insert(doctorSettings).values({
+        doctorId: dProf.id,
+        autoAcceptBooking: true,
+        notificationEnabled: true,
+        language: 'en',
+        dutyStartTime: doc.dutyStartTime,
+        dutyEndTime: doc.dutyEndTime,
+        offDay: doc.offDay,
+        bio: doc.bio,
       });
     }
-  }
 
-  // 5. Seed Appointments
-  const existingAppts = await db.query.appointments.findMany({ where: eq(appointments.doctorId, doctorProf.id) });
-  let firstApptId: string | null = null;
-  if (existingAppts.length === 0) {
-    const today = new Date();
-    const apptList = [
-      {
-        patientId: createdPatients[0].profileId,
-        patientName: createdPatients[0].name,
-        appointmentDate: new Date(today.getTime() + 1000 * 60 * 60 * 2), // 2 hours from now
-        consultationType: 'In-person',
-        reason: 'Monthly Mental Wellness Checkup & Medication Review',
-        status: 'scheduled',
-      },
-      {
-        patientId: createdPatients[1].profileId,
-        patientName: createdPatients[1].name,
-        appointmentDate: new Date(today.getTime() + 1000 * 60 * 60 * 4), // 4 hours from now
-        consultationType: 'Counseling',
-        reason: 'Acute Panic Episode Assessment',
-        status: 'in-progress',
-      },
-      {
-        patientId: createdPatients[2].profileId,
-        patientName: createdPatients[2].name,
-        appointmentDate: new Date(today.getTime() - 1000 * 60 * 60 * 24), // Yesterday
-        consultationType: 'Online',
-        reason: 'Follow-up on Sleep Therapy Routine',
-        status: 'completed',
-      },
-      {
-        patientId: createdPatients[3].profileId,
-        patientName: createdPatients[3].name,
-        appointmentDate: new Date(today.getTime() + 1000 * 60 * 60 * 26), // Tomorrow
-        consultationType: 'In-person',
-        reason: 'Work Stress Rehabilitation Evaluation',
-        status: 'scheduled',
-      },
-    ];
-
-    const inserted = await db.insert(appointments).values(
-      apptList.map(a => ({
-        doctorId: doctorProf.id,
-        patientId: a.patientId,
-        patientName: a.patientName,
-        appointmentDate: a.appointmentDate,
-        consultationType: a.consultationType,
-        reason: a.reason,
-        consultationReason: a.reason,
-        status: a.status,
-        appointmentStatus: a.status === 'completed' ? 'Completed' : a.status === 'canceled' ? 'Cancelled' : 'Scheduled',
-      }))
-    ).returning();
-
-    if (inserted.length > 0) {
-      firstApptId = inserted[0].id;
+    const docRevs = await db.query.doctorReviews.findMany({ where: eq(doctorReviews.doctorId, dProf.id) });
+    if (docRevs.length === 0) {
+      await db.insert(doctorReviews).values(
+        doc.reviews.map(r => ({
+          doctorId: dProf.id,
+          patientName: r.patientName,
+          rating: r.rating,
+          comment: r.comment,
+        }))
+      );
     }
-  } else {
-    firstApptId = existingAppts[0].id;
   }
 
-  // 6. Seed Counseling Sessions
-  const existingCounseling = await db.query.counselingSessions.findMany({ where: eq(counselingSessions.doctorId, doctorProf.id) });
-  if (existingCounseling.length === 0) {
-    const today = new Date();
-    await db.insert(counselingSessions).values([
-      {
-        doctorId: doctorProf.id,
-        patientId: createdPatients[0].profileId,
-        patientName: createdPatients[0].name,
-        sessionType: 'Stress Management',
-        startTime: new Date(today.getTime() + 1000 * 60 * 90),
-        status: 'upcoming',
-        notes: 'Focus on breathing techniques and sleep hygiene.',
-      },
-      {
-        doctorId: doctorProf.id,
-        patientId: createdPatients[1].profileId,
-        patientName: createdPatients[1].name,
-        sessionType: 'Therapy',
-        startTime: new Date(today.getTime() - 1000 * 60 * 60 * 48),
-        status: 'completed',
-        notes: 'Patient completed cognitive exposure session smoothly.',
-      },
-      {
-        doctorId: doctorProf.id,
-        patientId: createdPatients[4].profileId,
-        patientName: createdPatients[4].name,
-        sessionType: 'Mental Health',
-        startTime: new Date(today.getTime() + 1000 * 60 * 60 * 30),
-        status: 'upcoming',
-        notes: 'Post-trauma recovery milestone check-in.',
-      },
-    ]);
-  }
-
-  // 7. Seed Session Notes
-  const existingNotes = await db.query.sessionNotes.findMany({ where: eq(sessionNotes.doctorId, doctorProf.id) });
-  if (existingNotes.length === 0) {
-    await db.insert(sessionNotes).values([
-      {
-        appointmentId: firstApptId,
-        doctorId: doctorProf.id,
-        patientId: createdPatients[0].profileId,
-        patientName: createdPatients[0].name,
-        sessionSummary: 'Patient reports mild anxiety symptoms during high workload periods. Sleep duration averages 6 hours.',
-        clinicalImpressions: 'Alert, cooperative, well-groomed. Affect is congruent with mood.',
-        diagnosis: 'F41.1 Generalized Anxiety Disorder',
-        treatmentPlan: 'Maintain current SSRI dosage. Continue mindfulness practice for 15 mins daily.',
-      },
-      {
-        doctorId: doctorProf.id,
-        patientId: createdPatients[2].profileId,
-        patientName: createdPatients[2].name,
-        sessionSummary: 'Patient experiencing mood fluctuations following recent career shift.',
-        clinicalImpressions: 'Mild psychomotor slowing, responsive to therapeutic dialogue.',
-        diagnosis: 'F32.1 Moderate Depressive Episode',
-        treatmentPlan: 'Initiated light physical exercise regimen and prescribed bedtime sleep aid.',
-      },
-    ]);
-  }
-
-  // 8. Seed Prescriptions
-  const existingRx = await db.query.prescriptions.findMany({ where: eq(prescriptions.doctorId, doctorProf.id) });
-  if (existingRx.length === 0) {
-    await db.insert(prescriptions).values([
-      {
-        appointmentId: firstApptId,
-        doctorId: doctorProf.id,
-        patientId: createdPatients[0].profileId,
-        patientName: createdPatients[0].name,
-        title: 'Anxiety Management & Sleep Hygiene Protocol',
-        medications: [
-          { medicationName: 'Sertraline 50mg', dosage: '1 Tablet', frequency: 'Once daily (Morning)', duration: '30 Days', instructions: 'Take with food.' },
-          { medicationName: 'Melatonin 3mg', dosage: '1 Tablet', frequency: 'Bedtime', duration: '14 Days', instructions: 'Take 30 mins before sleep.' },
-        ],
-        notes: 'Avoid caffeine after 4 PM. Schedule review in 4 weeks.',
-      },
-      {
-        doctorId: doctorProf.id,
-        patientId: createdPatients[1].profileId,
-        patientName: createdPatients[1].name,
-        title: 'Acute Panic Stabilization Regimen',
-        medications: [
-          { medicationName: 'Propranolol 10mg', dosage: '1 Tablet', frequency: 'As needed for acute tremor/tachycardia', duration: '15 Days', instructions: 'Max 2 tablets per day.' },
-        ],
-        notes: 'Use in conjunction with deep breathing techniques during panic onset.',
-      },
-    ]);
-  }
-
-  // 9. Seed Reviews
-  const existingReviews = await db.query.doctorReviews.findMany({ where: eq(doctorReviews.doctorId, doctorProf.id) });
-  if (existingReviews.length === 0) {
-    await db.insert(doctorReviews).values([
-      { doctorId: doctorProf.id, patientId: createdPatients[0].profileId, patientName: 'Sarah J.', rating: 5, comment: 'Dr. Asif is empathetic, incredibly thorough, and explained my treatment plan step by step!' },
-      { doctorId: doctorProf.id, patientId: createdPatients[3].profileId, patientName: 'David M.', rating: 5, comment: 'Very calm and reassuring clinical environment. My sleep quality improved within two weeks.' },
-    ]);
-  }
+  // 4. Patient Accounts & Clinical Activity
+  // Note: All patient accounts, appointments, prescriptions, and session notes are created
+  // organically through user self-registration and clinical consultations. No fake patient data is seeded.
 
   // 10. Seed Deterministic Wellness Rules (Table 13 from PDF specification)
   const existingRules = await db.query.wellnessRules.findMany();
