@@ -75,15 +75,15 @@ export const ResearcherService = {
     });
 
     if (!profile) {
-      // First-time researcher activation: Provision profile and initial starter datasets
+      // First-time researcher activation: provision profile with default settings
       const [newProfile] = await db
         .insert(researcherProfiles)
         .values({
           userId,
           fullName: user.name || 'Research Investigator',
           email: user.email || '',
-          institution: 'Healer Clinical Research Network',
-          researchField: 'Behavioral Medicine & Computational Psychology',
+          institution: 'Independent Research',
+          researchField: 'Mental Health & Clinical Studies',
           designation: 'Principal Investigator',
           verificationStatus: 'Verified',
           isActive: isEnabled,
@@ -92,7 +92,7 @@ export const ResearcherService = {
 
       profile = newProfile;
 
-      // Seed starter researcher settings
+      // Create default researcher settings
       await db
         .insert(researcherSettings)
         .values({
@@ -104,176 +104,17 @@ export const ResearcherService = {
         })
         .onConflictDoNothing();
 
-      // Seed starter dashboard summary metrics matching seeded records
+      // Create empty dashboard summary (will be populated with real data as the researcher works)
       await db
         .insert(researcherDashboardSummaries)
         .values({
           researcherId: profile.id,
-          activeProjects: 2,
-          totalParticipants: 4,
-          completedSurveys: 1,
-          collectedRecords: 3,
+          activeProjects: 0,
+          totalParticipants: 0,
+          completedSurveys: 0,
+          collectedRecords: 0,
         })
         .onConflictDoNothing();
-
-      // Populate starter high-impact clinical research project
-      const [proj1] = await db
-        .insert(researchProjects)
-        .values({
-          researcherId: profile.id,
-          projectTitle: 'Cognitive Behavioral Intervention Efficacy in Severe Insomnia',
-          researchArea: 'Sleep Medicine & Digital Therapeutics',
-          description: 'A multi-cohort longitudinal trial studying the sustained efficacy of smartphone-guided behavioral routines and mood tracking on sleep onset latency.',
-          startDate: new Date('2025-01-10'),
-          endDate: new Date('2026-12-31'),
-          status: 'Active',
-        })
-        .returning();
-
-      const [proj2] = await db
-        .insert(researchProjects)
-        .values({
-          researcherId: profile.id,
-          projectTitle: 'Biometric Correlation of Real-time HRV with Panic Symptoms',
-          researchArea: 'Neuropsychiatry & Wearables',
-          description: 'Evaluating predictive machine learning algorithms for acute panic episode warning windows via continuous autonomic nervous system monitoring.',
-          startDate: new Date('2025-03-01'),
-          endDate: new Date('2026-09-30'),
-          status: 'Recruiting',
-        })
-        .returning();
-
-      // Seed sample participants for Project 1
-      const participantsData = [
-        { code: 'PT-8801', age: '25-34', gender: 'Female', elig: 'Eligible', consent: 'Consented' },
-        { code: 'PT-8802', age: '35-49', gender: 'Male', elig: 'Eligible', consent: 'Consented' },
-        { code: 'PT-8803', age: '18-24', gender: 'Non-binary', elig: 'Eligible', consent: 'Consented' },
-        { code: 'PT-8804', age: '50-64', gender: 'Female', elig: 'Eligible', consent: 'Consented' },
-      ];
-
-      for (const p of participantsData) {
-        const [createdP] = await db
-          .insert(researchParticipants)
-          .values({
-            projectId: proj1.id,
-            participantCode: p.code,
-            ageGroup: p.age,
-            gender: p.gender,
-            eligibilityStatus: p.elig,
-            consentStatus: p.consent,
-          })
-          .returning();
-
-        // Add screening log
-        await db.insert(participantScreening).values({
-          participantId: createdP.id,
-          projectId: proj1.id,
-          criteria: 'Pittsburgh Sleep Quality Index (PSQI) score > 8; No concurrent shift work.',
-          result: 'Passed',
-        });
-      }
-
-      // Seed sample Survey with Google Form integration
-      const [survey] = await db
-        .insert(researchSurveys)
-        .values({
-          projectId: proj1.id,
-          title: 'Weekly Sleep Hygiene & Wakefulness Inventory',
-          description: 'Standardized assessment of sleep latency, midnight awakenings, and subjective cognitive clarity.',
-          formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScYpYl7pQ-sample-sleep-inventory/viewform',
-          embedUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScYpYl7pQ-sample-sleep-inventory/viewform?embedded=true',
-          totalQuestions: 4,
-          status: 'Published',
-        })
-        .returning();
-
-      await db.insert(surveyQuestions).values([
-        {
-          surveyId: survey.id,
-          questionText: 'On average, how many minutes does it take you to fall asleep after lights out?',
-          questionType: 'multiple_choice',
-          options: ['Under 15 minutes', '15-30 minutes', '31-60 minutes', 'Over 60 minutes'],
-          orderIndex: 1,
-        },
-        {
-          surveyId: survey.id,
-          questionText: 'Rate your overall daytime alertness and mental clarity over the past 7 days.',
-          questionType: 'likert_scale',
-          options: ['1 - Severely impaired', '2 - Poor', '3 - Moderate', '4 - Good', '5 - Exceptional energy'],
-          orderIndex: 2,
-        },
-        {
-          surveyId: survey.id,
-          questionText: 'Did you experience distressing middle-of-the-night rumination?',
-          questionType: 'multiple_choice',
-          options: ['Never', '1-2 nights', '3-4 nights', 'Almost every night'],
-          orderIndex: 3,
-        },
-        {
-          surveyId: survey.id,
-          questionText: 'Detail any caffeine or screen-time disruptions observed prior to bedtime.',
-          questionType: 'text',
-          options: [],
-          orderIndex: 4,
-        },
-      ]);
-
-      // Seed starter telemetry data points
-      await db.insert(researchDataCollection).values([
-        {
-          projectId: proj1.id,
-          dataType: 'Sleep Telemetry',
-          dataValue: { sleepEfficiency: '84%', remDurationMinutes: 92, awakenings: 2, subjectiveScore: 7 },
-        },
-        {
-          projectId: proj1.id,
-          dataType: 'Mood Telemetry',
-          dataValue: { moodState: 'Calm', stressLevel: 3, anxietyRating: 2, mindfulnessMinutes: 15 },
-        },
-        {
-          projectId: proj2.id,
-          dataType: 'Biometric Sensor',
-          dataValue: { restingHeartRateBpm: 68, hrvSdnnMs: 54, galvanicSkinConductanceMicroS: 1.4 },
-        },
-      ]);
-
-      // Seed starter literature papers
-      await db.insert(researchPapers).values([
-        {
-          researcherId: profile.id,
-          title: 'Digital Cognitive Behavioral Therapy for Chronic Insomnia: Systematic Review and Meta-Analysis',
-          authors: 'Mahmud A., Jenkins S., Chang M.',
-          journalName: 'The Lancet Digital Health',
-          publicationYear: 2024,
-          paperUrl: 'https://doi.org/10.1016/S2589-7500(24)00012-3',
-        },
-        {
-          researcherId: profile.id,
-          title: 'Autonomic Dysregulation in Panic Disorder: Predictive Biomarkers via Continuous Photoplethysmography',
-          authors: 'Davis E., Miller D., Anderson L.',
-          journalName: 'Frontiers in Neuroscience',
-          publicationYear: 2023,
-          paperUrl: 'https://doi.org/10.3389/fnins.2023.11892',
-        },
-      ]);
-
-      // Seed starter collaboration peer
-      await db.insert(collaborationNetwork).values([
-        {
-          researcherId: profile.id,
-          connectedResearcherName: 'Dr. Clara Thorne, Ph.D.',
-          connectedInstitution: 'Stanford Computational Neurobiology Lab',
-          collaborationType: 'Co-Investigator',
-          status: 'Active',
-        },
-        {
-          researcherId: profile.id,
-          connectedResearcherName: 'Prof. Marcus Vance',
-          connectedInstitution: 'Oxford Institute of Population Mental Health',
-          collaborationType: 'Peer Reviewer',
-          status: 'Active',
-        },
-      ]);
     } else {
       // Existing profile: update isActive
       await db
