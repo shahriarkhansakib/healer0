@@ -275,7 +275,7 @@ export default function ResearcherSettingsPage() {
                 <Link href="/doctor">
                   <Button type="button" variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-[#4a044e] hover:bg-fuchsia-50 cursor-pointer">
                     <UserCheck className="w-3.5 h-3.5 mr-1 text-pink-600" />
-                    Doctor View
+                    Psychologist View
                   </Button>
                 </Link>
               </div>

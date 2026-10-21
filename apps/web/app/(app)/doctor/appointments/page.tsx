@@ -422,7 +422,7 @@ export default function DoctorAppointmentsPage() {
                     {isCanceled && (
                       <div className="p-2.5 rounded-lg bg-red-50/60 border border-red-200/60 text-xs text-red-700 space-y-0.5 mt-1.5">
                         <span className="font-semibold">
-                          Cancelled by {appt.cancelledBy === 'doctor' ? 'you (Doctor)' : 'Patient'}
+                          Cancelled by {appt.cancelledBy === 'doctor' ? 'you (Psychologist)' : 'Patient'}
                         </span>
                         {appt.cancellationReason && (
                           <p className="text-[11px] text-red-600">Reason: {appt.cancellationReason}</p>
@@ -665,7 +665,7 @@ export default function DoctorAppointmentsPage() {
             ? {
                 id: selectedApptForReschedule.id,
                 doctorId: selectedApptForReschedule.doctorId || '',
-                doctorName: 'You (Doctor)',
+                doctorName: 'You (Psychologist)',
                 patientName: selectedApptForReschedule.patientName,
                 appointmentDate: selectedApptForReschedule.appointmentDate,
                 consultationType: (selectedApptForReschedule.consultationType as any) || 'Video',

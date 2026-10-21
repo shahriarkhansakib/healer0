@@ -401,7 +401,7 @@ export default function PrescriptionsPage() {
                 {bookedPatients.length === 0 && (
                   <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    No patients have booked with your doctor account yet. Only patients who book a consultation or appointment with you will appear here.
+                    No patients have booked with your psychologist account yet. Only patients who book a consultation or appointment with you will appear here.
                   </p>
                 )}
               </div>

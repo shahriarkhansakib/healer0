@@ -98,11 +98,11 @@ export default function PatientDoctorsPage() {
               <Stethoscope className="w-5 h-5" />
             </span>
             <h1 className="text-2xl font-bold tracking-tight text-foreground truncate">
-              Verified Clinician Directory
+              Verified Psychologist Directory
             </h1>
           </div>
           <p className="text-sm text-muted-foreground pl-0 sm:pl-1">
-            Explore certified psychiatric specialists, clinical psychologists, and neuro-behavioral consultants.
+            Explore licensed clinical psychologists, behavioral therapists, and mental health specialists.
           </p>
         </div>
 
@@ -135,7 +135,7 @@ export default function PatientDoctorsPage() {
             <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <Input
               type="text"
-              placeholder="Search by clinician name, specialization, hospital, or clinical focus..."
+              placeholder="Search by psychologist name, specialization, clinic, or clinical focus..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 h-10 rounded-xl bg-card border-border text-sm"
@@ -175,7 +175,7 @@ export default function PatientDoctorsPage() {
                 : "bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted/40"
             )}
           >
-            All Specialists
+            All Psychologists
           </button>
           {Array.isArray(specializations) && specializations.map((spec) => (
             <button
@@ -220,9 +220,9 @@ export default function PatientDoctorsPage() {
           <div className="w-12 h-12 rounded-2xl bg-muted/40 text-muted-foreground flex items-center justify-center mx-auto">
             <Filter className="w-6 h-6" />
           </div>
-          <h3 className="text-base font-bold text-foreground">No clinicians found</h3>
+          <h3 className="text-base font-bold text-foreground">No psychologists found</h3>
           <p className="text-xs text-muted-foreground max-w-md mx-auto">
-            We couldn't find any verified clinicians matching your current search criteria. Try modifying your search or clearing filters.
+            We couldn&apos;t find any verified psychologists matching your current search criteria. Try modifying your search or clearing filters.
           </p>
           <Button
             type="button"
@@ -331,7 +331,7 @@ export default function PatientDoctorsPage() {
                     onClick={() => setSelectedProfileDoctor(doctor)}
                     className="text-xs text-muted-foreground hover:text-foreground font-medium gap-1"
                   >
-                    View Clinical Profile <ChevronRight className="w-3.5 h-3.5" />
+                    View Psychologist Profile <ChevronRight className="w-3.5 h-3.5" />
                   </Button>
 
                   <div className="flex items-center gap-2">

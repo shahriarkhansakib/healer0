@@ -161,7 +161,7 @@ export function RescheduleAppointmentDialog({
     if (availability?.isOffDay) {
       return {
         valid: false,
-        message: `Doctor is off duty on ${availability.offDayName}. Please pick another date.`,
+        message: `Psychologist is off duty on ${availability.offDayName}. Please pick another date.`,
       };
     }
 
@@ -175,7 +175,7 @@ export function RescheduleAppointmentDialog({
       if (totalStart < startH * 60 + startM || totalEnd > endH * 60 + endM) {
         return {
           valid: false,
-          message: `Time must fall within doctor duty hours (${availability.dutyStartTime} - ${availability.dutyEndTime}).`,
+          message: `Time must fall within psychologist duty hours (${availability.dutyStartTime} - ${availability.dutyEndTime}).`,
         };
       }
     }
@@ -237,7 +237,7 @@ export function RescheduleAppointmentDialog({
   const isDoctorView = appointment.doctorName?.includes('You') || (!appointment.doctorName && appointment.patientName);
   const subtitle = isDoctorView
     ? `Reschedule consultation with patient ${appointment.patientName || 'Patient'}.`
-    : `Select a new verified date and time slot with Dr. ${appointment.doctorName || 'Doctor'}.`;
+    : `Select a new verified date and time slot with ${appointment.doctorName || 'your psychologist'}.`;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -411,8 +411,8 @@ export function RescheduleAppointmentDialog({
               ) : availability?.isOffDay ? (
                 <div className="p-6 rounded-xl bg-muted/30 border border-dashed border-border text-center space-y-1.5 text-xs text-muted-foreground">
                   <CalendarOff className="w-7 h-7 mx-auto text-muted-foreground/60" />
-                  <p className="font-bold text-foreground">Doctor Off Duty</p>
-                  <p>The clinician is not seeing patients on this day ({availability.offDayName}). Please select another date.</p>
+                  <p className="font-bold text-foreground">Psychologist Off Duty</p>
+                  <p>The psychologist is not seeing patients on this day ({availability.offDayName}). Please select another date.</p>
                 </div>
               ) : (availability?.slots.length || 0) === 0 ? (
                 <div className="p-6 rounded-xl bg-muted/30 border border-dashed border-border text-center text-xs text-muted-foreground">

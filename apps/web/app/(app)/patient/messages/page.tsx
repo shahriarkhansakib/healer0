@@ -254,14 +254,14 @@ function PatientMessagesContent() {
             </h1>
           </div>
           <p className="text-xs text-muted-foreground pl-0 sm:pl-1">
-            Continuous asynchronous care and routine inquiries with your attending clinical specialists.
+            Continuous asynchronous care and routine inquiries with your attending clinical psychologists.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Link href="/patient/doctors">
             <Button variant="outline" size="sm" className="text-xs gap-1.5 shadow-2xs">
-              <UserCheck className="w-3.5 h-3.5 text-primary" /> Browse Clinician Directory
+              <UserCheck className="w-3.5 h-3.5 text-primary" /> Browse Psychologist Directory
             </Button>
           </Link>
           <Button
@@ -284,7 +284,7 @@ function PatientMessagesContent() {
           <div className="p-3.5 border-b border-border space-y-2.5 bg-card/60">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Attending Clinicians
+                Attending Psychologists
               </span>
               <span className="text-[11px] font-semibold text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full border border-border/50">
                 {conversations.length} contacts
@@ -294,7 +294,7 @@ function PatientMessagesContent() {
               <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <Input
                 type="text"
-                placeholder="Search clinician or message..."
+                placeholder="Search psychologist or message..."
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 className="pl-8.5 h-8.5 text-xs rounded-xl bg-background border-border/80"
@@ -320,7 +320,7 @@ function PatientMessagesContent() {
               <div className="p-8 text-center space-y-2">
                 <p className="text-xs font-semibold text-foreground">No conversations found</p>
                 <p className="text-[11px] text-muted-foreground">
-                  Browse the doctor directory to initiate your first consultation thread.
+                  Browse the psychologist directory to initiate your first consultation thread.
                 </p>
                 <Link href="/patient/doctors">
                   <Button variant="outline" size="sm" className="text-xs mt-2">
@@ -414,13 +414,13 @@ function PatientMessagesContent() {
               <div className="w-12 h-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center">
                 <MessageSquare className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-foreground">Select a clinician to open conversation</h3>
+              <h3 className="text-base font-bold text-foreground">Select a psychologist to open conversation</h3>
               <p className="text-xs text-muted-foreground max-w-sm">
-                Choose an attending doctor from the sidebar or browse verified specialists in the directory to begin messaging.
+                Choose an attending psychologist from the sidebar or browse verified specialists in the directory to begin messaging.
               </p>
               <Link href="/patient/doctors">
                 <Button size="sm" variant="outline" className="text-xs mt-2">
-                  <UserCheck className="w-3.5 h-3.5 mr-1.5" /> Find Clinicians
+                  <UserCheck className="w-3.5 h-3.5 mr-1.5" /> Find Psychologists
                 </Button>
               </Link>
             </div>

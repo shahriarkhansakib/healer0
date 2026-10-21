@@ -343,7 +343,7 @@ export default function AppointmentsAndPrescriptionsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Appointments & Prescriptions</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Manage your clinical consultations, schedule visits, and access digital doctor prescriptions.
+            Manage your clinical consultations, schedule visits, and access digital clinical prescriptions.
           </p>
         </div>
 
@@ -355,7 +355,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                 variant="outline"
                 className="flex items-center gap-1.5 shadow-2xs text-xs cursor-pointer hover:bg-muted hover:text-foreground transition-colors"
               >
-                <UserCheck className="w-4 h-4 text-primary" /> Browse Clinician Directory
+                <UserCheck className="w-4 h-4 text-primary" /> Browse Psychologist Directory
               </Button>
             </Link>
             <Button
@@ -515,7 +515,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                         </span>
                         <span className="text-muted-foreground font-mono">({appt.sessionDurationMinutes} mins)</span>
                         {appt.doctorName && (
-                          <span className="text-foreground font-semibold">• Dr. {appt.doctorName}</span>
+                          <span className="text-foreground font-semibold">• {appt.doctorName}</span>
                         )}
                       </div>
 
@@ -528,7 +528,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                       {appt.doctorNotes && (
                         <div className="mt-2.5 p-3 rounded-xl bg-muted/60 border border-border/60 text-xs space-y-1">
                           <span className="font-semibold text-primary flex items-center gap-1">
-                            <Stethoscope className="w-3.5 h-3.5" /> Doctor's Clinical Notes:
+                            <Stethoscope className="w-3.5 h-3.5" /> Psychologist&apos;s Clinical Notes:
                           </span>
                           <p className="text-foreground leading-relaxed">{appt.doctorNotes}</p>
                         </div>
@@ -652,7 +652,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                               </div>
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-foreground truncate">
-                                  Consultation with Dr. {appt.doctorName || 'Doctor'}
+                                  Session with {appt.doctorName || 'Psychologist'}
                                 </p>
                                 <p className="text-[11px] text-muted-foreground">
                                   Live session concludes at {endTimeStr}
@@ -691,9 +691,9 @@ export default function AppointmentsAndPrescriptionsPage() {
           {/* My Doctors & Care Team */}
           <div className="space-y-6 pt-6 border-t border-border">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">My Doctors & Care Team</h2>
+              <h2 className="text-lg font-semibold tracking-tight">My Psychologists & Care Team</h2>
               <p className="text-xs text-muted-foreground">
-                Clinicians who have conducted sessions or managed your medical care.
+                Psychologists and clinicians who have conducted sessions or managed your mental health care.
               </p>
             </div>
 
@@ -713,7 +713,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                               </div>
                               <div>
                                 <span className="font-bold text-sm text-foreground block">
-                                  {s.doctorName?.startsWith('Dr.') ? s.doctorName : `Dr. ${s.doctorName || 'Doctor'}`}
+                                  {s.doctorName || 'Psychologist'}
                                 </span>
                                 <span className="text-[10px] text-muted-foreground">Attending Clinician</span>
                               </div>
@@ -827,7 +827,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                                 <span>{new Date(appt.appointmentDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
                                 <span>•</span>
                                 <span className="text-foreground font-semibold font-sans">
-                                  {appt.doctorName?.startsWith('Dr.') ? appt.doctorName : `Dr. ${appt.doctorName || 'Doctor'}`}
+                                  {appt.doctorName || 'Psychologist'}
                                 </span>
                               </p>
 
@@ -840,7 +840,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                               {isCompleted && appt.doctorNotes && (
                                 <div className="p-2.5 rounded-xl bg-muted/60 border border-border/50 text-xs mt-1.5">
                                   <span className="font-semibold text-foreground flex items-center gap-1 text-[11px] mb-0.5">
-                                    <FileText className="w-3 h-3 text-primary" /> Doctor Clinical Note:
+                                    <FileText className="w-3 h-3 text-primary" /> Psychologist Clinical Note:
                                   </span>
                                   <p className="text-muted-foreground text-[11px]">{appt.doctorNotes}</p>
                                 </div>
@@ -851,7 +851,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                                   <div className="flex items-center justify-between text-[11px] font-semibold text-destructive">
                                     <span className="flex items-center gap-1">
                                       <XCircle className="w-3.5 h-3.5" />
-                                      {appt.cancelledBy === 'doctor' ? 'Cancelled by Doctor' : 'Cancelled by Patient'}
+                                      {appt.cancelledBy === 'doctor' ? 'Cancelled by Psychologist' : 'Cancelled by Patient'}
                                     </span>
                                     {appt.rescheduleCount && appt.rescheduleCount > 0 ? (
                                       <span className="font-normal text-muted-foreground">Prior reschedules: {appt.rescheduleCount}</span>
@@ -869,11 +869,11 @@ export default function AppointmentsAndPrescriptionsPage() {
                               {isDeclined && (
                                 <div className="p-2.5 rounded-xl bg-destructive/5 border border-destructive/20 text-xs mt-1.5 space-y-1">
                                   <span className="text-destructive font-semibold text-[11px] flex items-center gap-1">
-                                    <XCircle className="w-3.5 h-3.5" /> Request Declined by Doctor
+                                    <XCircle className="w-3.5 h-3.5" /> Request Declined by Psychologist
                                   </span>
                                   {appt.declineReason && (
                                     <p className="text-muted-foreground text-[11px]">
-                                      <span className="text-foreground font-medium">Doctor Note: </span>
+                                      <span className="text-foreground font-medium">Psychologist Note: </span>
                                       {appt.declineReason}
                                     </p>
                                   )}
@@ -884,10 +884,10 @@ export default function AppointmentsAndPrescriptionsPage() {
                             <div className="flex items-center justify-between pt-2 border-t border-border/50">
                               <span className="text-xs text-muted-foreground">
                                 {isCompleted
-                                  ? (appt.doctorName ? `Consultation with Dr. ${appt.doctorName.replace('Dr. ', '')}` : 'Session completed')
+                                  ? (appt.doctorName ? `Session with ${appt.doctorName.replace('Dr. ', '')}` : 'Session completed')
                                   : isCanceled
-                                  ? (appt.cancelledBy === 'doctor' ? 'Cancelled by Doctor' : 'Cancelled by Patient')
-                                  : 'Declined by Doctor'}
+                                  ? (appt.cancelledBy === 'doctor' ? 'Cancelled by Psychologist' : 'Cancelled by Patient')
+                                  : 'Declined by Psychologist'}
                               </span>
 
                               {isCompleted ? (
@@ -928,7 +928,7 @@ export default function AppointmentsAndPrescriptionsPage() {
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">
-                No doctor consultation summaries recorded yet. When you finish a session with a clinician, their profile and visit history will be documented here.
+                No psychologist consultation summaries recorded yet. When you finish a session with a psychologist, their profile and visit history will be documented here.
               </p>
             )}
           </div>
@@ -947,7 +947,7 @@ export default function AppointmentsAndPrescriptionsPage() {
               <Input
                 value={rxSearch}
                 onChange={(e) => setRxSearch(e.target.value)}
-                placeholder="Search by medication name, dosage, or doctor..."
+                placeholder="Search by medication name, dosage, or psychologist..."
                 className="pl-9 h-9 text-xs"
               />
             </div>
@@ -975,7 +975,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                       <div>
                         <h3 className="text-base font-bold text-foreground tracking-tight">{rx.title}</h3>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                          <span className="font-medium text-foreground">Prescribed by {rx.doctorName}</span>
+                          <span className="font-medium text-foreground">Issued by {rx.doctorName}</span>
                           {rx.doctorSpecialization && <span>• {rx.doctorSpecialization}</span>}
                           {rx.doctorHospital && <span>({rx.doctorHospital})</span>}
                           <span>• {new Date(rx.createdAt).toLocaleDateString([], { dateStyle: 'medium' })}</span>
@@ -1033,7 +1033,7 @@ export default function AppointmentsAndPrescriptionsPage() {
 
                               {med.instructions && (
                                 <div className="p-2 rounded-lg bg-muted/40 text-[11px] text-muted-foreground border border-border/40">
-                                  <span className="font-medium text-foreground">Doctor Note: </span>
+                                  <span className="font-medium text-foreground">Psychologist Note: </span>
                                   {med.instructions}
                                 </div>
                               )}
@@ -1066,7 +1066,7 @@ export default function AppointmentsAndPrescriptionsPage() {
               <div className="space-y-1 max-w-md mx-auto">
                 <h3 className="font-bold text-base text-foreground">No Active Prescriptions</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  When your attending doctor issues clinical prescriptions or sleep/anxiety protocols during consultations, they will appear here with full dosage and pharmacy instructions.
+                  When your attending psychologist issues clinical recommendations or sleep/anxiety protocols during consultations, they will appear here with full dosage and regimen instructions.
                 </p>
               </div>
             </Card>
@@ -1097,7 +1097,7 @@ export default function AppointmentsAndPrescriptionsPage() {
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Cancel Consultation</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Are you sure you want to cancel your appointment with Dr. {selectedApptForCancel?.doctorName || 'Doctor'}?
+              Are you sure you want to cancel your appointment with {selectedApptForCancel?.doctorName || 'your psychologist'}?
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">

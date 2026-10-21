@@ -108,7 +108,7 @@ export function SignUpFlow() {
         console.error("Profile setup error:", errorData);
       }
 
-      toast.success(isDoctor ? "Doctor account created!" : "Welcome to Healer!");
+      toast.success(isDoctor ? "Psychologist account created!" : "Welcome to Healer!");
 
       // Redirect to the appropriate dashboard
       window.location.href = isDoctor ? "/doctor" : "/patient";
@@ -148,7 +148,7 @@ export function SignUpFlow() {
             )}
           >
             <Stethoscope className="w-4 h-4" />
-            I'm a Doctor
+            I&apos;m a Psychologist
           </button>
         </div>
         <p className="text-[11px] text-muted-foreground text-center">
@@ -270,7 +270,7 @@ export function SignUpFlow() {
           >
             <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
               <Stethoscope className="w-3.5 h-3.5" />
-              Doctor Credentials
+              Psychologist Credentials
             </div>
 
             <div className="space-y-1.5">
@@ -281,20 +281,20 @@ export function SignUpFlow() {
                 value={specialization}
                 onChange={(e) => setSpecialization(e.target.value)}
                 className="bg-background/60 backdrop-blur-sm h-10 text-sm"
-                placeholder="e.g. Clinical Psychiatry, Psychotherapy"
+                placeholder="e.g. Clinical Psychology, Psychotherapy"
                 required={isDoctor}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="licenseNumber" className="text-xs">Medical License Number</Label>
+              <Label htmlFor="licenseNumber" className="text-xs">Psychology License Number</Label>
               <Input
                 id="licenseNumber"
                 type="text"
                 value={licenseNumber}
                 onChange={(e) => setLicenseNumber(e.target.value)}
                 className="bg-background/60 backdrop-blur-sm h-10 text-sm"
-                placeholder="e.g. MD-9284719"
+                placeholder="e.g. PSY-9284719"
                 required={isDoctor}
               />
             </div>
@@ -322,7 +322,7 @@ export function SignUpFlow() {
         {loading ? (
           <Loader2 className="w-5 h-5 animate-spin" />
         ) : isDoctor ? (
-          "Create Doctor Account"
+          "Create Psychologist Account"
         ) : (
           "Create Account"
         )}

@@ -43,7 +43,7 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
           { href: '/doctor/sessions/prescriptions', label: 'Prescriptions', icon: <Pill className="w-4 h-4" /> },
         ],
         footerNav: [
-          { href: '/doctor/profile', label: 'Doctor Profile', icon: <UserCheck className="w-4 h-4" /> },
+          { href: '/doctor/profile', label: 'Psychologist Profile', icon: <UserCheck className="w-4 h-4" /> },
           { href: '/doctor/settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
           { href: '/patient', label: 'Switch to Patient View', icon: <User className="w-4 h-4" /> },
         ],
@@ -135,8 +135,8 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
             label: 'Clinical Care',
             icon: <Stethoscope className="w-4 h-4" />,
             children: [
-              { href: '/patient/doctors', label: 'Doctor Directory', icon: <UserCheck className="w-4 h-4" /> },
-              { href: '/patient/messages', label: 'Direct Doctor Chat', icon: <MessageSquare className="w-4 h-4" /> },
+              { href: '/patient/doctors', label: 'Psychologist Directory', icon: <UserCheck className="w-4 h-4" /> },
+              { href: '/patient/messages', label: 'Direct Psychologist Chat', icon: <MessageSquare className="w-4 h-4" /> },
               { href: '/patient/appointments', label: 'Appointments & Prescriptions', icon: <Calendar className="w-4 h-4" /> },
             ],
           },

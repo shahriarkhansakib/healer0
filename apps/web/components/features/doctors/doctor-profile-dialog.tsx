@@ -165,12 +165,12 @@ export function DoctorProfileDialog({
 
           <div className="p-3.5 rounded-2xl border border-border bg-card/60 space-y-1">
             <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Award className="w-3.5 h-3.5 text-primary" /> Medical License
+              <Award className="w-3.5 h-3.5 text-primary" /> Psychology License
             </span>
             <p className="text-xs font-semibold text-foreground truncate">
               {doctor.licenseNumber}
             </p>
-            <p className="text-[11px] text-muted-foreground">Verified Medical Board</p>
+            <p className="text-[11px] text-muted-foreground">Verified Licensing Board</p>
           </div>
         </div>
 
@@ -222,7 +222,7 @@ export function DoctorProfileDialog({
 
           {!Array.isArray(doctor.recentReviews) || doctor.recentReviews.length === 0 ? (
             <div className="p-4 rounded-2xl border border-border bg-card text-center text-xs text-muted-foreground">
-              No public reviews yet for this clinician.
+              No public reviews yet for this psychologist.
             </div>
           ) : (
             <div className="space-y-2.5">

@@ -190,7 +190,7 @@ export default function SessionDetailsPage() {
                   </table>
                   {rx.notes && (
                     <div className="mt-4 p-3 bg-amber-50/50 rounded-md text-sm border border-amber-100/50">
-                      <span className="font-medium text-amber-800 block mb-1">Doctor's Instructions:</span>
+                      <span className="font-medium text-amber-800 block mb-1">Psychologist&apos;s Instructions:</span>
                       <span className="text-amber-700/90">{rx.notes}</span>
                     </div>
                   )}

@@ -199,7 +199,7 @@ function getInsightAction(insight: AssessmentResult) {
 
   if (insight.requiresFollowUp || text.includes("consultation") || text.includes("therapist") || text.includes("psychologist") || text.includes("physician")) {
     return {
-      label: "Book Doctor Consultation",
+      label: "Book Psychologist Consultation",
       href: "/patient/appointments",
       icon: Stethoscope,
     };
@@ -847,7 +847,7 @@ export default function PatientOverviewPage() {
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-foreground">
-                        Dr. {upcomingAppointment.doctorName || "Attending Specialist"}
+                        {upcomingAppointment.doctorName || "Attending Psychologist"}
                       </h4>
                       <p className="text-xs text-muted-foreground">
                         {new Date(upcomingAppointment.appointmentDate).toLocaleString([], {
@@ -904,7 +904,7 @@ export default function PatientOverviewPage() {
                     Active Prescriptions & Regimen
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Direct orders and medication regimens issued by your attending doctors
+                    Direct orders and session regimens issued by your attending psychologists
                   </p>
                 </div>
                 <Link
@@ -927,7 +927,7 @@ export default function PatientOverviewPage() {
                         <div>
                           <h4 className="text-xs font-bold text-foreground">{rx.title}</h4>
                           <p className="text-[11px] text-muted-foreground">
-                            Prescribed by {rx.doctorName} {rx.doctorSpecialization && `• ${rx.doctorSpecialization}`}
+                            Issued by {rx.doctorName} {rx.doctorSpecialization && `• ${rx.doctorSpecialization}`}
                           </p>
                         </div>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
@@ -952,7 +952,7 @@ export default function PatientOverviewPage() {
                 <div className="p-6 rounded-xl border border-dashed border-border/80 text-center space-y-1.5 flex-1 flex flex-col items-center justify-center">
                   <p className="text-xs text-foreground font-semibold">No active prescriptions on file</p>
                   <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
-                    When your doctor prescribes a treatment regimen during your visit, your medication schedule will be visible here.
+                    When your psychologist prescribes a treatment regimen during your visit, your regimen schedule will be visible here.
                   </p>
                 </div>
               )}

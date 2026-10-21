@@ -224,7 +224,7 @@ function DoctorMessagesContent() {
             <Link
               href="/doctor"
               className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all shrink-0 shadow-2xs cursor-pointer"
-              title="Back to Doctor Dashboard"
+              title="Back to Psychologist Dashboard"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
@@ -437,7 +437,7 @@ function DoctorMessagesContent() {
                               : "bg-slate-200 text-slate-700"
                           )}
                         >
-                          {isDoctorSender ? "Dr" : "Pt"}
+                          {isDoctorSender ? "Psy" : "Pt"}
                         </div>
 
                         <div className="space-y-1">

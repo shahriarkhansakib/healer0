@@ -195,7 +195,7 @@ export function DoctorSlotBookingDialog({
       }),
     onSuccess: () => {
       toast.success(
-        `Consultation booked with ${currentDoctor?.name || 'your doctor'} on ${format(selectedDate, 'MMM d')} at ${selectedSlot?.formattedTime}.`
+        `Consultation booked with ${currentDoctor?.name || 'your psychologist'} on ${format(selectedDate, 'MMM d')} at ${selectedSlot?.formattedTime}.`
       );
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointments', 'slots'] });
@@ -246,10 +246,10 @@ export function DoctorSlotBookingDialog({
             </div>
             <div className="min-w-0 flex-1">
               <DialogTitle className="text-xl font-bold tracking-tight text-foreground truncate">
-                Schedule Doctor Consultation
+                Schedule Psychologist Consultation
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5 truncate">
-                Select clinician, date, and reserve your real-time consultation slot.
+                Select psychologist, date, and reserve your real-time consultation slot.
               </DialogDescription>
             </div>
           </div>
@@ -260,7 +260,7 @@ export function DoctorSlotBookingDialog({
           <div className="space-y-2.5 w-full min-w-0">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                1. Attending Specialist
+                1. Attending Psychologist
               </label>
               {doctors && doctors.length > 1 && (
                 <div className="relative">
@@ -405,7 +405,7 @@ export function DoctorSlotBookingDialog({
                 <div className="flex items-center gap-3">
                   <CalendarOff className="w-5 h-5 text-muted-foreground shrink-0" />
                   <div className="text-xs">
-                    <p className="font-semibold">{currentDoctor?.name || 'Doctor'} is off duty on {availability.dayOfWeek}s.</p>
+                    <p className="font-semibold">{currentDoctor?.name || 'Psychologist'} is off duty on {availability.dayOfWeek}s.</p>
                     <p className="text-muted-foreground text-[11px] mt-0.5">
                       Please select another date above to view available time slots.
                     </p>
