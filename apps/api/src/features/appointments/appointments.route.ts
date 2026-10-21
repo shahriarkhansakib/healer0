@@ -27,6 +27,7 @@ appointmentsRouter.patch('/:id/decline', AppointmentsController.decline);
 appointmentsRouter.get('/available-slots', AppointmentsController.getAvailableSlots);
 appointmentsRouter.get('/doctors', AppointmentsController.listDoctors);
 appointmentsRouter.get('/summaries', AppointmentsController.listVisitSummaries);
+appointmentsRouter.get('/summary-by-doctor', AppointmentsController.listVisitSummaries);
 appointmentsRouter.get('/prescriptions', AppointmentsController.listPatientPrescriptions);
 appointmentsRouter.get('/pending-reviews', AppointmentsController.listPendingReviews);
 appointmentsRouter.post('/:id/review', AppointmentsController.submitReview);

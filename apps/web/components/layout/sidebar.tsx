@@ -34,7 +34,8 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
         mainNav: [
           { href: '/doctor', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
           { href: '/doctor/appointments', label: 'Appointments', icon: <Calendar className="w-4 h-4" /> },
-          { href: '/doctor/counseling', label: 'Counseling', icon: <MessageSquare className="w-4 h-4" /> },
+          { href: '/doctor/messages', label: 'Patient Chat', icon: <MessageSquare className="w-4 h-4" /> },
+          { href: '/doctor/counseling', label: 'Counseling', icon: <Bot className="w-4 h-4" /> },
           { href: '/doctor/patients', label: 'Patient Records', icon: <Users className="w-4 h-4" /> },
         ],
         sessionsNav: [

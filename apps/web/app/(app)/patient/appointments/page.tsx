@@ -145,17 +145,127 @@ export default function AppointmentsAndPrescriptionsPage() {
     return (appointmentsData as any).data || [];
   }, [appointmentsData]);
 
+  // Derive completed appointments (for visit counts & duration totals)
+  const completedAppointments = useMemo(() => {
+    return appointments.filter((a) => {
+      const s = (a.status || '').toLowerCase();
+      const as = (a.appointmentStatus || '').toLowerCase();
+      return s === 'completed' || as === 'completed';
+    });
+  }, [appointments]);
+
+  // Derive finished & cancelled appointments (completed, canceled, declined), sorted new to older
+  const finishedAndCancelledAppointments = useMemo(() => {
+    return appointments
+      .filter((a) => {
+        const s = (a.status || '').toLowerCase();
+        const as = (a.appointmentStatus || '').toLowerCase();
+        const isCompleted = s === 'completed' || as === 'completed';
+        const isCanceled = s === 'canceled' || as === 'cancelled';
+        const isDeclined = s === 'declined' || as === 'declined';
+        return isCompleted || isCanceled || isDeclined;
+      })
+      .sort((a, b) => {
+        const createdA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+        const createdB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+        if (createdA !== createdB) return createdB - createdA;
+        const dateA = a.appointmentDate ? new Date(a.appointmentDate).getTime() : 0;
+        const dateB = b.appointmentDate ? new Date(b.appointmentDate).getTime() : 0;
+        return dateB - dateA;
+      });
+  }, [appointments]);
+
+  // Derive upcoming scheduled sessions (strictly only pending, scheduled, in-progress), sorted new to older
+  const scheduledAppointments = useMemo(() => {
+    return appointments
+      .filter((a) => {
+        const s = (a.status || '').toLowerCase();
+        const as = (a.appointmentStatus || '').toLowerCase();
+        const isCompleted = s === 'completed' || as === 'completed';
+        const isCanceled = s === 'canceled' || as === 'cancelled';
+        const isDeclined = s === 'declined' || as === 'declined';
+        return !isCompleted && !isCanceled && !isDeclined;
+      })
+      .sort((a, b) => {
+        const getPriority = (status?: string, apptStatus?: string) => {
+          const s = (status || '').toLowerCase();
+          const as = (apptStatus || '').toLowerCase();
+          if (s === 'in-progress' || as === 'inprogress') return 1;
+          if (s === 'scheduled' || as === 'scheduled') return 2;
+          return 3;
+        };
+        const pA = getPriority(a.status, a.appointmentStatus);
+        const pB = getPriority(b.status, b.appointmentStatus);
+        if (pA !== pB) return pA - pB;
+
+        const createdA = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+        const createdB = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+        if (createdA !== createdB) return createdB - createdA;
+
+        const dateA = a.appointmentDate ? new Date(a.appointmentDate).getTime() : 0;
+        const dateB = b.appointmentDate ? new Date(b.appointmentDate).getTime() : 0;
+        return dateB - dateA;
+      });
+  }, [appointments]);
+
   // Fetch summary by doctor
   const { data: summaries, isLoading: loadingSummaries } = useQuery<DoctorSummary[]>({
     queryKey: ['appointments', 'doctor-summaries'],
-    queryFn: () => apiFetch<DoctorSummary[]>('/appointments/summary-by-doctor'),
+    queryFn: async () => {
+      try {
+        const res = await apiFetch<any>('/appointments/summaries');
+        return Array.isArray(res) ? res : res?.data || [];
+      } catch {
+        return [];
+      }
+    },
   });
+
+  const careTeamSummaries = useMemo(() => {
+    const list: DoctorSummary[] = summaries && Array.isArray(summaries) ? [...summaries] : [];
+    const existingDocIds = new Set(list.map((s) => s.doctorId));
+
+    for (const appt of finishedAndCancelledAppointments) {
+      if (!existingDocIds.has(appt.doctorId)) {
+        const completedForDoc = completedAppointments.filter((a) => a.doctorId === appt.doctorId);
+        list.push({
+          id: `summary-${appt.doctorId}`,
+          doctorId: appt.doctorId,
+          doctorName: appt.doctorName || 'Doctor',
+          totalVisits: completedForDoc.length,
+          totalConsultationMinutes: completedForDoc
+            .reduce((sum, a) => sum + (a.sessionDurationMinutes || 45), 0),
+          lastVisitDate: appt.appointmentDate,
+        });
+        existingDocIds.add(appt.doctorId);
+      }
+    }
+
+    return list;
+  }, [summaries, finishedAndCancelledAppointments, completedAppointments]);
 
   // Fetch user prescriptions
   const { data: prescriptions, isLoading: loadingPrescriptions } = useQuery<PatientPrescription[]>({
     queryKey: ['appointments', 'prescriptions'],
     queryFn: () => apiFetch<PatientPrescription[]>('/appointments/prescriptions'),
   });
+
+  // Fetch messages conversations for unread count & quick doctor thread linkage
+  const { data: conversations } = useQuery<any[]>({
+    queryKey: ['messages', 'conversations'],
+    queryFn: async () => {
+      try {
+        const res = await apiFetch<any>('/messages/conversations');
+        return Array.isArray(res) ? res : res?.data || [];
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 10000,
+  });
+
+  const totalUnreadMessages = conversations?.reduce((sum: number, c: any) => sum + (c.unreadCount || 0), 0) || 0;
+  const attendingDoctorId = appointments?.find((a) => a.doctorId)?.doctorId;
 
   // Reschedule state
   const [selectedApptForReschedule, setSelectedApptForReschedule] = useState<Appointment | null>(null);
@@ -220,7 +330,7 @@ export default function AppointmentsAndPrescriptionsPage() {
     return titleMatch || doctorMatch || medMatch;
   });
 
-  const scheduledCount = appointments?.filter((a) => a.appointmentStatus === 'Scheduled' || a.status === 'scheduled').length || 0;
+  const scheduledCount = scheduledAppointments.length;
   const prescriptionsCount = prescriptions?.length || 0;
 
   return (
@@ -261,8 +371,8 @@ export default function AppointmentsAndPrescriptionsPage() {
         )}
       </div>
 
-      {/* Two-Part Navigation Tabs */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/80 w-fit">
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/80 w-fit flex-wrap">
         <button
           type="button"
           onClick={() => setActiveTab('appointments')}
@@ -298,6 +408,20 @@ export default function AppointmentsAndPrescriptionsPage() {
             </span>
           )}
         </button>
+
+        <Link
+          href={attendingDoctorId ? `/patient/messages?doctorId=${attendingDoctorId}` : '/patient/messages'}
+          className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer group"
+          title="Direct confidential chat with your psychologist or attending clinician"
+        >
+          <MessageSquare className="w-4 h-4 text-teal-500 group-hover:scale-110 transition-transform" />
+          <span>Chat with Psychologist</span>
+          {totalUnreadMessages > 0 && (
+            <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 animate-pulse">
+              {totalUnreadMessages} New
+            </span>
+          )}
+        </Link>
       </div>
 
       {/* ========================================================================= */}
@@ -310,7 +434,7 @@ export default function AppointmentsAndPrescriptionsPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold tracking-tight">Your Scheduled Sessions</h2>
               <span className="text-xs text-muted-foreground font-mono">
-                {appointments?.length || 0} Total Sessions Recorded
+                {scheduledAppointments.length} Upcoming {scheduledAppointments.length === 1 ? 'Session' : 'Sessions'} Scheduled
               </span>
             </div>
 
@@ -318,15 +442,12 @@ export default function AppointmentsAndPrescriptionsPage() {
               <Card className="p-8 text-center text-sm text-muted-foreground">
                 Loading appointments...
               </Card>
-            ) : appointments && appointments.length > 0 ? (
+            ) : scheduledAppointments && scheduledAppointments.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {appointments.map((appt) => {
+                {scheduledAppointments.map((appt) => {
                   const isPending = appt.appointmentStatus === 'Pending' || appt.status === 'pending';
                   const isScheduled = appt.appointmentStatus === 'Scheduled' || appt.status === 'scheduled';
                   const isInProgress = appt.appointmentStatus === 'InProgress' || appt.status === 'in-progress';
-                  const isCompleted = appt.appointmentStatus === 'Completed' || appt.status === 'completed';
-                  const isCanceled = appt.appointmentStatus === 'Cancelled' || appt.status === 'canceled';
-                  const isDeclined = appt.appointmentStatus === 'Declined' || appt.status === 'declined';
 
                   return (
                     <Card
@@ -337,11 +458,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                           ? "border-emerald-500/50 dark:border-emerald-500/40 ring-1 ring-emerald-500/20 hover:border-emerald-500/70 hover:shadow-xs"
                           : isPending
                           ? "border-amber-500/30 hover:border-amber-500/50 hover:shadow-xs"
-                          : isScheduled
-                          ? "border-border hover:border-teal-500/40 hover:shadow-xs"
-                          : isCompleted
-                          ? "border-border hover:border-emerald-500/30 hover:shadow-xs"
-                          : "border-border/60 hover:border-border"
+                          : "border-border hover:border-teal-500/40 hover:shadow-xs"
                       )}
                     >
                       {/* Left accent strip for prominent session awareness */}
@@ -369,13 +486,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                             ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20'
                             : isInProgress
                             ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5'
-                            : isScheduled
-                            ? 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20'
-                            : isCompleted
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                            : isDeclined
-                            ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20'
-                            : 'bg-destructive/10 text-destructive border border-destructive/20'
+                            : 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20'
                         }`}>
                           {isPending
                             ? 'Pending Approval'
@@ -389,7 +500,7 @@ export default function AppointmentsAndPrescriptionsPage() {
                                 Active Session
                               </>
                             )
-                            : appt.appointmentStatus}
+                            : 'Scheduled'}
                         </span>
                       </div>
 
@@ -560,157 +671,264 @@ export default function AppointmentsAndPrescriptionsPage() {
                         </div>
                       );
                     })()}
-
-                    {/* Status === 'Cancelled' */}
-                    {isCanceled && (
-                      <div className="pt-2 border-t border-border/50 text-xs space-y-1">
-                        <div className="flex items-center justify-between text-muted-foreground text-[11px]">
-                          <span>
-                            {appt.cancelledBy === 'doctor' ? 'Cancelled by Doctor' : 'Cancelled by Patient'}
-                          </span>
-                          {appt.rescheduleCount && appt.rescheduleCount > 0 ? (
-                            <span>Prior reschedules: {appt.rescheduleCount}</span>
-                          ) : null}
-                        </div>
-                        {appt.cancellationReason && (
-                          <p className="text-destructive text-xs">
-                            Reason: <span className="text-muted-foreground">{appt.cancellationReason}</span>
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Status === 'Declined' */}
-                    {isDeclined && (
-                      <div className="pt-2 border-t border-border/50 text-xs space-y-1">
-                        <span className="text-rose-600 font-semibold text-[11px]">
-                          Request Declined by Doctor
-                        </span>
-                        {appt.declineReason && (
-                          <p className="text-muted-foreground text-xs">
-                            Doctor Note: {appt.declineReason}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {isCompleted && (
-                      <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                        <span className="text-xs text-muted-foreground">
-                          {appt.doctorName ? `Consultation with Dr. ${appt.doctorName}` : 'Session completed'}
-                        </span>
-                        {appt.isReviewed ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                            Rated {appt.reviewRating || 5}★
-                          </span>
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={() => handleOpenReview(appt)}
-                            className="bg-amber-500 hover:bg-amber-600 text-white text-xs h-7 px-3 flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors"
-                          >
-                            <Star className="w-3.5 h-3.5 fill-white" /> Rate Consultation
-                          </Button>
-                        )}
-                      </div>
-                    )}
                   </Card>
                 );
               })}
               </div>
             ) : (
-              <Card className="p-8 text-center text-muted-foreground text-sm space-y-3">
+              <Card className="p-8 text-center text-muted-foreground text-sm space-y-3 rounded-2xl border border-border/80">
                 <Calendar className="w-8 h-8 mx-auto text-muted-foreground/60" />
                 <div>
-                  <p className="font-semibold text-foreground">No consultations booked yet</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Schedule your first private appointment with our clinical specialists with real-time slot selection.</p>
-                </div>
-                <div className="flex items-center justify-center gap-2.5 pt-1 flex-wrap">
-                  <Link href="/patient/doctors">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 shadow-2xs text-xs cursor-pointer hover:bg-muted hover:text-foreground transition-colors"
-                    >
-                      <UserCheck className="w-4 h-4 text-primary" /> Browse Clinician Directory
-                    </Button>
-                  </Link>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setPreselectedDoctorId(undefined);
-                      setShowBooking(true);
-                    }}
-                    className="gap-1.5 shadow-xs text-xs cursor-pointer bg-teal-600 hover:bg-teal-700 text-white transition-colors"
-                  >
-                    <Plus className="w-4 h-4" /> Book Consultation
-                  </Button>
+                  <p className="font-semibold text-foreground">No upcoming scheduled sessions</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Your scheduled consultations and appointments will appear here. Finished and cancelled sessions are documented under Finished Session Records below.
+                  </p>
                 </div>
               </Card>
             )}
           </div>
 
-          {/* My Doctors & Visit History */}
-          <div className="space-y-4 pt-4 border-t">
+          {/* My Doctors & Care Team */}
+          <div className="space-y-6 pt-6 border-t border-border">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">My Doctors & Care Team</h2>
-              <p className="text-xs text-muted-foreground">Clinicians who have conducted sessions or managed your medical care.</p>
+              <p className="text-xs text-muted-foreground">
+                Clinicians who have conducted sessions or managed your medical care.
+              </p>
             </div>
-            {loadingSummaries ? (
+
+            {loadingSummaries && careTeamSummaries.length === 0 && finishedAndCancelledAppointments.length === 0 ? (
               <p className="text-sm text-muted-foreground">Loading care team records...</p>
-            ) : summaries && summaries.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {summaries.map((s) => (
-                  <Card key={s.id} className="p-4.5 space-y-2 text-xs border border-border hover:border-teal-500/40 hover:shadow-xs transition-all duration-200 flex flex-col justify-between rounded-2xl bg-card">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2.5 pb-1 border-b border-border/50">
-                        <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                          <UserCheck className="w-4 h-4" />
+            ) : careTeamSummaries.length > 0 || finishedAndCancelledAppointments.length > 0 ? (
+              <div className="space-y-6">
+                {careTeamSummaries.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {careTeamSummaries.map((s) => (
+                      <Card key={s.id} className="p-4.5 space-y-3 text-xs border border-border hover:border-teal-500/40 hover:shadow-xs transition-all duration-200 flex flex-col justify-between rounded-2xl bg-card">
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between pb-2 border-b border-border/50">
+                            <div className="flex items-center gap-2.5">
+                              <div className="p-2 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+                                <UserCheck className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <span className="font-bold text-sm text-foreground block">
+                                  {s.doctorName?.startsWith('Dr.') ? s.doctorName : `Dr. ${s.doctorName || 'Doctor'}`}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">Attending Clinician</span>
+                              </div>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              Care Team
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5 text-muted-foreground pt-0.5">
+                            <p className="flex justify-between items-center">
+                              <span>Completed Visits:</span>
+                              <strong className="text-foreground font-mono">{s.totalVisits}</strong>
+                            </p>
+                            <p className="flex justify-between items-center">
+                              <span>Consultation Time:</span>
+                              <strong className="text-foreground font-mono">{s.totalConsultationMinutes} mins</strong>
+                            </p>
+                            {s.lastVisitDate && (
+                              <p className="flex justify-between items-center text-[11px] pt-1.5 border-t border-border/40">
+                                <span>Latest Session:</span>
+                                <span className="text-foreground font-medium">{new Date(s.lastVisitDate).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <span className="font-bold text-sm text-foreground block">{s.doctorName || 'Doctor'}</span>
-                          <span className="text-[10px] text-muted-foreground">Verified Clinician</span>
+
+                        <div className="pt-2.5 border-t border-border/40 flex items-center justify-between gap-2">
+                          <Link href={`/patient/messages?doctorId=${s.doctorId}`}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs h-7 px-2.5 gap-1.5 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-800/60 hover:bg-teal-500/10 cursor-pointer"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" /> Chat
+                            </Button>
+                          </Link>
+
+                          <Button
+                            size="sm"
+                            className="text-xs h-7 px-3 gap-1 bg-teal-600 hover:bg-teal-700 text-white cursor-pointer shadow-2xs"
+                            onClick={() => {
+                              setPreselectedDoctorId(s.doctorId);
+                              setShowBooking(true);
+                            }}
+                          >
+                            <Calendar className="w-3.5 h-3.5" /> Book Follow-up
+                          </Button>
                         </div>
-                      </div>
-                      <div className="space-y-1 text-muted-foreground pt-1">
-                        <p className="flex justify-between">
-                          <span>Total Completed Visits:</span>
-                          <strong className="text-foreground font-mono">{s.totalVisits}</strong>
-                        </p>
-                        <p className="flex justify-between">
-                          <span>Consultation Time:</span>
-                          <strong className="text-foreground font-mono">{s.totalConsultationMinutes} mins</strong>
-                        </p>
-                        {s.lastVisitDate && (
-                          <p className="flex justify-between text-[11px] pt-1 border-t border-border/40">
-                            <span>Latest Session:</span>
-                            <span className="text-foreground font-medium">{new Date(s.lastVisitDate).toLocaleDateString()}</span>
-                          </p>
-                        )}
-                      </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {/* Finished & Cancelled Sessions Records & Clinical History List */}
+                {finishedAndCancelledAppointments.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-1.5">
+                        <CheckCircle className="w-4 h-4 text-emerald-500" /> Finished Session Records ({finishedAndCancelledAppointments.length})
+                      </h3>
+                      <span className="text-[11px] text-muted-foreground font-mono">
+                        Archived in Care History
+                      </span>
                     </div>
 
-                    <div className="pt-2 border-t border-border/40 flex justify-end">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs h-7 px-2.5 gap-1 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-800/60 hover:bg-teal-500/10 hover:text-teal-700 dark:hover:text-teal-300 hover:border-teal-500/40 cursor-pointer transition-colors"
-                        onClick={() => {
-                          setPreselectedDoctorId(s.doctorId);
-                          setShowBooking(true);
-                        }}
-                      >
-                        <Calendar className="w-3.5 h-3.5" /> Book Follow-up
-                      </Button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {finishedAndCancelledAppointments.map((appt) => {
+                        const isCompleted = (appt.status || '').toLowerCase() === 'completed' || (appt.appointmentStatus || '').toLowerCase() === 'completed';
+                        const isCanceled = (appt.status || '').toLowerCase() === 'canceled' || (appt.appointmentStatus || '').toLowerCase() === 'cancelled';
+                        const isDeclined = (appt.status || '').toLowerCase() === 'declined' || (appt.appointmentStatus || '').toLowerCase() === 'declined';
+
+                        return (
+                          <Card
+                            key={appt.id}
+                            className={cn(
+                              "p-5 flex flex-col justify-between space-y-3.5 border-border hover:shadow-xs transition-all duration-200 relative overflow-hidden bg-card rounded-2xl shadow-2xs",
+                              isCompleted ? "hover:border-emerald-500/30" : "hover:border-rose-500/30"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className={cn(
+                                  "p-1.5 rounded-lg",
+                                  isCompleted ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
+                                )}>
+                                  {appt.consultationType === 'Video' ? <Video className="w-4 h-4" /> :
+                                   appt.consultationType === 'Chat' ? <MessageSquare className="w-4 h-4" /> :
+                                   <MapPin className="w-4 h-4" />}
+                                </div>
+                                <span className="font-semibold text-sm">{appt.consultationType} Consultation</span>
+                              </div>
+                              {isCompleted ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                                  <CheckCircle className="w-3 h-3" /> Completed
+                                </span>
+                              ) : isCanceled ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20 flex items-center gap-1">
+                                  <XCircle className="w-3 h-3" /> Cancelled
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20 flex items-center gap-1">
+                                  <XCircle className="w-3 h-3" /> Declined
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="space-y-1.5 text-xs">
+                              <p className="flex items-center gap-1.5 text-muted-foreground font-mono">
+                                <Clock className="w-3.5 h-3.5 text-primary" />
+                                <span>{new Date(appt.appointmentDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                <span>•</span>
+                                <span className="text-foreground font-semibold font-sans">
+                                  {appt.doctorName?.startsWith('Dr.') ? appt.doctorName : `Dr. ${appt.doctorName || 'Doctor'}`}
+                                </span>
+                              </p>
+
+                              {appt.consultationReason && (
+                                <p className="text-foreground text-xs pt-0.5 line-clamp-2">
+                                  Reason: <span className="text-muted-foreground">{appt.consultationReason}</span>
+                                </p>
+                              )}
+
+                              {isCompleted && appt.doctorNotes && (
+                                <div className="p-2.5 rounded-xl bg-muted/60 border border-border/50 text-xs mt-1.5">
+                                  <span className="font-semibold text-foreground flex items-center gap-1 text-[11px] mb-0.5">
+                                    <FileText className="w-3 h-3 text-primary" /> Doctor Clinical Note:
+                                  </span>
+                                  <p className="text-muted-foreground text-[11px]">{appt.doctorNotes}</p>
+                                </div>
+                              )}
+
+                              {isCanceled && (
+                                <div className="p-2.5 rounded-xl bg-destructive/5 border border-destructive/20 text-xs mt-1.5 space-y-1">
+                                  <div className="flex items-center justify-between text-[11px] font-semibold text-destructive">
+                                    <span className="flex items-center gap-1">
+                                      <XCircle className="w-3.5 h-3.5" />
+                                      {appt.cancelledBy === 'doctor' ? 'Cancelled by Doctor' : 'Cancelled by Patient'}
+                                    </span>
+                                    {appt.rescheduleCount && appt.rescheduleCount > 0 ? (
+                                      <span className="font-normal text-muted-foreground">Prior reschedules: {appt.rescheduleCount}</span>
+                                    ) : null}
+                                  </div>
+                                  {appt.cancellationReason && (
+                                    <p className="text-muted-foreground text-[11px]">
+                                      <span className="text-foreground font-medium">Reason: </span>
+                                      {appt.cancellationReason}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              {isDeclined && (
+                                <div className="p-2.5 rounded-xl bg-destructive/5 border border-destructive/20 text-xs mt-1.5 space-y-1">
+                                  <span className="text-destructive font-semibold text-[11px] flex items-center gap-1">
+                                    <XCircle className="w-3.5 h-3.5" /> Request Declined by Doctor
+                                  </span>
+                                  {appt.declineReason && (
+                                    <p className="text-muted-foreground text-[11px]">
+                                      <span className="text-foreground font-medium">Doctor Note: </span>
+                                      {appt.declineReason}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                              <span className="text-xs text-muted-foreground">
+                                {isCompleted
+                                  ? (appt.doctorName ? `Consultation with Dr. ${appt.doctorName.replace('Dr. ', '')}` : 'Session completed')
+                                  : isCanceled
+                                  ? (appt.cancelledBy === 'doctor' ? 'Cancelled by Doctor' : 'Cancelled by Patient')
+                                  : 'Declined by Doctor'}
+                              </span>
+
+                              {isCompleted ? (
+                                appt.isReviewed ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                    Rated {appt.reviewRating || 5}★
+                                  </span>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleOpenReview(appt)}
+                                    className="bg-amber-500 hover:bg-amber-600 text-white text-xs h-7 px-3 flex items-center gap-1.5 shadow-2xs cursor-pointer transition-colors"
+                                  >
+                                    <Star className="w-3.5 h-3.5 fill-white" /> Rate Consultation
+                                  </Button>
+                                )
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-7 px-3 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-800/60 hover:bg-teal-500/10 cursor-pointer"
+                                  onClick={() => {
+                                    setPreselectedDoctorId(appt.doctorId);
+                                    setShowBooking(true);
+                                  }}
+                                >
+                                  <RefreshCw className="w-3 h-3 mr-1" /> Rebook
+                                </Button>
+                              )}
+                            </div>
+                          </Card>
+                        );
+                      })}
                     </div>
-                  </Card>
-                ))}
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">
-                No doctor consultation summaries recorded yet.
+                No doctor consultation summaries recorded yet. When you finish a session with a clinician, their profile and visit history will be documented here.
               </p>
             )}
           </div>

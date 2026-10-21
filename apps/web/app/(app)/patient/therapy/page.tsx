@@ -648,6 +648,7 @@ export default function TherapyPage() {
   // Selected Program Modal
   const [activeProgram, setActiveProgram] = useState<TherapyProgram | null>(null);
   const [activeSession, setActiveSession] = useState<ProgramSession | null>(null);
+  const [completedSessionNumbers, setCompletedSessionNumbers] = useState<Set<number>>(new Set());
 
   // Orbital Navigation & Spotlight States
   const [selectedTopicIndex, setSelectedTopicIndex] = useState(0); // 0 = DBT
@@ -712,6 +713,31 @@ export default function TherapyPage() {
     }
   }, [programs]);
 
+  // Synchronize completed sessions for active program
+  useEffect(() => {
+    if (activeProgram && progressList) {
+      const prog = progressList.find((p) => p.resourceId === activeProgram.id);
+      if (prog) {
+        const total = activeProgram.sessionCount || 8;
+        const count = Math.round((prog.progressPercentage / 100) * total);
+        const set = new Set<number>();
+        for (let i = 1; i <= count; i++) {
+          set.add(i);
+        }
+        if (prog.status === "Completed") {
+          for (let i = 1; i <= total; i++) {
+            set.add(i);
+          }
+        }
+        setCompletedSessionNumbers(set);
+      } else {
+        setCompletedSessionNumbers(new Set());
+      }
+    } else {
+      setCompletedSessionNumbers(new Set());
+    }
+  }, [activeProgram, progressList]);
+
   // 3. Start Program Mutation
   const startProgressMutation = useMutation({
     mutationFn: (resourceId: string) =>
@@ -765,6 +791,7 @@ export default function TherapyPage() {
       toast.success("Program progress has been reset.");
       queryClient.invalidateQueries({ queryKey: ["therapy", "progress"] });
       setProgramToReset(null);
+      setCompletedSessionNumbers(new Set());
       if (activeSession) setActiveSession(null);
     },
     onError: (err: Error) => {
@@ -782,6 +809,7 @@ export default function TherapyPage() {
       toast.success("All therapy programs have been reset to 0%!");
       queryClient.invalidateQueries({ queryKey: ["therapy", "progress"] });
       setShowResetAllDialog(false);
+      setCompletedSessionNumbers(new Set());
       if (activeSession) setActiveSession(null);
     },
     onError: (err: Error) => {
@@ -946,15 +974,45 @@ export default function TherapyPage() {
 
   const handleStartSession = (session: ProgramSession) => {
     setActiveSession(session);
-    setTimerSecondsLeft(session.number * 3 * 60 + 120); // Dynamic timer
-    setIsTimerRunning(true);
+    const existingProgress = progressList?.find((p) => p.resourceId === activeProgram?.id);
+    const totalSessions = activeProgram?.sessionCount || 8;
+    const isAlreadyCompleted =
+      completedSessionNumbers.has(session.number) ||
+      (existingProgress &&
+        (existingProgress.status === "Completed" ||
+          existingProgress.progressPercentage >= (session.number / totalSessions) * 100));
+
+    if (isAlreadyCompleted) {
+      setIsTimerRunning(false);
+      setTimerSecondsLeft(session.number * 3 * 60 + 120);
+    } else {
+      setTimerSecondsLeft(session.number * 3 * 60 + 120); // Dynamic timer
+      setIsTimerRunning(true);
+    }
   };
 
-  const handleCompleteSession = (sessionNumber: number) => {
+  const handleCompleteSession = async (sessionNumber: number) => {
     if (!activeProgram) return;
-    const existingProgress = progressList?.find((p) => p.resourceId === activeProgram.id);
+
+    // 1. Immediately stop and remove the active timer
+    setIsTimerRunning(false);
+
+    // 2. Mark this session as completed in local state immediately
+    setCompletedSessionNumbers((prev) => new Set(prev).add(sessionNumber));
+
     const totalSessions = activeProgram.sessionCount || 8;
     const newPercentage = Math.min(Math.round((sessionNumber / totalSessions) * 100), 100);
+
+    let existingProgress = progressList?.find((p) => p.resourceId === activeProgram.id);
+    if (!existingProgress) {
+      try {
+        existingProgress = await apiFetch<UserProgress>(`/therapy/progress/${activeProgram.id}`, {
+          method: "POST",
+        });
+      } catch {
+        // Fallback
+      }
+    }
 
     if (existingProgress) {
       updateProgressMutation.mutate({
@@ -2019,57 +2077,105 @@ export default function TherapyPage() {
                 })()}
 
                 {/* Active Session Guided Timer Drawer (if open) */}
-                {activeSession && (
-                  <div className="p-5 rounded-2xl border-2 border-primary/40 bg-primary/5 space-y-4 animate-in fade-in-50">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <span className="text-xs font-bold text-primary uppercase tracking-wide block">
-                          Session {activeSession.number} in progress
-                        </span>
-                        <h3 className="text-base font-bold text-foreground break-words">
-                          {activeSession.title}
-                        </h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed break-words">
-                          {activeSession.objective}
-                        </p>
+                {activeSession && (() => {
+                  const existingProgress = progressList?.find((p) => p.resourceId === activeProgram.id);
+                  const totalSessions = activeProgram.sessionCount || 8;
+                  const isCurrentSessionCompleted =
+                    completedSessionNumbers.has(activeSession.number) ||
+                    (existingProgress &&
+                      (existingProgress.status === "Completed" ||
+                        existingProgress.progressPercentage >= (activeSession.number / totalSessions) * 100));
+
+                  return (
+                    <div className="p-5 rounded-2xl border-2 border-primary/40 bg-primary/5 space-y-4 animate-in fade-in-50">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          {isCurrentSessionCompleted ? (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 uppercase tracking-wide">
+                              <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>Completed Session {activeSession.number}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-bold text-primary uppercase tracking-wide block">
+                              Session {activeSession.number} in progress
+                            </span>
+                          )}
+                          <h3 className="text-base font-bold text-foreground break-words">
+                            {activeSession.title}
+                          </h3>
+                          <p className="text-xs text-muted-foreground leading-relaxed break-words">
+                            {activeSession.objective}
+                          </p>
+                        </div>
+
+                        {/* Timer Display - completely removed once session is completed */}
+                        {!isCurrentSessionCompleted && (
+                          <div className="px-3 py-1.5 rounded-xl bg-card border font-mono font-bold text-base text-primary flex-shrink-0 shadow-2xs">
+                            {Math.floor(timerSecondsLeft / 60)}:
+                            {(timerSecondsLeft % 60).toString().padStart(2, "0")}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Timer Display */}
-                      <div className="px-3 py-1.5 rounded-xl bg-card border font-mono font-bold text-base text-primary flex-shrink-0 shadow-2xs">
-                        {Math.floor(timerSecondsLeft / 60)}:
-                        {(timerSecondsLeft % 60).toString().padStart(2, "0")}
+                      {/* Reflection / Practice Prompt */}
+                      <div className="p-3 rounded-xl bg-card border text-xs text-foreground/90 space-y-1 overflow-hidden">
+                        <strong className="text-primary flex items-center gap-1 font-semibold">
+                          <BookOpen className="w-3.5 h-3.5 flex-shrink-0" /> Practice Reflection:
+                        </strong>
+                        <p className="leading-relaxed italic break-words">&ldquo;{activeSession.practicePrompt}&rdquo;</p>
                       </div>
-                    </div>
 
-                    {/* Reflection / Practice Prompt */}
-                    <div className="p-3 rounded-xl bg-card border text-xs text-foreground/90 space-y-1 overflow-hidden">
-                      <strong className="text-primary flex items-center gap-1 font-semibold">
-                        <BookOpen className="w-3.5 h-3.5 flex-shrink-0" /> Practice Reflection:
-                      </strong>
-                      <p className="leading-relaxed italic break-words">&ldquo;{activeSession.practicePrompt}&rdquo;</p>
-                    </div>
+                      {/* Actions: Timer controls removed when completed */}
+                      {isCurrentSessionCompleted ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+                          <div className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                            <Check className="w-4 h-4 shrink-0 text-emerald-500" />
+                            <span>Session {activeSession.number} Completed</span>
+                          </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setIsTimerRunning(!isTimerRunning)}
-                        className="text-xs rounded-xl h-8 px-3"
-                      >
-                        {isTimerRunning ? "Pause Timer" : "Resume Timer"}
-                      </Button>
+                          <div className="flex items-center gap-2">
+                            {activeSession.number < totalSessions && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const nextNum = activeSession.number + 1;
+                                  const nextSession = getProgramSessions(activeProgram.title).find((s) => s.number === nextNum);
+                                  if (nextSession) {
+                                    handleStartSession(nextSession);
+                                  }
+                                }}
+                                className="text-xs gap-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl h-8 px-3.5 flex-shrink-0"
+                              >
+                                <span>Next: Session {activeSession.number + 1}</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setIsTimerRunning(!isTimerRunning)}
+                            className="text-xs rounded-xl h-8 px-3"
+                          >
+                            {isTimerRunning ? "Pause Timer" : "Resume Timer"}
+                          </Button>
 
-                      <Button
-                        size="sm"
-                        onClick={() => handleCompleteSession(activeSession.number)}
-                        className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-3.5 flex-shrink-0"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Complete Session {activeSession.number}</span>
-                      </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleCompleteSession(activeSession.number)}
+                            className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-3.5 flex-shrink-0"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Complete Session {activeSession.number}</span>
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* 8-Session Roadmap List (Rendered without nested scrollbar) */}
                 <div className="space-y-3">
@@ -2086,9 +2192,10 @@ export default function TherapyPage() {
                         (p) => p.resourceId === activeProgram.id
                       );
                       const isCompleted =
-                        existingProgress &&
-                        (existingProgress.progressPercentage >= (session.number / 8) * 100 ||
-                          existingProgress.status === "Completed");
+                        completedSessionNumbers.has(session.number) ||
+                        (existingProgress &&
+                          (existingProgress.progressPercentage >= (session.number / 8) * 100 ||
+                            existingProgress.status === "Completed"));
 
                       return (
                         <div

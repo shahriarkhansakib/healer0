@@ -348,7 +348,7 @@ export const AppointmentsService = {
 
     const appts = await db.query.appointments.findMany({
       where: inArray(appointments.patientId, ids),
-      orderBy: [desc(appointments.appointmentDate)],
+      orderBy: [desc(appointments.createdAt), desc(appointments.appointmentDate)],
     });
 
     if (appts.length === 0) return [];
@@ -539,12 +539,12 @@ export const AppointmentsService = {
 
     const appts = await db.query.appointments.findMany({
       where: inArray(appointments.doctorId, ids),
-      orderBy: [desc(appointments.appointmentDate)],
+      orderBy: [desc(appointments.createdAt), desc(appointments.appointmentDate)],
     });
 
     await reconcileAppointments(appts);
 
-    return Promise.all(
+    const resolvedAppts = await Promise.all(
       appts.map(async (a) => {
         if (a.patientName) return a;
         const pProf = await db.query.patientProfiles.findFirst({
@@ -565,6 +565,30 @@ export const AppointmentsService = {
         return a;
       })
     );
+
+    const getPriority = (status?: string | null, apptStatus?: string | null) => {
+      const s = (status || '').toLowerCase();
+      const as = (apptStatus || '').toLowerCase();
+      if (s === 'in-progress' || as === 'inprogress') return 1;
+      if (s === 'scheduled' || as === 'scheduled') return 2;
+      if (s === 'pending' || as === 'pending') return 3;
+      if (s === 'completed' || as === 'completed') return 4;
+      if (s === 'canceled' || as === 'cancelled') return 5;
+      if (s === 'declined' || as === 'declined') return 6;
+      return 7;
+    };
+
+    return resolvedAppts.sort((a, b) => {
+      const pA = getPriority(a.status, a.appointmentStatus);
+      const pB = getPriority(b.status, b.appointmentStatus);
+      if (pA !== pB) return pA - pB;
+      const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (createdA !== createdB) return createdB - createdA;
+      const dateA = a.appointmentDate ? new Date(a.appointmentDate).getTime() : 0;
+      const dateB = b.appointmentDate ? new Date(b.appointmentDate).getTime() : 0;
+      return dateB - dateA;
+    });
   },
 
   async getAppointmentById(id: string, userId: string) {

@@ -9,7 +9,7 @@ import {
   cancelDoctorAppointment 
 } from "@/lib/api/doctor";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { 
   Calendar, Clock, User, CheckCircle, XCircle, Play, 
@@ -99,6 +99,8 @@ interface AppointmentItem {
   doctorNotes?: string | null;
   startAt?: string | null;
   endAt?: string | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }
 
 export default function DoctorAppointmentsPage() {
@@ -199,7 +201,36 @@ export default function DoctorAppointmentsPage() {
     setIsCancelOpen(true);
   };
 
-  const appointments = data?.data || [];
+  const appointments = useMemo(() => {
+    const raw = Array.isArray(data) ? data : (data as any)?.data || [];
+    return [...raw].sort((a: any, b: any) => {
+      // 1. New schedule priority: In-Progress (1) -> Scheduled (2) -> Pending (3) -> Completed (4) -> Canceled (5) -> Declined (6)
+      const getPriority = (status?: string, apptStatus?: string) => {
+        const s = (status || '').toLowerCase();
+        const as = (apptStatus || '').toLowerCase();
+        if (s === 'in-progress' || as === 'inprogress') return 1;
+        if (s === 'scheduled' || as === 'scheduled') return 2;
+        if (s === 'pending' || as === 'pending') return 3;
+        if (s === 'completed' || as === 'completed') return 4;
+        if (s === 'canceled' || as === 'cancelled') return 5;
+        if (s === 'declined' || as === 'declined') return 6;
+        return 7;
+      };
+
+      const pA = getPriority(a.status, a.appointmentStatus);
+      const pB = getPriority(b.status, b.appointmentStatus);
+      if (pA !== pB) return pA - pB;
+
+      // 2. Newest schedule first, then new to older (newest createdAt first)
+      const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (createdA !== createdB) return createdB - createdA;
+
+      const dateA = a.appointmentDate ? new Date(a.appointmentDate).getTime() : 0;
+      const dateB = b.appointmentDate ? new Date(b.appointmentDate).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [data]);
 
   return (
     <div className="space-y-6">

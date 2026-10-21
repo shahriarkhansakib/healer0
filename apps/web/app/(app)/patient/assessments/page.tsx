@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
@@ -258,6 +258,39 @@ export default function AssessmentsPage() {
   >(null);
   const [inspectingResult, setInspectingResult] = useState<AssessmentResult | null>(null);
 
+  const stepAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const stepperPillsRef = useRef<HTMLDivElement | null>(null);
+
+  // Clean up any pending step advance timers on unmount
+  useEffect(() => {
+    return () => {
+      if (stepAdvanceTimeoutRef.current) {
+        clearTimeout(stepAdvanceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // When question advances in step view, smoothly center the active question pill and reveal rear numbers
+  useEffect(() => {
+    if (runnerMode === "stepper" && activeAssessmentId) {
+      const scrollPillIntoView = () => {
+        const activePill = document.getElementById(`stepper-pill-${currentQuestionIdx}`);
+        const container = stepperPillsRef.current;
+        if (activePill && container) {
+          const targetScrollLeft =
+            activePill.offsetLeft - container.clientWidth / 2 + activePill.clientWidth / 2;
+          container.scrollTo({
+            left: Math.max(0, targetScrollLeft),
+            behavior: "smooth",
+          });
+        }
+      };
+
+      const rafId = requestAnimationFrame(scrollPillIntoView);
+      return () => cancelAnimationFrame(rafId);
+    }
+  }, [currentQuestionIdx, runnerMode, activeAssessmentId]);
+
   // 1. Fetch available assessments
   const { data: assessments, isLoading: loadingAssessments } = useQuery<Assessment[]>({
     queryKey: ["assessments", "list"],
@@ -295,6 +328,9 @@ export default function AssessmentsPage() {
   });
 
   const handleStart = (id: string) => {
+    if (stepAdvanceTimeoutRef.current) {
+      clearTimeout(stepAdvanceTimeoutRef.current);
+    }
     setActiveAssessmentId(id);
     setCurrentQuestionIdx(0);
     setSelectedAnswers({});
@@ -307,8 +343,18 @@ export default function AssessmentsPage() {
       [questionId]: optionId,
     }));
 
-    // In scroll mode, gently auto-scroll to next question
-    if (runnerMode === "scroll" && currentIdx !== undefined && activeAssessment?.questions && currentIdx < activeAssessment.questions.length - 1) {
+    // In stepper mode, gently auto-advance to next question and center the number navigator
+    if (runnerMode === "stepper") {
+      if (stepAdvanceTimeoutRef.current) {
+        clearTimeout(stepAdvanceTimeoutRef.current);
+      }
+      const questionsCount = activeAssessment?.questions?.length || 0;
+      if (currentQuestionIdx < questionsCount - 1) {
+        stepAdvanceTimeoutRef.current = setTimeout(() => {
+          setCurrentQuestionIdx((prev) => Math.min(prev + 1, questionsCount - 1));
+        }, 240);
+      }
+    } else if (runnerMode === "scroll" && currentIdx !== undefined && activeAssessment?.questions && currentIdx < activeAssessment.questions.length - 1) {
       setTimeout(() => {
         const nextElem = document.getElementById(`question-card-${currentIdx + 1}`);
         if (nextElem) {
@@ -1740,13 +1786,17 @@ export default function AssessmentsPage() {
 
                 {/* Card Footer: Question Navigator Pills */}
                 <div className="pt-4 border-t border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none max-w-full sm:max-w-md">
+                  <div
+                    ref={stepperPillsRef}
+                    className="relative flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none max-w-full sm:max-w-md scroll-smooth"
+                  >
                     {questionsList.map((q, idx) => {
                       const isCurrent = currentQuestionIdx === idx;
                       const isAnswered = !!selectedAnswers[q.id];
                       return (
                         <button
                           key={q.id}
+                          id={`stepper-pill-${idx}`}
                           type="button"
                           onClick={() => setCurrentQuestionIdx(idx)}
                           className={`w-7 h-7 rounded-full text-xs font-semibold transition-all shrink-0 flex items-center justify-center cursor-pointer ${

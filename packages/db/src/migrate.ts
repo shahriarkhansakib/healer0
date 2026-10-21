@@ -97,6 +97,34 @@ async function runMigration() {
     await sqlClient.unsafe(`ALTER TABLE "doctor_qualifications" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now() NOT NULL;`);
     await sqlClient.unsafe(`ALTER TABLE "doctor_qualifications" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now() NOT NULL;`);
 
+    await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "doctor_id" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "doctor_notes" text;`);
+    try {
+      await sqlClient.unsafe(`ALTER TABLE "appointments" ALTER COLUMN "psychologist_id" DROP NOT NULL;`);
+    } catch {}
+
+    await sqlClient.unsafe(`ALTER TABLE "prescriptions" ADD COLUMN IF NOT EXISTS "doctor_id" text;`);
+    try {
+      await sqlClient.unsafe(`ALTER TABLE "prescriptions" ALTER COLUMN "psychologist_id" DROP NOT NULL;`);
+    } catch {}
+
+    await sqlClient.unsafe(`ALTER TABLE "session_notes" ADD COLUMN IF NOT EXISTS "doctor_id" text;`);
+    try {
+      await sqlClient.unsafe(`ALTER TABLE "session_notes" ALTER COLUMN "psychologist_id" DROP NOT NULL;`);
+    } catch {}
+
+    await sqlClient.unsafe(`ALTER TABLE "counseling_sessions" ADD COLUMN IF NOT EXISTS "doctor_id" text;`);
+    try {
+      await sqlClient.unsafe(`ALTER TABLE "counseling_sessions" ALTER COLUMN "psychologist_id" DROP NOT NULL;`);
+    } catch {}
+
+    try {
+      await sqlClient.unsafe(`ALTER TABLE "patient_records" ALTER COLUMN "psychologist_id" DROP NOT NULL;`);
+    } catch {}
+
+    await sqlClient.unsafe(`ALTER TABLE "prescriptions" ADD COLUMN IF NOT EXISTS "appointment_id" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "session_notes" ADD COLUMN IF NOT EXISTS "appointment_id" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "appointment_id" text;`);
     await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "patient_name" text NOT NULL;`);
     await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "rating" integer NOT NULL;`);
     await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "comment" text;`);

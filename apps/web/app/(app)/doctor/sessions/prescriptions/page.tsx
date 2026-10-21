@@ -61,10 +61,10 @@ export default function PrescriptionsPage() {
     setInstructions("");
   };
 
-  const prescriptions = rxData?.data || [];
-  const appointments = appointmentsData?.data || [];
-  const counselingSessions = counselingData?.data || [];
-  const patientRecords = patientsData?.data || [];
+  const prescriptions = rxData?.data || (Array.isArray(rxData) ? rxData : []);
+  const appointments = appointmentsData?.data || (Array.isArray(appointmentsData) ? appointmentsData : []);
+  const counselingSessions = counselingData?.data || (Array.isArray(counselingData) ? counselingData : []);
+  const patientRecords = patientsData?.data || (Array.isArray(patientsData) ? patientsData : []);
 
   const inProgressAppointments = appointments.filter(
     (a: any) => (a.status?.toLowerCase() === 'in-progress' || a.appointmentStatus?.toLowerCase() === 'inprogress')
@@ -79,7 +79,61 @@ export default function PrescriptionsPage() {
     (c: any) => !(c.status?.toLowerCase() === 'active' || c.status?.toLowerCase() === 'in-progress')
   );
 
+  // Unique patients who have booked an appointment or counseling session with this doctor
+  const bookedPatients = (() => {
+    const map = new Map<string, { patientId: string; name: string; subtitle: string; targetKey: string }>();
+
+    // 1. From appointments booked with this doctor
+    for (const a of appointments) {
+      const pId = a.patientId;
+      const pName = a.patientName || a.patient?.user?.name || "Patient";
+      if (pId && !map.has(pId)) {
+        const appDate = a.appointmentDate ? new Date(a.appointmentDate).toLocaleDateString([], { month: "short", day: "numeric" }) : "";
+        map.set(pId, {
+          patientId: pId,
+          name: pName,
+          subtitle: `Booked Consultation (${a.consultationType || "Appointment"}${appDate ? ` • ${appDate}` : ""})`,
+          targetKey: `appt:${a.id}:${pId}:${pName}`,
+        });
+      }
+    }
+
+    // 2. From counseling sessions booked with this doctor
+    for (const c of counselingSessions) {
+      const pId = c.patientId || c.userId;
+      const pName = c.patientName || "Counseling Patient";
+      if (pId && !map.has(pId)) {
+        map.set(pId, {
+          patientId: pId,
+          name: pName,
+          subtitle: `Booked Counseling (${c.sessionType || "Session"})`,
+          targetKey: `counseling:${c.id}:${pId}:${pName}`,
+        });
+      }
+    }
+
+    // 3. From patient records specifically for this doctor
+    for (const pr of patientRecords) {
+      const pId = pr.patientId;
+      const pName = pr.patientName || pr.patient?.user?.name || "Patient";
+      if (pId && !map.has(pId)) {
+        map.set(pId, {
+          patientId: pId,
+          name: pName,
+          subtitle: pr.condition || "Booked Patient",
+          targetKey: `patient:${pr.id}:${pId}:${pName}`,
+        });
+      }
+    }
+
+    return Array.from(map.values());
+  })();
+
   const handleOpenAddModal = () => {
+    queryClient.invalidateQueries({ queryKey: ["doctor-appointments"] });
+    queryClient.invalidateQueries({ queryKey: ["doctor-patients"] });
+    queryClient.invalidateQueries({ queryKey: ["doctor-counseling-sessions"] });
+
     // If an active session is running, pre-select it for instantaneous prescribing
     if (!selectedTargetKey) {
       if (inProgressAppointments.length > 0) {
@@ -90,6 +144,8 @@ export default function PrescriptionsPage() {
         const activeC = activeCounseling[0];
         const pName = activeC.patientName || "Patient";
         setSelectedTargetKey(`counseling:${activeC.id}:${activeC.patientId || activeC.userId || ''}:${pName}`);
+      } else if (bookedPatients.length === 1) {
+        setSelectedTargetKey(bookedPatients[0].targetKey);
       }
     }
     setShowAddModal(true);
@@ -265,17 +321,21 @@ export default function PrescriptionsPage() {
               {/* Patient / Appointment Selector */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Select Patient Appointment or Patient
+                  Select Patient (Booked Patients)
                 </label>
                 <select
                   value={selectedTargetKey}
                   onChange={(e) => setSelectedTargetKey(e.target.value)}
                   className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500"
                 >
-                  <option value="">-- Choose appointment, session, or patient --</option>
+                  <option value="">
+                    {bookedPatients.length > 0
+                      ? "-- Choose a patient who booked with you --"
+                      : "-- No patients have booked with you yet --"}
+                  </option>
                   
                   {inProgressAppointments.length > 0 && (
-                    <optgroup label="🔴 Live / Running Consultations (Now)">
+                    <optgroup label="🔴 Live / In-Progress Consultation (Now)">
                       {inProgressAppointments.map((app: any) => {
                         const pName = app.patientName || app.patient?.user?.name || "Patient";
                         return (
@@ -300,8 +360,18 @@ export default function PrescriptionsPage() {
                     </optgroup>
                   )}
 
+                  {bookedPatients.length > 0 && (
+                    <optgroup label="Patients Who Booked with You">
+                      {bookedPatients.map((p) => (
+                        <option key={p.patientId} value={p.targetKey}>
+                          {p.name} • {p.subtitle}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+
                   {otherAppointments.length > 0 && (
-                    <optgroup label="Scheduled Consultations & Appointments">
+                    <optgroup label="Specific Booked Consultations">
                       {otherAppointments.map((app: any) => {
                         const pName = app.patientName || app.patient?.user?.name || "Patient";
                         const appDate = app.appointmentDate ? new Date(app.appointmentDate).toLocaleDateString([], { month: "short", day: "numeric" }) : "";
@@ -315,7 +385,7 @@ export default function PrescriptionsPage() {
                   )}
 
                   {otherCounseling.length > 0 && (
-                    <optgroup label="Counseling Sessions">
+                    <optgroup label="Specific Booked Counseling Sessions">
                       {otherCounseling.map((cs: any) => {
                         const pName = cs.patientName || "Counseling Patient";
                         const cDate = cs.startTime ? new Date(cs.startTime).toLocaleDateString([], { month: "short", day: "numeric" }) : "";
@@ -327,24 +397,11 @@ export default function PrescriptionsPage() {
                       })}
                     </optgroup>
                   )}
-
-                  {patientRecords.length > 0 && (
-                    <optgroup label="Your Assigned Patients">
-                      {patientRecords.map((p: any) => {
-                        const pName = p.patientName || p.patient?.user?.name || "Patient";
-                        return (
-                          <option key={p.id} value={`patient:${p.id}:${p.patientId}:${pName}`}>
-                            {pName} ({p.condition || "Clinical Patient"})
-                          </option>
-                        );
-                      })}
-                    </optgroup>
-                  )}
                 </select>
-                {appointments.length === 0 && counselingSessions.length === 0 && patientRecords.length === 0 && (
+                {bookedPatients.length === 0 && (
                   <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    No active appointments or patient records found for this doctor account.
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    No patients have booked with your doctor account yet. Only patients who book a consultation or appointment with you will appear here.
                   </p>
                 )}
               </div>

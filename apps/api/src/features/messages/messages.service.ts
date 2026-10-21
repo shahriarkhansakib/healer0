@@ -5,7 +5,9 @@ import {
   doctorProfiles,
   doctorSettings,
   patientProfiles,
+  patientRecords,
   appointments,
+  counselingSessions,
   eq,
   and,
   or,
@@ -77,10 +79,13 @@ export const MessagesService = {
     // 2. Also include doctors the patient has appointments with, or vice versa
     if (currentUserRole === 'doctor') {
       const doctorProf = await db.query.doctorProfiles.findFirst({
-        where: eq(doctorProfiles.userId, currentUserId),
+        where: or(eq(doctorProfiles.userId, currentUserId), eq(doctorProfiles.id, currentUserId)),
       });
       const docIds = [currentUserId];
-      if (doctorProf) docIds.push(doctorProf.id);
+      if (doctorProf) {
+        if (!docIds.includes(doctorProf.id)) docIds.push(doctorProf.id);
+        if (doctorProf.userId && !docIds.includes(doctorProf.userId)) docIds.push(doctorProf.userId);
+      }
 
       const appts = await db.query.appointments.findMany({
         where: inArray(appointments.doctorId, docIds),
@@ -88,11 +93,44 @@ export const MessagesService = {
       });
 
       for (const a of appts) {
+        if (!a.patientId) continue;
         const pat = await db.query.patientProfiles.findFirst({
-          where: eq(patientProfiles.id, a.patientId),
-          columns: { userId: true },
+          where: or(eq(patientProfiles.id, a.patientId), eq(patientProfiles.userId, a.patientId)),
+        });
+        if (pat) {
+          otherUserIdsSet.add(pat.userId);
+        } else {
+          otherUserIdsSet.add(a.patientId);
+        }
+      }
+
+      // Also include patients from booked counseling sessions
+      const csList = await db.query.counselingSessions.findMany({
+        where: inArray(counselingSessions.doctorId, docIds),
+        columns: { patientId: true, userId: true },
+      });
+      for (const cs of csList) {
+        const rawId = cs.userId || cs.patientId;
+        if (!rawId) continue;
+        const pat = await db.query.patientProfiles.findFirst({
+          where: or(eq(patientProfiles.id, rawId), eq(patientProfiles.userId, rawId)),
         });
         if (pat) otherUserIdsSet.add(pat.userId);
+        else otherUserIdsSet.add(rawId);
+      }
+
+      // Also include patients from assigned patient records
+      const pRecs = await db.query.patientRecords.findMany({
+        where: inArray(patientRecords.doctorId, docIds),
+        columns: { patientId: true },
+      });
+      for (const pr of pRecs) {
+        if (!pr.patientId) continue;
+        const pat = await db.query.patientProfiles.findFirst({
+          where: or(eq(patientProfiles.id, pr.patientId), eq(patientProfiles.userId, pr.patientId)),
+        });
+        if (pat) otherUserIdsSet.add(pat.userId);
+        else otherUserIdsSet.add(pr.patientId);
       }
     } else {
       // For patients, include any doctor they booked with
@@ -213,18 +251,46 @@ export const MessagesService = {
     return conversations;
   },
 
-  async getThreadMessages(currentUserId: string, otherUserId: string, limit = 100): Promise<{
+  async getThreadMessages(currentUserId: string, otherUserIdOrProfileId: string, limit = 100): Promise<{
     messages: ChatMessageItem[];
     otherUser: ConversationParticipant;
   }> {
-    const otherUser = await db.query.users.findFirst({
-      where: eq(users.id, otherUserId),
+    let resolvedUserId = otherUserIdOrProfileId;
+    let otherUser = await db.query.users.findFirst({
+      where: eq(users.id, otherUserIdOrProfileId),
       columns: { id: true, name: true, email: true, image: true, role: true },
     });
+
+    if (!otherUser) {
+      const docProf = await db.query.doctorProfiles.findFirst({
+        where: or(eq(doctorProfiles.id, otherUserIdOrProfileId), eq(doctorProfiles.userId, otherUserIdOrProfileId)),
+      });
+      if (docProf) {
+        resolvedUserId = docProf.userId;
+        otherUser = await db.query.users.findFirst({
+          where: eq(users.id, resolvedUserId),
+          columns: { id: true, name: true, email: true, image: true, role: true },
+        });
+      }
+    }
+
+    if (!otherUser) {
+      const patProf = await db.query.patientProfiles.findFirst({
+        where: or(eq(patientProfiles.id, otherUserIdOrProfileId), eq(patientProfiles.userId, otherUserIdOrProfileId)),
+      });
+      if (patProf) {
+        resolvedUserId = patProf.userId;
+        otherUser = await db.query.users.findFirst({
+          where: eq(users.id, resolvedUserId),
+          columns: { id: true, name: true, email: true, image: true, role: true },
+        });
+      }
+    }
+
     if (!otherUser) throw new Error('Target user not found');
 
     const docProf = await db.query.doctorProfiles.findFirst({
-      where: eq(doctorProfiles.userId, otherUserId),
+      where: eq(doctorProfiles.userId, resolvedUserId),
     });
     const docSettings = docProf
       ? await db.query.doctorSettings.findFirst({
@@ -244,11 +310,11 @@ export const MessagesService = {
       where: or(
         and(
           eq(doctorPatientMessages.patientUserId, currentUserId),
-          eq(doctorPatientMessages.doctorUserId, otherUserId)
+          eq(doctorPatientMessages.doctorUserId, resolvedUserId)
         ),
         and(
           eq(doctorPatientMessages.doctorUserId, currentUserId),
-          eq(doctorPatientMessages.patientUserId, otherUserId)
+          eq(doctorPatientMessages.patientUserId, resolvedUserId)
         )
       ),
       orderBy: [asc(doctorPatientMessages.createdAt)],
@@ -257,7 +323,7 @@ export const MessagesService = {
 
     // Mark unread messages sent by otherUser as read
     const unreadIds = rawMessages
-      .filter((m) => m.senderId === otherUserId && !m.isRead)
+      .filter((m) => m.senderId === resolvedUserId && !m.isRead)
       .map((m) => m.id);
 
     if (unreadIds.length > 0) {

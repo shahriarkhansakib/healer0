@@ -31,6 +31,8 @@ import { DoctorSlotBookingDialog } from "@/components/features/appointments/doct
 
 export interface ConversationParticipant {
   userId: string;
+  doctorId?: string;
+  patientId?: string;
   name: string;
   email: string;
   image: string | null;
@@ -107,14 +109,30 @@ function PatientMessagesContent() {
     refetchInterval: 5000,
   });
 
-  // Automatically select the initial conversation
+  const hasInitializedSelection = useRef(false);
+
+  // Automatically select the initial conversation ONCE on load, without overriding manual clicks
   useEffect(() => {
+    if (hasInitializedSelection.current) return;
+
     if (doctorIdParam) {
-      setActiveDoctorUserId(doctorIdParam);
-    } else if (!activeDoctorUserId && conversations.length > 0) {
+      const matched = conversations.find(
+        (c) =>
+          c.otherUser.userId === doctorIdParam ||
+          c.otherUser.doctorId === doctorIdParam
+      );
+      if (matched) {
+        setActiveDoctorUserId(matched.otherUser.userId);
+        hasInitializedSelection.current = true;
+      } else if (conversations.length > 0) {
+        setActiveDoctorUserId(doctorIdParam);
+        hasInitializedSelection.current = true;
+      }
+    } else if (conversations.length > 0) {
       setActiveDoctorUserId(conversations[0].otherUser.userId);
+      hasInitializedSelection.current = true;
     }
-  }, [doctorIdParam, conversations, activeDoctorUserId]);
+  }, [doctorIdParam, conversations]);
 
   // 2. Fetch active chat thread
   const { data: threadData, isLoading: loadingThread } = useQuery<ThreadResponse>({
@@ -127,6 +145,15 @@ function PatientMessagesContent() {
     enabled: !!activeDoctorUserId,
     refetchInterval: 3000,
   });
+
+// Sync activeDoctorUserId to canonical userId if it was initialized with a doctorProfileId
+  useEffect(() => {
+    if (threadData?.otherUser?.userId && activeDoctorUserId && activeDoctorUserId !== threadData.otherUser.userId) {
+      if (threadData.otherUser.doctorId === activeDoctorUserId) {
+        setActiveDoctorUserId(threadData.otherUser.userId);
+      }
+    }
+  }, [threadData?.otherUser, activeDoctorUserId]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -181,8 +208,22 @@ function PatientMessagesContent() {
   }, [conversations, searchFilter]);
 
   const activeClinician = useMemo(() => {
+    if (!activeDoctorUserId) return null;
+    if (
+      threadData?.otherUser &&
+      (threadData.otherUser.userId === activeDoctorUserId ||
+        threadData.otherUser.doctorId === activeDoctorUserId)
+    ) {
+      return threadData.otherUser;
+    }
+    const matched = conversations.find(
+      (c) =>
+        c.otherUser.userId === activeDoctorUserId ||
+        c.otherUser.doctorId === activeDoctorUserId
+    );
+    if (matched?.otherUser) return matched.otherUser;
     if (threadData?.otherUser) return threadData.otherUser;
-    return conversations.find((c) => c.otherUser.userId === activeDoctorUserId)?.otherUser || null;
+    return null;
   }, [threadData, conversations, activeDoctorUserId]);
 
   const formatMessageTime = (dateInput: string | Date) => {
@@ -289,7 +330,9 @@ function PatientMessagesContent() {
               </div>
             ) : (
               filteredConversations.map((c) => {
-                const isSelected = c.otherUser.userId === activeDoctorUserId;
+                const isSelected =
+                  c.otherUser.userId === activeDoctorUserId ||
+                  c.otherUser.doctorId === activeDoctorUserId;
                 const initials = c.otherUser.name
                   .replace(/^Dr\.\s*/i, "")
                   .trim()
@@ -302,7 +345,7 @@ function PatientMessagesContent() {
                     key={c.otherUser.userId}
                     onClick={() => setActiveDoctorUserId(c.otherUser.userId)}
                     className={cn(
-                      "w-full text-left p-3.5 flex items-start gap-3 transition-colors duration-150",
+                      "w-full text-left p-3.5 flex items-start gap-3 transition-colors duration-150 cursor-pointer",
                       isSelected
                         ? "bg-primary/10 border-l-3 border-l-primary"
                         : "hover:bg-muted/40"
@@ -439,7 +482,7 @@ function PatientMessagesContent() {
               <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-700 dark:text-amber-400 text-[11px] flex items-center gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate">
-                  Direct messaging is for non-urgent clinical inquiries. In emergency or crisis, please call <strong>999 / 911</strong> or visit the nearest ER.
+                  Direct messaging is for non-urgent clinical inquiries. In emergency or crisis, please call <strong>999 </strong> or visit the nearest ER.
                 </span>
               </div>
 
