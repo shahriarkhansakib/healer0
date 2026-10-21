@@ -30,7 +30,7 @@ export const doctorReviews = pgTable('doctor_reviews', {
 export const doctorSettings = pgTable('doctor_settings', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   doctorId: text('doctor_id').notNull().unique().references(() => doctorProfiles.id, { onDelete: 'cascade' }),
-  autoAcceptBooking: boolean('auto_accept_booking').notNull().default(false),
+  autoAcceptBooking: boolean('auto_accept_booking').notNull().default(true),
   notificationEnabled: boolean('notification_enabled').notNull().default(true),
   language: text('language').notNull().default('en'),
   dutyStartTime: text('duty_start_time').notNull().default('08:00'),

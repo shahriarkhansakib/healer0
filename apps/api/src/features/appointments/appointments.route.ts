@@ -20,6 +20,8 @@ appointmentsRouter.get('/doctor/queue', AppointmentsController.listDoctorAppoint
 appointmentsRouter.get('/doctor/patients', AppointmentsController.listDoctorPatients);
 appointmentsRouter.patch('/:id/complete', AppointmentsController.complete);
 appointmentsRouter.patch('/:id/status', updateAppointmentStatusHandler);
+appointmentsRouter.patch('/:id/accept', AppointmentsController.accept);
+appointmentsRouter.patch('/:id/decline', AppointmentsController.decline);
 
 // Patient-side specific routes
 appointmentsRouter.get('/available-slots', AppointmentsController.getAvailableSlots);
@@ -30,8 +32,11 @@ appointmentsRouter.get('/pending-reviews', AppointmentsController.listPendingRev
 appointmentsRouter.post('/:id/review', AppointmentsController.submitReview);
 appointmentsRouter.post('/', AppointmentsController.create);
 appointmentsRouter.patch('/:id/cancel', AppointmentsController.cancel);
+appointmentsRouter.patch('/:id/reschedule', AppointmentsController.reschedule);
 
 // Shared / polymorphic routes
+appointmentsRouter.post('/sync-lifecycle', AppointmentsController.syncLifecycle);
+appointmentsRouter.get('/sync-lifecycle', AppointmentsController.syncLifecycle);
 appointmentsRouter.get('/:id', AppointmentsController.getOne);
 
 appointmentsRouter.get('/', async (c) => {

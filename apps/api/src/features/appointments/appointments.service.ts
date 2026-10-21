@@ -16,6 +16,7 @@ import {
   inArray,
   gte,
   lte,
+  ne,
 } from '@healer/db';
 
 export interface TimeSlot {
@@ -42,6 +43,114 @@ export interface DoctorAvailabilityResult {
   slots: TimeSlot[];
 }
 
+/**
+ * Automatically reconciles appointments according to scheduled time and session duration.
+ * - If status is 'scheduled' (or 'pending' with autoAccept) and now >= appointmentDate and now < appointmentDate + sessionDurationMinutes:
+ *     transitions to 'in-progress', sets startAt.
+ * - If status is 'in-progress' or 'scheduled' and now >= appointmentDate + sessionDurationMinutes:
+ *     transitions to 'completed', sets endAt, updates patientDoctorVisitSummary.
+ *
+ * Safe for concurrent executions: DB updates are guarded with atomic status checks.
+ */
+export async function reconcileAppointments<T extends {
+  id: string;
+  status?: string | null;
+  appointmentStatus?: string | null;
+  appointmentDate: Date | string;
+  sessionDurationMinutes?: number | null;
+  patientId: string;
+  doctorId: string;
+  startAt?: Date | string | null;
+  endAt?: Date | string | null;
+}>(appts: T[]): Promise<T[]> {
+  const now = new Date();
+  const nowMs = now.getTime();
+
+  for (const appt of appts) {
+    const rawStatus = (appt.status || '').toLowerCase();
+    // Do not progress terminal or declined appointments
+    if (rawStatus === 'canceled' || rawStatus === 'declined' || rawStatus === 'completed') {
+      continue;
+    }
+    // Do not auto-start pending appointments waiting for clinician acceptance
+    if (rawStatus === 'pending') {
+      continue;
+    }
+
+    const apptDate = new Date(appt.appointmentDate);
+    if (isNaN(apptDate.getTime())) continue;
+
+    const startMs = apptDate.getTime();
+    const duration = appt.sessionDurationMinutes && appt.sessionDurationMinutes > 0 ? appt.sessionDurationMinutes : 45;
+    const endMs = startMs + duration * 60 * 1000;
+
+    // Case 1: Session window has elapsed -> auto-complete
+    if (nowMs >= endMs) {
+      const computedStartAt = appt.startAt ? new Date(appt.startAt) : apptDate;
+      const computedEndAt = appt.endAt ? new Date(appt.endAt) : new Date(endMs);
+
+      const [updated] = await db
+        .update(appointments)
+        .set({
+          status: 'completed',
+          appointmentStatus: 'Completed',
+          startAt: computedStartAt,
+          endAt: computedEndAt,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(appointments.id, appt.id),
+            ne(appointments.status, 'completed'),
+            ne(appointments.appointmentStatus, 'Completed')
+          )
+        )
+        .returning();
+
+      if (updated) {
+        await updateVisitSummary(updated.patientId, updated.doctorId, duration);
+        appt.status = 'completed';
+        appt.appointmentStatus = 'Completed';
+        appt.startAt = computedStartAt;
+        appt.endAt = computedEndAt;
+      }
+    }
+    // Case 2: Session window is currently active -> auto-start
+    else if (nowMs >= startMs) {
+      if (rawStatus === 'scheduled') {
+        const computedStartAt = appt.startAt ? new Date(appt.startAt) : apptDate;
+
+        const [updated] = await db
+          .update(appointments)
+          .set({
+            status: 'in-progress',
+            appointmentStatus: 'InProgress',
+            startAt: computedStartAt,
+            updatedAt: now,
+          })
+          .where(
+            and(
+              eq(appointments.id, appt.id),
+              or(
+                eq(appointments.status, 'scheduled'),
+                eq(appointments.appointmentStatus, 'Scheduled')
+              )
+            )
+          )
+          .returning();
+
+        if (updated) {
+          appt.status = 'in-progress';
+          appt.appointmentStatus = 'InProgress';
+          appt.startAt = computedStartAt;
+        }
+      }
+    }
+  }
+
+  return appts;
+}
+
 export async function getAppointmentsService(userId: string, statusFilter?: string) {
   const doctor = await db.query.doctorProfiles.findFirst({
     where: or(eq(doctorProfiles.userId, userId), eq(doctorProfiles.id, userId)),
@@ -56,6 +165,8 @@ export async function getAppointmentsService(userId: string, statusFilter?: stri
     where: inArray(appointments.doctorId, ids),
     orderBy: [desc(appointments.appointmentDate)],
   });
+
+  await reconcileAppointments(all);
 
   const enriched = await Promise.all(
     all.map(async (a) => {
@@ -99,6 +210,8 @@ export async function updateAppointmentStatusService(userId: string, appointment
   const normalizedAppointmentStatus = 
     normalizedStatus === 'completed' ? 'Completed' :
     normalizedStatus === 'canceled' ? 'Cancelled' :
+    normalizedStatus === 'declined' ? 'Declined' :
+    normalizedStatus === 'pending' ? 'Pending' :
     normalizedStatus === 'in-progress' ? 'InProgress' : 'Scheduled';
 
   const [updated] = await db.update(appointments)
@@ -172,7 +285,9 @@ export const AppointmentsService = {
         or(
           eq(appointments.status, 'scheduled'),
           eq(appointments.status, 'in-progress'),
-          eq(appointments.appointmentStatus, 'Scheduled')
+          eq(appointments.appointmentStatus, 'Scheduled'),
+          eq(appointments.status, 'pending'),
+          eq(appointments.appointmentStatus, 'Pending')
         ),
         gte(appointments.appointmentDate, new Date(apptStart - 180 * 60000)),
         lte(appointments.appointmentDate, new Date(apptEnd + 180 * 60000))
@@ -200,6 +315,10 @@ export const AppointmentsService = {
       columns: { name: true },
     });
 
+    const isAutoAccept = settings?.autoAcceptBooking !== false;
+    const initialStatus = isAutoAccept ? 'scheduled' : 'pending';
+    const initialAppointmentStatus = isAutoAccept ? 'Scheduled' : 'Pending';
+
     const [appointment] = await db
       .insert(appointments)
       .values({
@@ -211,8 +330,9 @@ export const AppointmentsService = {
         reason: payload.consultationReason ?? '',
         consultationReason: payload.consultationReason ?? null,
         sessionDurationMinutes: duration,
-        status: 'scheduled',
-        appointmentStatus: 'Scheduled',
+        status: initialStatus,
+        appointmentStatus: initialAppointmentStatus,
+        rescheduleCount: 0,
       })
       .returning();
     return appointment;
@@ -232,6 +352,8 @@ export const AppointmentsService = {
     });
 
     if (appts.length === 0) return [];
+
+    await reconcileAppointments(appts);
 
     const doctorProfileIds = Array.from(new Set(appts.map((a) => a.doctorId)));
     const doctorList = await db.query.doctorProfiles.findMany({
@@ -415,10 +537,34 @@ export const AppointmentsService = {
     const ids = [doctorUserId];
     if (doctorProfile) ids.push(doctorProfile.id);
 
-    return db.query.appointments.findMany({
+    const appts = await db.query.appointments.findMany({
       where: inArray(appointments.doctorId, ids),
       orderBy: [desc(appointments.appointmentDate)],
     });
+
+    await reconcileAppointments(appts);
+
+    return Promise.all(
+      appts.map(async (a) => {
+        if (a.patientName) return a;
+        const pProf = await db.query.patientProfiles.findFirst({
+          where: or(eq(patientProfiles.id, a.patientId), eq(patientProfiles.userId, a.patientId)),
+        });
+        if (pProf) {
+          const u = await db.query.users.findFirst({
+            where: eq(users.id, pProf.userId),
+            columns: { name: true },
+          });
+          if (u?.name) return { ...a, patientName: u.name };
+        }
+        const directUser = await db.query.users.findFirst({
+          where: eq(users.id, a.patientId),
+          columns: { name: true },
+        });
+        if (directUser?.name) return { ...a, patientName: directUser.name };
+        return a;
+      })
+    );
   },
 
   async getAppointmentById(id: string, userId: string) {
@@ -445,30 +591,271 @@ export const AppointmentsService = {
 
     if (!isParticipant) return null;
 
+    await reconcileAppointments([appointment]);
+
     return appointment;
   },
 
-  async cancelAppointment(id: string, patientUserId: string) {
-    const patientProfile = await db.query.patientProfiles.findFirst({
-      where: eq(patientProfiles.userId, patientUserId),
+  async acceptAppointment(id: string, doctorUserId: string) {
+    const doctorProfile = await db.query.doctorProfiles.findFirst({
+      where: eq(doctorProfiles.userId, doctorUserId),
       columns: { id: true },
     });
-    const ids = [patientUserId];
-    if (patientProfile) ids.push(patientProfile.id);
+    const ids = [doctorUserId];
+    if (doctorProfile) ids.push(doctorProfile.id);
 
     const appointment = await db.query.appointments.findFirst({
-      where: and(eq(appointments.id, id), inArray(appointments.patientId, ids)),
+      where: and(eq(appointments.id, id), inArray(appointments.doctorId, ids)),
     });
     if (!appointment) return null;
+
+    if (appointment.status.toLowerCase() !== 'pending') {
+      throw new Error('Only pending appointments can be accepted.');
+    }
+
+    const [updated] = await db
+      .update(appointments)
+      .set({
+        status: 'scheduled',
+        appointmentStatus: 'Scheduled',
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, id))
+      .returning();
+
+    return updated;
+  },
+
+  async declineAppointment(id: string, doctorUserId: string, declineReason?: string) {
+    const doctorProfile = await db.query.doctorProfiles.findFirst({
+      where: eq(doctorProfiles.userId, doctorUserId),
+      columns: { id: true },
+    });
+    const ids = [doctorUserId];
+    if (doctorProfile) ids.push(doctorProfile.id);
+
+    const appointment = await db.query.appointments.findFirst({
+      where: and(eq(appointments.id, id), inArray(appointments.doctorId, ids)),
+    });
+    if (!appointment) return null;
+
+    if (appointment.status.toLowerCase() !== 'pending') {
+      throw new Error('Only pending appointments can be declined.');
+    }
+
+    const [updated] = await db
+      .update(appointments)
+      .set({
+        status: 'declined',
+        appointmentStatus: 'Declined',
+        declineReason: declineReason ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, id))
+      .returning();
+
+    return updated;
+  },
+
+  async cancelAppointment(id: string, userId: string, userRole: string, reason?: string) {
+    const patientProfile = await db.query.patientProfiles.findFirst({
+      where: eq(patientProfiles.userId, userId),
+      columns: { id: true },
+    });
+    const doctorProfile = await db.query.doctorProfiles.findFirst({
+      where: eq(doctorProfiles.userId, userId),
+      columns: { id: true },
+    });
+
+    const patientIds = [userId];
+    if (patientProfile) patientIds.push(patientProfile.id);
+
+    const doctorIds = [userId];
+    if (doctorProfile) doctorIds.push(doctorProfile.id);
+
+    const appointment = await db.query.appointments.findFirst({
+      where: eq(appointments.id, id),
+    });
+    if (!appointment) return null;
+
+    const isPatient = patientIds.includes(appointment.patientId);
+    const isDoctor = doctorIds.includes(appointment.doctorId);
+
+    if (!isPatient && !isDoctor && userRole !== 'admin' && userRole !== 'super_admin') {
+      throw new Error('You do not have permission to cancel this appointment.');
+    }
+
+    const lowerStatus = appointment.status.toLowerCase();
+    if (['completed', 'canceled', 'declined'].includes(lowerStatus)) {
+      throw new Error(`Cannot cancel an appointment that is already ${appointment.status}.`);
+    }
+
+    // 2-hour cancellation cutoff enforcement for patients
+    if (isPatient && !isDoctor && userRole !== 'admin' && userRole !== 'super_admin') {
+      const timeDiffMs = new Date(appointment.appointmentDate).getTime() - Date.now();
+      const twoHoursMs = 2 * 60 * 60 * 1000;
+      if (timeDiffMs < twoHoursMs) {
+        throw new Error('Appointments cannot be cancelled within 2 hours of the scheduled time. Please contact your doctor or support.');
+      }
+    }
+
+    const cancelledByRole = isDoctor ? 'doctor' : 'patient';
 
     const [updated] = await db
       .update(appointments)
       .set({ 
         status: 'canceled',
-        appointmentStatus: 'Cancelled' 
+        appointmentStatus: 'Cancelled',
+        cancelledBy: cancelledByRole,
+        cancellationReason: reason ?? null,
+        updatedAt: new Date(),
       })
       .where(eq(appointments.id, id))
       .returning();
+    return updated;
+  },
+
+  async rescheduleAppointment(
+    id: string,
+    userId: string,
+    userRole: string,
+    payload: { newDate: string; consultationType?: 'Chat' | 'Video' | 'Physical'; reason?: string }
+  ) {
+    const patientProfile = await db.query.patientProfiles.findFirst({
+      where: eq(patientProfiles.userId, userId),
+      columns: { id: true },
+    });
+    const doctorProfile = await db.query.doctorProfiles.findFirst({
+      where: eq(doctorProfiles.userId, userId),
+      columns: { id: true },
+    });
+
+    const patientIds = [userId];
+    if (patientProfile) patientIds.push(patientProfile.id);
+    const doctorIds = [userId];
+    if (doctorProfile) doctorIds.push(doctorProfile.id);
+
+    const appointment = await db.query.appointments.findFirst({
+      where: eq(appointments.id, id),
+    });
+    if (!appointment) return null;
+
+    const isPatient = patientIds.includes(appointment.patientId);
+    const isDoctor = doctorIds.includes(appointment.doctorId);
+
+    if (!isPatient && !isDoctor && userRole !== 'admin' && userRole !== 'super_admin') {
+      throw new Error('You do not have permission to reschedule this appointment.');
+    }
+
+    // Check status: only scheduled or pending can be rescheduled
+    const currentStatus = appointment.status.toLowerCase();
+    if (currentStatus !== 'scheduled' && currentStatus !== 'pending') {
+      throw new Error(`Cannot reschedule an appointment with status '${appointment.status}'.`);
+    }
+
+    // Check 2-hour cutoff window for the current appointment date (for patients)
+    const timeDiffMs = new Date(appointment.appointmentDate).getTime() - Date.now();
+    const twoHoursMs = 2 * 60 * 60 * 1000;
+    if (isPatient && !isDoctor && userRole !== 'admin' && userRole !== 'super_admin' && timeDiffMs < twoHoursMs) {
+      throw new Error('Appointments cannot be rescheduled within 2 hours of the scheduled time.');
+    }
+
+    // Check reschedule count limit (max 2 reschedules)
+    const currentCount = appointment.rescheduleCount ?? 0;
+    if (currentCount >= 2) {
+      throw new Error('This appointment has already reached the maximum limit of 2 reschedules.');
+    }
+
+    // Validate new target date
+    const targetDate = new Date(payload.newDate);
+    if (isNaN(targetDate.getTime()) || targetDate.getTime() <= Date.now()) {
+      throw new Error('New appointment date must be a valid time in the future.');
+    }
+
+    // Target doctor info
+    const doc = await db.query.doctorProfiles.findFirst({
+      where: or(eq(doctorProfiles.id, appointment.doctorId), eq(doctorProfiles.userId, appointment.doctorId)),
+      columns: { id: true, userId: true },
+    });
+    if (!doc) throw new Error('Doctor profile not found.');
+
+    const settings = await db.query.doctorSettings.findFirst({
+      where: eq(doctorSettings.doctorId, doc.id),
+    });
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayName = dayNames[targetDate.getDay()];
+    const offDay = settings?.offDay || 'Sunday';
+
+    if (offDay.toLowerCase().includes(dayName.toLowerCase())) {
+      throw new Error(`Doctor is off duty on ${dayName}. Please choose another date.`);
+    }
+
+    const dutyStart = settings?.dutyStartTime || '08:00';
+    const dutyEnd = settings?.dutyEndTime || '17:00';
+    const [startH, startM] = dutyStart.split(':').map(Number);
+    const [endH, endM] = dutyEnd.split(':').map(Number);
+    const apptMinutes = targetDate.getHours() * 60 + targetDate.getMinutes();
+    const duration = appointment.sessionDurationMinutes || 45;
+
+    if (apptMinutes < startH * 60 + startM || apptMinutes + duration > endH * 60 + endM) {
+      throw new Error(`Appointment must fall within doctor's duty hours (${dutyStart} - ${dutyEnd}).`);
+    }
+
+    // Check collisions on target date (excluding the appointment itself!)
+    const apptStart = targetDate.getTime();
+    const apptEnd = apptStart + duration * 60000;
+
+    const nearbyAppts = await db.query.appointments.findMany({
+      where: and(
+        inArray(appointments.doctorId, [doc.id, doc.userId]),
+        or(
+          eq(appointments.status, 'scheduled'),
+          eq(appointments.status, 'in-progress'),
+          eq(appointments.appointmentStatus, 'Scheduled'),
+          eq(appointments.status, 'pending'),
+          eq(appointments.appointmentStatus, 'Pending')
+        ),
+        gte(appointments.appointmentDate, new Date(apptStart - 180 * 60000)),
+        lte(appointments.appointmentDate, new Date(apptEnd + 180 * 60000))
+      ),
+    });
+
+    const hasConflict = nearbyAppts.some((a) => {
+      if (a.id === appointment.id) return false; // exclude self
+      const aStart = new Date(a.appointmentDate).getTime();
+      const aDur = a.sessionDurationMinutes || 45;
+      const aEnd = aStart + aDur * 60000;
+      return apptStart < aEnd && apptEnd > aStart;
+    });
+
+    if (hasConflict) {
+      throw new Error('This time slot is already booked. Please select an available slot.');
+    }
+
+    // If doctor requires manual approval and caller is patient, set back to pending; otherwise keep scheduled
+    const isAutoAccept = settings?.autoAcceptBooking !== false;
+    const nextStatus = (!isAutoAccept && isPatient && !isDoctor) ? 'pending' : 'scheduled';
+    const nextAppointmentStatus = (!isAutoAccept && isPatient && !isDoctor) ? 'Pending' : 'Scheduled';
+
+    const [updated] = await db
+      .update(appointments)
+      .set({
+        appointmentDate: targetDate,
+        consultationType: payload.consultationType ?? appointment.consultationType,
+        status: nextStatus,
+        appointmentStatus: nextAppointmentStatus,
+        rescheduleCount: currentCount + 1,
+        startAt: null,
+        endAt: null,
+        cancellationReason: null,
+        cancelledBy: null,
+        declineReason: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, id))
+      .returning();
+
     return updated;
   },
 
@@ -741,7 +1128,9 @@ export const AppointmentsService = {
         or(
           eq(appointments.status, 'scheduled'),
           eq(appointments.status, 'in-progress'),
-          eq(appointments.appointmentStatus, 'Scheduled')
+          eq(appointments.appointmentStatus, 'Scheduled'),
+          eq(appointments.status, 'pending'),
+          eq(appointments.appointmentStatus, 'Pending')
         )
       ),
     });
@@ -857,6 +1246,25 @@ export const AppointmentsService = {
         doctorImage: doc?.image || null,
       };
     });
+  },
+
+  reconcileAppointments,
+
+  async syncAllActiveLifecycles() {
+    const activeAppts = await db.query.appointments.findMany({
+      where: or(
+        eq(appointments.status, 'scheduled'),
+        eq(appointments.status, 'in-progress'),
+        eq(appointments.appointmentStatus, 'Scheduled'),
+        eq(appointments.appointmentStatus, 'InProgress')
+      ),
+    });
+
+    const reconciled = await reconcileAppointments(activeAppts);
+    return {
+      totalActiveChecked: activeAppts.length,
+      reconciledCount: reconciled.length,
+    };
   },
 };
 

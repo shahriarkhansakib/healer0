@@ -68,6 +68,26 @@ export function updateAppointmentStatus(id: string, status: string) {
   });
 }
 
+export function acceptAppointment(id: string) {
+  return apiFetch<{ data: any }>(`/appointments/${id}/accept`, {
+    method: 'PATCH',
+  });
+}
+
+export function declineAppointment(id: string, reason?: string) {
+  return apiFetch<{ data: any }>(`/appointments/${id}/decline`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function cancelDoctorAppointment(id: string, reason?: string) {
+  return apiFetch<{ data: any }>(`/appointments/${id}/cancel`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  });
+}
+
 // Counseling
 export function fetchCounselingSessions() {
   return apiFetch<{ data: any[] }>('/counseling/sessions?role=doctor');
