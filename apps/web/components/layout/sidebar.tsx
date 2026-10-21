@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { 
   Users, Activity, Calendar, FileText, Settings, ShieldAlert, BookOpen, ShieldCheck, HeartPulse,
-  LayoutDashboard, MessageSquare, Pill, UserCheck, User,
+  LayoutDashboard, MessageSquare, Pill, UserCheck,
   Bot, Smile, Sparkles, ClipboardList, BookMarked, FolderHeart,
-  FlaskConical, Database, BarChart3, Share2, Stethoscope, Search, Layers
+  FlaskConical, Database, BarChart3, Share2
 } from "lucide-react";
 import { SidebarNavLink } from "./sidebar-nav-link";
 import { SidebarNavFolder, SidebarNavFolderChild } from "./sidebar-nav-folder";
@@ -44,8 +44,6 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
         footerNav: [
           { href: '/doctor/profile', label: 'Doctor Profile', icon: <UserCheck className="w-4 h-4" /> },
           { href: '/doctor/settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
-          { href: '/researcher', label: 'Researcher View', icon: <FlaskConical className="w-4 h-4" /> },
-          { href: '/patient', label: 'Switch to Patient View', icon: <User className="w-4 h-4" /> },
         ],
       };
     case 'patient':
@@ -74,7 +72,6 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
           { href: '/patient/community', label: 'Anonymous Community', icon: <Users className="w-4 h-4" /> },
         ],
         footerNav: [
-          { href: '/researcher', label: 'Researcher View', icon: <FlaskConical className="w-4 h-4" /> },
           { href: '/patient/settings', label: 'Account Settings', icon: <Settings className="w-4 h-4" /> },
         ],
       };
@@ -93,8 +90,6 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
         ],
         footerNav: [
           { href: '/researcher/settings', label: 'Researcher Settings', icon: <Settings className="w-4 h-4" /> },
-          { href: '/patient', label: 'Switch to Patient View', icon: <User className="w-4 h-4" /> },
-          { href: '/doctor', label: 'Switch to Doctor View', icon: <Stethoscope className="w-4 h-4" /> },
         ],
       };
     case 'admin':
