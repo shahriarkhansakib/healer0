@@ -10,6 +10,7 @@ export * from './schema/community';
 export * from './schema/privacy';
 export * from './schema/consultations';
 export * from './schema/doctor';
+export * from './schema/researcher';
 export * from 'drizzle-orm';
 
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -26,6 +27,7 @@ import * as communitySchema from './schema/community';
 import * as privacySchema from './schema/privacy';
 import * as consultationsSchema from './schema/consultations';
 import * as doctorSchema from './schema/doctor';
+import * as researcherSchema from './schema/researcher';
 import * as dotenv from 'dotenv';
 import path from 'path';
 
@@ -49,5 +51,6 @@ export const db = drizzle(client, {
     ...privacySchema,
     ...consultationsSchema,
     ...doctorSchema,
+    ...researcherSchema,
   },
 });

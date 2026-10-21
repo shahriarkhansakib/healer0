@@ -36,10 +36,119 @@
   --color-slate-800: #1e293b;
   --color-slate-900: #0f172a;
   --color-teal-50: #f0fdfa;
+  --color-teal-100: #ccfbf1;
   --color-teal-200: #99f6e4;
   --color-teal-600: #0d9488;
   --color-teal-700: #0f766e;
   --color-teal-800: #115e59;
+
+  /* Researcher Dashboard Academic Palette Tokens */
+  --color-indigo-50: #eef2ff;
+  --color-indigo-100: #e0e7ff;
+  --color-indigo-200: #c7d2fe;
+  --color-indigo-300: #a5b4fc;
+  --color-indigo-400: #818cf8;
+  --color-indigo-500: #6366f1;
+  --color-indigo-600: #4f46e5;
+  --color-indigo-700: #4338ca;
+  --color-indigo-800: #3730a3;
+  --color-indigo-900: #312e81;
+  --color-indigo-950: #1e1b4b;
+
+  --color-violet-50: #f5f3ff;
+  --color-violet-100: #ede9fe;
+  --color-violet-200: #ddd6fe;
+  --color-violet-300: #c4b5fd;
+  --color-violet-400: #a78bfa;
+  --color-violet-500: #8b5cf6;
+  --color-violet-600: #7c3aed;
+  --color-violet-700: #6d28d9;
+  --color-violet-800: #5b21b6;
+  --color-violet-900: #4c1d95;
+  --color-violet-950: #2e1065;
+
+  --color-purple-50: #faf5ff;
+  --color-purple-100: #f3e8ff;
+  --color-purple-200: #e9d5ff;
+  --color-purple-300: #d8b4fe;
+  --color-purple-400: #c084fc;
+  --color-purple-500: #a855f7;
+  --color-purple-600: #9333ea;
+  --color-purple-700: #7e22ce;
+  --color-purple-800: #6b21a8;
+  --color-purple-900: #581c87;
+  --color-purple-950: #3b0764;
+
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+  --color-amber-950: #451a03;
+
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-950: #022c22;
+
+  --color-rose-50: #fff1f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-200: #fecdd3;
+  --color-rose-300: #fda4af;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+  --color-rose-700: #be123c;
+  --color-rose-950: #4c0519;
+
+  /* Researcher Purple-Pinkish & Fuchsia Palette Tokens */
+  --color-fuchsia-50: #fdf4ff;
+  --color-fuchsia-100: #fae8ff;
+  --color-fuchsia-200: #f5d0fe;
+  --color-fuchsia-300: #f0abfc;
+  --color-fuchsia-400: #e879f9;
+  --color-fuchsia-500: #d946ef;
+  --color-fuchsia-600: #c026d3;
+  --color-fuchsia-700: #a21caf;
+  --color-fuchsia-800: #86198f;
+  --color-fuchsia-900: #701a75;
+  --color-fuchsia-950: #4a044e;
+
+  --color-pink-50: #fdf2f8;
+  --color-pink-100: #fce7f3;
+  --color-pink-200: #fbcfe8;
+  --color-pink-300: #f472b6;
+  --color-pink-400: #f472b6;
+  --color-pink-500: #ec4899;
+  --color-pink-600: #db2777;
+  --color-pink-700: #be185d;
+  --color-pink-800: #9d174d;
+  --color-pink-900: #831843;
+  --color-pink-950: #500724;
+
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+  --color-blue-950: #172554;
+
+  --color-red-100: #fee2e2;
+  --color-red-300: #fca5a5;
+  --color-red-800: #991b1b;
+  --color-red-950: #450a0a;
 
   /* Radius Math */
   --radius-sm: calc(var(--radius) * 0.6);
@@ -213,6 +322,64 @@
     
     color: #0f172a !important;
     background-color: #f8fafc !important;
+  }
+
+  /* Academic Purple-Pinkish / Plum-Fuchsia Theme for Researcher Dashboard ONLY */
+  .researcher-theme,
+  .dark .researcher-theme,
+  html.dark .researcher-theme,
+  html.dark body .researcher-theme,
+  [data-theme='dark'] .researcher-theme {
+    --background: #fdf4ff !important;
+    --foreground: #4a044e !important;
+    
+    --card: #ffffff !important;
+    --card-foreground: #4a044e !important;
+    
+    --popover: #ffffff !important;
+    --popover-foreground: #4a044e !important;
+    
+    --primary: #c026d3 !important;
+    --primary-foreground: #ffffff !important;
+    
+    --secondary: #fae8ff !important;
+    --secondary-foreground: #86198f !important;
+    
+    --muted: #fdf2f8 !important;
+    --muted-foreground: #701a75 !important;
+    
+    --accent: #fce7f3 !important;
+    --accent-foreground: #9d174d !important;
+    
+    --destructive: #ef4444 !important;
+    --destructive-foreground: #ffffff !important;
+    
+    --border: #f5d0fe !important;
+    --input: #f5d0fe !important;
+    --ring: #c026d3 !important;
+
+    --color-background: #fdf4ff !important;
+    --color-foreground: #4a044e !important;
+    --color-card: #ffffff !important;
+    --color-card-foreground: #4a044e !important;
+    --color-popover: #ffffff !important;
+    --color-popover-foreground: #4a044e !important;
+    --color-primary: #c026d3 !important;
+    --color-primary-foreground: #ffffff !important;
+    --color-secondary: #fae8ff !important;
+    --color-secondary-foreground: #86198f !important;
+    --color-muted: #fdf2f8 !important;
+    --color-muted-foreground: #701a75 !important;
+    --color-accent: #fce7f3 !important;
+    --color-accent-foreground: #9d174d !important;
+    --color-destructive: #ef4444 !important;
+    --color-destructive-foreground: #ffffff !important;
+    --color-border: #f5d0fe !important;
+    --color-input: #f5d0fe !important;
+    --color-ring: #c026d3 !important;
+    
+    color: #4a044e !important;
+    background-color: #fdf4ff !important;
   }
 }
 

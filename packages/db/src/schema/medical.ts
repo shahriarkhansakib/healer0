@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, jsonb, boolean } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 
 export const patientProfiles = pgTable('patient_profiles', {
@@ -25,8 +25,13 @@ export const doctorProfiles = pgTable('doctor_profiles', {
 export const researcherProfiles = pgTable('researcher_profiles', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
-  institution: text('institution').notNull(),
-  researchField: text('research_field').notNull(),
+  fullName: text('full_name'),
+  email: text('email'),
+  institution: text('institution').notNull().default('Independent Research'),
+  researchField: text('research_field').notNull().default('Mental Health & Clinical Studies'),
+  designation: text('designation').default('Principal Investigator'),
+  verificationStatus: text('verification_status').default('Verified'),
+  isActive: boolean('is_active').default(true).notNull(),
   publications: jsonb('publications'),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull().$onUpdate(() => new Date()),

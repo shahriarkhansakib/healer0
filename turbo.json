@@ -1,5 +1,25 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "DATABASE_URL_UNPOOLED",
+    "REDIS_URL",
+    "UPSTASH_URL",
+    "UPSTASH_TOKEN",
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "NEXT_PUBLIC_APP_URL",
+    "NEXT_PUBLIC_API_URL",
+    "RESEND_API_KEY",
+    "R2_BUCKET_NAME",
+    "R2_ACCOUNT_ID",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "NEXT_PUBLIC_R2_PUBLIC_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

@@ -4,13 +4,14 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { Settings, User, Save, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Settings, User, Save, ShieldCheck, AlertTriangle, FlaskConical, ArrowRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { PrivacyView } from "@/components/features/privacy/privacy-view";
 import { EmergencyView } from "@/components/features/emergency/emergency-view";
+import { fetchResearcherStatus, toggleResearcherMode } from "@/lib/api/researcher";
 
 interface AccountProfileResponse {
   user: {
@@ -132,6 +133,27 @@ function PatientSettingsContent() {
     },
     onError: (err: Error) => {
       toast.error(err.message || "Failed to update preferences.");
+    },
+  });
+
+  // Researcher Status & Activation
+  const { data: researcherData, isLoading: loadingResearcher } = useQuery({
+    queryKey: ['researcher', 'status'],
+    queryFn: fetchResearcherStatus,
+  });
+
+  const isResearcherActive = Boolean(researcherData?.data?.isEnabled);
+
+  const toggleResearcherMutation = useMutation({
+    mutationFn: (enable: boolean) => toggleResearcherMode(enable),
+    onSuccess: (res) => {
+      const active = res.data?.isEnabled;
+      toast.success(active ? "Researcher Dashboard activated!" : "Researcher Dashboard deactivated.");
+      queryClient.invalidateQueries({ queryKey: ['researcher', 'status'] });
+      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to update researcher dashboard status.");
     },
   });
 
@@ -319,6 +341,51 @@ function PatientSettingsContent() {
             <p className="text-sm text-muted-foreground">Loading preferences...</p>
           ) : preferences ? (
             <div className="space-y-4">
+              {/* Researcher Dashboard Access Banner */}
+              <Card className="p-5 border-indigo-200/70 bg-gradient-to-r from-indigo-50/70 via-white to-violet-50/40 shadow-xs">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="p-2.5 rounded-xl bg-indigo-100 text-indigo-700 shrink-0 border border-indigo-200/70 mt-0.5 shadow-2xs">
+                      <FlaskConical className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-slate-900">Researcher Dashboard & Clinical Studies</h3>
+                        {isResearcherActive && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 uppercase tracking-wider">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
+                        Anyone can be a researcher on Healer. Turn on the Researcher Dashboard to create clinical studies, screening protocols, custom questionnaires, and inspect anonymized research data.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-end">
+                    {isResearcherActive && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => router.push('/researcher')}
+                        className="border-indigo-200 bg-white hover:bg-indigo-50 text-indigo-700 cursor-pointer text-xs"
+                      >
+                        Open Dashboard
+                        <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant={isResearcherActive ? "default" : "outline"}
+                      onClick={() => toggleResearcherMutation.mutate(!isResearcherActive)}
+                      disabled={toggleResearcherMutation.isPending || loadingResearcher}
+                      className={isResearcherActive ? "bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer text-xs" : "cursor-pointer text-xs"}
+                    >
+                      {isResearcherActive ? "Enabled" : "Enable Researcher"}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
               {[
                 {
                   key: 'aiMemoryEnabled' as const,

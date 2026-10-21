@@ -37,7 +37,7 @@ authRouter.get('/me', async (c) => {
     }),
     db.query.researcherProfiles.findFirst({
       where: eq(researcherProfiles.userId, user.id),
-      columns: { id: true },
+      columns: { id: true, isActive: true },
     }),
   ]);
 
@@ -67,7 +67,7 @@ authRouter.get('/me', async (c) => {
 
   const isDoc = !!doctorProfile || user.role === 'doctor' || user.role === 'super_admin';
   const isPat = !!patientProfile || user.role === 'user' || user.role === 'patient' || user.role === 'super_admin';
-  const isRes = !!researcherProfile || user.role === 'researcher' || user.role === 'super_admin';
+  const isRes = (!!researcherProfile && researcherProfile.isActive !== false) || user.role === 'researcher' || user.role === 'super_admin';
 
   return c.json({
     ...session,
