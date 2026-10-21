@@ -17,6 +17,7 @@ export function SidebarNavLink({ href, icon, label, isCollapsed, isSubItem }: Si
   const isBaseDashboard = ['/patient', '/doctor', '/researcher', '/admin', '/super-admin'].includes(href);
   const isActive = isBaseDashboard ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   const isDoctorRoute = pathname.startsWith('/doctor');
+  const isResearcherRoute = pathname.startsWith('/researcher');
 
   return (
     <Link
@@ -29,9 +30,13 @@ export function SidebarNavLink({ href, icon, label, isCollapsed, isSubItem }: Si
           ? isActive 
             ? "bg-teal-50/90 text-teal-800 font-semibold shadow-xs" 
             : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
-          : isActive
-            ? "bg-secondary text-secondary-foreground font-semibold"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+          : isResearcherRoute
+            ? isActive
+              ? "bg-fuchsia-50 text-fuchsia-950 font-semibold shadow-xs border border-fuchsia-200/80"
+              : "text-slate-600 hover:bg-fuchsia-50/70 hover:text-fuchsia-950"
+            : isActive
+              ? "bg-secondary text-secondary-foreground font-semibold"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
         isCollapsed && "justify-center px-2"
       )}
     >
@@ -39,14 +44,16 @@ export function SidebarNavLink({ href, icon, label, isCollapsed, isSubItem }: Si
       {isActive && (
         <span className={cn(
           "absolute left-0 top-2 bottom-2 w-1 rounded-r-full shadow-xs",
-          isDoctorRoute ? "bg-teal-600" : "bg-primary"
+          isDoctorRoute ? "bg-teal-600" : isResearcherRoute ? "bg-fuchsia-600" : "bg-primary"
         )} />
       )}
       <span className={cn(
         "transition-transform duration-200 group-hover:scale-110 shrink-0",
         isDoctorRoute
           ? isActive ? "text-teal-600" : "text-slate-400 group-hover:text-slate-700"
-          : isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+          : isResearcherRoute
+            ? isActive ? "text-fuchsia-600" : "text-slate-400 group-hover:text-fuchsia-600"
+            : isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
       )}>
         {icon}
       </span>

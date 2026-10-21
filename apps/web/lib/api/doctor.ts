@@ -61,6 +61,10 @@ export function fetchAppointments(status?: string) {
   return apiFetch<{ data: any[] }>(`/appointments?${params.toString()}`);
 }
 
+export function fetchAppointmentById(id: string) {
+  return apiFetch<any>(`/appointments/${id}`);
+}
+
 export function updateAppointmentStatus(id: string, status: string) {
   return apiFetch<{ data: any }>(`/appointments/${id}/status`, {
     method: 'PATCH',

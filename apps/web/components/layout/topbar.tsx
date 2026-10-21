@@ -14,25 +14,29 @@ export function Topbar({ user }: TopbarProps) {
   const { toggle } = useSidebarStore();
   const pathname = usePathname();
   const isDoctor = pathname.startsWith('/doctor');
+  const isResearcher = pathname.startsWith('/researcher');
 
   return (
     <header className={cn(
       "h-14 border-b bg-card text-card-foreground flex items-center justify-between px-4 shrink-0 transition-colors",
-      isDoctor && "bg-white text-slate-800 border-slate-200/80"
+      isDoctor && "bg-white text-slate-800 border-slate-200/80",
+      isResearcher && "bg-white text-[#4a044e] border-fuchsia-100/80 shadow-2xs"
     )}>
       <div className="flex items-center gap-4">
         <button 
           onClick={toggle}
           className={cn(
             "p-2 -ml-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors",
-            isDoctor && "hover:bg-slate-100 text-slate-600 hover:text-slate-900"
+            isDoctor && "hover:bg-slate-100 text-slate-600 hover:text-slate-900",
+            isResearcher && "hover:bg-fuchsia-50 text-slate-600 hover:text-[#4a044e]"
           )}
         >
           <Menu className="w-5 h-5" />
         </button>
         <span className={cn(
           "font-medium text-foreground",
-          isDoctor && "text-slate-900"
+          isDoctor && "text-slate-900",
+          isResearcher && "text-[#4a044e]"
         )}>
           Welcome back, {user?.name}
         </span>

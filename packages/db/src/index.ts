@@ -11,6 +11,7 @@ export * from './schema/privacy';
 export * from './schema/consultations';
 export * from './schema/doctor';
 export * from './schema/messages';
+export * from './schema/researcher';
 export * from 'drizzle-orm';
 
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -28,6 +29,7 @@ import * as privacySchema from './schema/privacy';
 import * as consultationsSchema from './schema/consultations';
 import * as doctorSchema from './schema/doctor';
 import * as messagesSchema from './schema/messages';
+import * as researcherSchema from './schema/researcher';
 import * as dotenv from 'dotenv';
 import path from 'path';
 
@@ -49,6 +51,7 @@ export const client = globalForDb._postgresClient ?? postgres(connectionString, 
 if (process.env.NODE_ENV !== 'production') {
   globalForDb._postgresClient = client;
 }
+
 export const db = drizzle(client, {
   schema: {
     ...authSchema,
@@ -64,5 +67,6 @@ export const db = drizzle(client, {
     ...consultationsSchema,
     ...doctorSchema,
     ...messagesSchema,
+    ...researcherSchema,
   },
 });

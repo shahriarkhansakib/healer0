@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "@/lib/auth-client";
-import { LogOut, User, Stethoscope, HeartPulse, ArrowLeftRight, AlertTriangle, ShieldCheck } from "lucide-react";
+import { LogOut, User, Stethoscope, HeartPulse, ArrowLeftRight, AlertTriangle, ShieldCheck, FlaskConical } from "lucide-react";
 import { useAuthProfiles } from "@/hooks/use-auth-profiles";
 
 export interface AvatarUser {
@@ -37,12 +37,10 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
   }, []);
 
   const profiles = authData?.profiles;
-  // Eligible for two identities if the user holds both doctor and patient domain access
-  const isEligibleForTwoIdentities = Boolean(
-    profiles?.isDoctor && (profiles?.isPatient || user?.role === 'user' || user?.role === 'patient')
-  );
-
   const isDoctorView = pathname.startsWith('/doctor');
+  const isResearcherView = pathname.startsWith('/researcher');
+
+  const currentRoleBadge = isResearcherView ? 'Researcher' : isDoctorView ? 'Doctor' : 'Patient';
 
   return (
     <div className="relative" ref={ref}>
@@ -61,18 +59,16 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
               <p className="font-semibold text-sm truncate text-foreground">
                 {user?.name || 'User'}
               </p>
-              {isEligibleForTwoIdentities && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
-                  {isDoctorView ? 'Doctor' : 'Patient'}
-                </span>
-              )}
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+                {currentRoleBadge}
+              </span>
             </div>
             <p className="text-xs text-muted-foreground truncate mt-0.5">{user?.email}</p>
           </div>
           
           <div className="py-1">
             <Link 
-              href={isDoctorView ? "/doctor/profile" : "/patient/settings?tab=profile"}
+              href={isResearcherView ? "/researcher/settings" : isDoctorView ? "/doctor/profile" : "/patient/settings?tab=profile"}
               onClick={() => setOpen(false)}
               className="flex w-full items-center px-4 py-2 text-sm hover:bg-muted text-foreground transition-colors cursor-pointer"
             >
@@ -98,21 +94,46 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
               Privacy & Consent
             </Link>
 
-            {isEligibleForTwoIdentities && (
+            {/* Switch to Researcher Dashboard */}
+            {profiles?.isResearcher && !isResearcherView && (
               <Link 
-                href={isDoctorView ? "/patient" : "/doctor"}
+                href="/researcher"
                 onClick={() => setOpen(false)}
                 className="flex w-full items-center justify-between px-4 py-2 text-sm hover:bg-muted text-foreground transition-colors cursor-pointer group"
               >
                 <div className="flex items-center min-w-0">
-                  {isDoctorView ? (
-                    <HeartPulse className="w-4 h-4 mr-2.5 text-primary group-hover:scale-110 transition-transform shrink-0" />
-                  ) : (
-                    <Stethoscope className="w-4 h-4 mr-2.5 text-primary group-hover:scale-110 transition-transform shrink-0" />
-                  )}
-                  <span className="truncate font-medium">
-                    {isDoctorView ? "Switch to Patient Dashboard" : "Switch to Doctor Dashboard"}
-                  </span>
+                  <FlaskConical className="w-4 h-4 mr-2.5 text-fuchsia-600 group-hover:scale-110 transition-transform shrink-0" />
+                  <span className="truncate font-medium">Switch to Researcher</span>
+                </div>
+                <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-fuchsia-600 transition-colors ml-2 shrink-0" />
+              </Link>
+            )}
+
+            {/* Switch to Doctor Dashboard */}
+            {profiles?.isDoctor && !isDoctorView && (
+              <Link 
+                href="/doctor"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center justify-between px-4 py-2 text-sm hover:bg-muted text-foreground transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center min-w-0">
+                  <Stethoscope className="w-4 h-4 mr-2.5 text-teal-600 group-hover:scale-110 transition-transform shrink-0" />
+                  <span className="truncate font-medium">Switch to Doctor</span>
+                </div>
+                <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-teal-600 transition-colors ml-2 shrink-0" />
+              </Link>
+            )}
+
+            {/* Switch to Patient Dashboard */}
+            {(isDoctorView || isResearcherView) && (
+              <Link 
+                href="/patient"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center justify-between px-4 py-2 text-sm hover:bg-muted text-foreground transition-colors cursor-pointer group"
+              >
+                <div className="flex items-center min-w-0">
+                  <HeartPulse className="w-4 h-4 mr-2.5 text-primary group-hover:scale-110 transition-transform shrink-0" />
+                  <span className="truncate font-medium">Switch to Patient</span>
                 </div>
                 <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors ml-2 shrink-0" />
               </Link>

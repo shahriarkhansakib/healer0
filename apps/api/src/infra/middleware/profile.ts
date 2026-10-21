@@ -48,9 +48,9 @@ export const requireProfile = (profileType: ProfileType) => {
     } else if (profileType === 'researcher') {
       const profile = await db.query.researcherProfiles.findFirst({
         where: eq(researcherProfiles.userId, userId),
-        columns: { id: true },
+        columns: { id: true, isActive: true },
       });
-      hasProfile = !!profile;
+      hasProfile = !!profile && profile.isActive !== false;
     }
 
     if (!hasProfile) {
