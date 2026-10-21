@@ -6,7 +6,8 @@
     "dev": "node ./node_modules/next/dist/bin/next dev -p 5007",
     "build": "next build",
     "start": "next start -p 5007",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@healer/api": "workspace:*",
@@ -25,7 +26,7 @@
     "framer-motion": "^11.18.2",
     "hono": "^4.5.0",
     "lucide-react": "^0.400.0",
-    "next": "15.0.0",
+    "next": "^15.1.7",
     "next-themes": "^0.3.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",

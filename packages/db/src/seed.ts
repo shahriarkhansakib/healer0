@@ -8,8 +8,7 @@ import {
 } from './schema/doctor';
 import { appointments, patientDoctorVisitSummary } from './schema/consultations';
 import { counselingSessions } from './schema/counseling';
-import { wellnessRules } from './schema/wellness';
-import { moodTracking, journals } from './schema/wellness';
+import { wellnessRules, moodTracking, journals } from './schema/wellness';
 import { therapyPrograms } from './schema/therapy';
 import { assessments, assessmentQuestions, assessmentResults } from './schema/assessments';
 import { communityGroups } from './schema/community';
@@ -29,6 +28,8 @@ import {
 } from './schema/researcher';
 import { eq } from 'drizzle-orm';
 import { scrypt } from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 // ---------------------------------------------------------------------------
 // Password Hashing Utilities (mirrors Better Auth's scrypt format)
@@ -514,125 +515,329 @@ async function main() {
 
   console.log('🧠  Seeding therapy programs…');
 
-  const existingPrograms = await db.query.therapyPrograms.findMany();
-  if (existingPrograms.length === 0) {
-    await db.insert(therapyPrograms).values([
-      {
-        title: 'CBT Anxiety Control',
-        resourceType: 'Therapy',
-        category: 'Anxiety',
-        description: 'Evidence-based cognitive behavioral therapy exercises for interrupting negative thought loops.',
-        difficultyLevel: 'Intermediate',
-        durationMinutes: 15,
-      },
-      {
-        title: 'Calm Breathing & Box Meditation',
-        resourceType: 'Meditation',
-        category: 'Anxiety',
-        description: 'Guided 4-4-4-4 box breathing technique to lower heart rate and reduce physiological panic.',
-        difficultyLevel: 'Beginner',
-        durationMinutes: 10,
-      },
-      {
-        title: 'Sleep Relaxation & Wind Down',
-        resourceType: 'Relaxation',
-        category: 'Sleep',
-        description: 'Progressive muscle relaxation and binaural sleep soundscapes for deeper REM restorative cycles.',
-        difficultyLevel: 'Beginner',
-        durationMinutes: 20,
-      },
-      {
-        title: 'Better Sleep Program',
-        resourceType: 'Therapy',
-        category: 'Sleep',
-        description: 'Comprehensive 7-day sleep hygiene protocols, circadian alignment, and bedtime journaling.',
-        difficultyLevel: 'Beginner',
-        durationMinutes: 25,
-      },
-    ]);
+  const programsData = [
+    {
+      title: 'Emotional Regulation',
+      emoji: '🎭',
+      gradientStyle: 'purple',
+      resourceType: 'Therapy',
+      category: 'DBT',
+      description: 'DBT-informed skills to understand, name, and guide your emotions instead of fighting them.',
+      difficultyLevel: 'Intermediate',
+      durationMinutes: 25,
+      sessionCount: 8,
+      durationWeeks: 8,
+      dailyMinutes: 25,
+    },
+    {
+      title: 'Self-Esteem Building',
+      emoji: '💪',
+      gradientStyle: 'emerald',
+      resourceType: 'Therapy',
+      category: 'CBT',
+      description: 'Replace the inner critic with self-compassion and build a grounded sense of your own worth.',
+      difficultyLevel: 'Beginner',
+      durationMinutes: 25,
+      sessionCount: 8,
+      durationWeeks: 8,
+      dailyMinutes: 25,
+    },
+    {
+      title: 'Behavioral Activation',
+      emoji: '🎯',
+      gradientStyle: 'teal',
+      resourceType: 'Therapy',
+      category: 'CBT',
+      description: 'Use action to drive mood — schedule meaningful activities and build momentum to overcome depressive inertia.',
+      difficultyLevel: 'Intermediate',
+      durationMinutes: 25,
+      sessionCount: 8,
+      durationWeeks: 8,
+      dailyMinutes: 25,
+    },
+    {
+      title: 'Acceptance & Commitment Therapy',
+      emoji: '🌿',
+      gradientStyle: 'green',
+      resourceType: 'Therapy',
+      category: 'ACT',
+      description: 'Accept difficult thoughts and feelings while committing to actions aligned with your deepest values.',
+      difficultyLevel: 'Advanced',
+      durationMinutes: 30,
+      sessionCount: 8,
+      durationWeeks: 8,
+      dailyMinutes: 30,
+    },
+    {
+      title: 'Dialectical Behavior Therapy',
+      emoji: '⚖️',
+      gradientStyle: 'blue',
+      resourceType: 'Therapy',
+      category: 'DBT',
+      description: 'Build a life worth living using DBT skills across mindfulness, distress tolerance, and interpersonal effectiveness.',
+      difficultyLevel: 'Advanced',
+      durationMinutes: 35,
+      sessionCount: 8,
+      durationWeeks: 8,
+      dailyMinutes: 35,
+    },
+    {
+      title: 'Positive Psychology',
+      emoji: '⭐',
+      gradientStyle: 'lime',
+      resourceType: 'Therapy',
+      category: 'Focus',
+      description: 'Cultivate strengths, gratitude, and meaning to flourish and thrive—not just survive.',
+      difficultyLevel: 'Beginner',
+      durationMinutes: 20,
+      sessionCount: 8,
+      durationWeeks: 8,
+      dailyMinutes: 20,
+    },
+    {
+      title: 'Sleep Improvement Program',
+      emoji: '😴',
+      gradientStyle: 'ocean',
+      resourceType: 'Relaxation',
+      category: 'Sleep',
+      description: 'Evidence-based sleep hygiene and relaxation practices to restore restful, restorative sleep.',
+      difficultyLevel: 'Beginner',
+      durationMinutes: 15,
+      sessionCount: 8,
+      durationWeeks: 8,
+      dailyMinutes: 15,
+    },
+    {
+      title: 'Relationship Therapy',
+      emoji: '💕',
+      gradientStyle: 'mint',
+      resourceType: 'Therapy',
+      category: 'Anxiety',
+      description: 'Understand patterns and build deeper connection, trust, and healthy interpersonal boundaries.',
+      difficultyLevel: 'Intermediate',
+      durationMinutes: 25,
+      sessionCount: 8,
+      durationWeeks: 8,
+      dailyMinutes: 25,
+    },
+  ];
+
+  for (const prog of programsData) {
+    const existing = await db.query.therapyPrograms.findFirst({
+      where: eq(therapyPrograms.title, prog.title),
+    });
+    if (existing) {
+      await db.update(therapyPrograms).set(prog).where(eq(therapyPrograms.id, existing.id));
+    } else {
+      await db.insert(therapyPrograms).values(prog);
+    }
   }
 
   // =========================================================================
-  // 14. ASSESSMENTS & QUESTIONS
+  // 14. ASSESSMENTS & QUESTIONS (JSON-driven clinical battery)
   // =========================================================================
 
-  console.log('📋  Seeding assessments…');
+  console.log('📋  Seeding clinical assessments…');
 
-  const existingAssessments = await db.query.assessments.findMany();
-  if (existingAssessments.length === 0) {
-    const [as1] = await db.insert(assessments).values({
-      title: 'Depression Screening Test (PHQ-9)',
-      category: 'Depression',
-      description: 'Measures clinical depression severity, cognitive fatigue, and loss of interest in activities.',
-      totalQuestions: 2,
-    }).returning();
+  const existingQuestions = await db.query.assessmentQuestions.findMany();
+  const needsReseed = existingQuestions.length < 329 || existingQuestions.some(
+    q => q.questionCode === 'src_ds_01' && /[\u0980-\u09FF]/.test(q.questionText)
+  );
 
-    if (as1) {
-      await db.insert(assessmentQuestions).values([
-        {
-          assessmentId: as1.id,
-          questionText: 'Feeling tired, fatigued, or having little energy?',
-          optionA: 'Never', optionB: 'Several days', optionC: 'More than half the days', optionD: 'Nearly every day',
-          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
-          orderIndex: 1,
-        },
-        {
-          assessmentId: as1.id,
-          questionText: 'Little interest or pleasure in doing everyday activities?',
-          optionA: 'Never', optionB: 'Several days', optionC: 'More than half the days', optionD: 'Nearly every day',
-          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
-          orderIndex: 2,
-        },
-      ]);
+  if (needsReseed) {
+    await db.delete(assessmentQuestions);
+    await db.delete(assessments);
+
+    const questions174Path = path.join(__dirname, 'data', 'healer_assessments_174_questions.json');
+    const uploadedQuestionnairesPath = path.join(__dirname, 'data', 'healer_uploaded_questionnaires_original_numbering.json');
+
+    const categoryMap: Record<string, string> = {
+      depression: 'Depression',
+      anxiety: 'Anxiety',
+      stress: 'Stress',
+      burnout: 'Occupational & Burnout',
+      self_esteem: 'Self-Esteem',
+      emotional_intelligence: 'Emotional Intelligence',
+      personality: 'Personality',
+      sleep_quality: 'Sleep Quality',
+      relationship_satisfaction: 'Relationships',
+      resilience: 'Resilience',
+      life_satisfaction: 'Life Satisfaction',
+      social_anxiety: 'Social Anxiety',
+      ocd: 'Obsessive-Compulsive',
+      adhd: 'ADHD & Focus',
+      autism: 'Autism & Neurodiversity',
+      ptsd: 'Trauma & PTSD',
+      iq: 'Reasoning & Cognition',
+      src_dass21: 'Depression & Anxiety',
+      src_ds: 'Depression',
+      src_as: 'Anxiety',
+      src_duocs: 'Obsessive-Compulsive',
+      src_sias: 'Social Anxiety',
+      src_marital: 'Relationships',
+      src_love_obsession: 'Relationships',
+    };
+
+    const uploadedTitles: Record<string, string> = {
+      src_dass21: 'Depression Anxiety Stress Scale (DASS-21)',
+      src_ds: 'Depression Scale (DS)',
+      src_as: 'Anxiety Scale (AS)',
+      src_duocs: 'Dhaka University OCD Scale (DUOCS)',
+      src_sias: 'Social Interaction Anxiety Scale (SIAS)',
+      src_marital: 'Locke-Wallace Marital Adjustment Test (MAT)',
+      src_love_obsession: 'Love Obsessed Lover Checklist',
+    };
+
+    const uploadedDescriptions: Record<string, string> = {
+      src_dass21: 'Measures depression, anxiety, and tension/stress levels over the past week.',
+      src_ds: 'Standardized psychological evaluation of depressive symptoms and emotional well-being.',
+      src_as: 'Comprehensive assessment of physiological, cognitive, and somatic anxiety manifestations.',
+      src_duocs: 'Evaluation of obsessive doubts, repetitive checking compulsions, and contamination fears.',
+      src_sias: 'Measures distress and discomfort experienced in social and interpersonal interaction settings.',
+      src_marital: 'Standardized appraisal of marital satisfaction, shared decision-making, and relational harmony.',
+      src_love_obsession: 'Self-reflection checklist assessing romantic preoccupation, attachment boundaries, and safety.',
+    };
+
+    let totalAsmtsCount = 0;
+    let totalQuestionsCount = 0;
+
+    // A. Seed Battery 1 (17 Assessments / 174 Questions)
+    if (fs.existsSync(questions174Path)) {
+      const rawData = JSON.parse(fs.readFileSync(questions174Path, 'utf-8'));
+      for (const asmt of rawData.assessments) {
+        const relatedQuestions = rawData.questions.filter((q: { assessmentId: string }) => q.assessmentId === asmt.id);
+        const [insertedAsmt] = await db.insert(assessments).values({
+          code: asmt.id,
+          title: asmt.name || asmt.title || `${asmt.id} Assessment`,
+          category: categoryMap[asmt.id] || 'General Mental Health',
+          description: asmt.basedOn
+            ? `${asmt.basedOn} ${asmt.scoring?.interpretationDisplay ? asmt.scoring.interpretationDisplay.replace('{score}', 'Your score') : ''}`.trim()
+            : asmt.description || 'Clinical self-reflection assessment.',
+          totalQuestions: relatedQuestions.length,
+          timeframe: asmt.timeframe,
+          scoringConfig: asmt.scoring,
+          officialReferenceBands: asmt.officialReferenceBands,
+        }).returning();
+
+        if (relatedQuestions.length > 0) {
+          await db.insert(assessmentQuestions).values(
+            relatedQuestions.map((q: {
+              id: string;
+              text: string;
+              options: Array<{ id: string; label: string; score: number }>;
+              order: number;
+            }) => ({
+              assessmentId: insertedAsmt.id,
+              questionCode: q.id,
+              questionText: q.text,
+              options: q.options,
+              optionA: q.options[0]?.label || '',
+              optionB: q.options[1]?.label || '',
+              optionC: q.options[2]?.label || '',
+              optionD: q.options[3]?.label || '',
+              optionE: q.options[4]?.label || null,
+              scoreMapping: (q.options || []).reduce((acc: Record<string, number>, opt) => {
+                acc[opt.id] = opt.score;
+                return acc;
+              }, {}),
+              orderIndex: q.order,
+            }))
+          );
+        }
+        totalAsmtsCount++;
+        totalQuestionsCount += relatedQuestions.length;
+      }
     }
 
-    const [as2] = await db.insert(assessments).values({
-      title: 'Anxiety Assessment (GAD-7)',
-      category: 'Anxiety',
-      description: 'Screens for generalized anxiety symptoms, persistent rumination, and somatic nervousness.',
-      totalQuestions: 2,
-    }).returning();
+    // B. Seed Battery 2: Uploaded Digitized Bengali Clinical Questionnaires (7 Assessments / 155 Questions)
+    if (fs.existsSync(uploadedQuestionnairesPath)) {
+      const rawUploaded = JSON.parse(fs.readFileSync(uploadedQuestionnairesPath, 'utf-8'));
+      for (const asmt of rawUploaded.assessments) {
+        const relatedQuestions = rawUploaded.questions.filter((q: { assessmentId: string }) => q.assessmentId === asmt.id);
+        const [insertedAsmt] = await db.insert(assessments).values({
+          code: asmt.id,
+          title: uploadedTitles[asmt.id] || asmt.name || `${asmt.id} Assessment`,
+          category: categoryMap[asmt.id] || 'Clinical Screening',
+          description: uploadedDescriptions[asmt.id] || asmt.instructions || 'Standardized clinical assessment instrument.',
+          totalQuestions: relatedQuestions.length,
+          timeframe: asmt.timeframe || 'Recent everyday experiences.',
+          scoringConfig: asmt.scoring,
+          officialReferenceBands: asmt.officialReferenceBands,
+        }).returning();
 
-    if (as2) {
-      await db.insert(assessmentQuestions).values([
-        {
-          assessmentId: as2.id,
-          questionText: 'Do you feel excessive worry that is difficult to control?',
-          optionA: 'Not at all', optionB: 'Mild (Several days)', optionC: 'Moderate (Half days)', optionD: 'Severe (Nearly daily)',
-          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
-          orderIndex: 1,
-        },
-        {
-          assessmentId: as2.id,
-          questionText: 'Do you experience restlessness or find it difficult to sit still and relax?',
-          optionA: 'Not at all', optionB: 'Rarely', optionC: 'Frequently', optionD: 'Almost constantly',
-          scoreMapping: { option_a: 0, option_b: 1, option_c: 2, option_d: 3 },
-          orderIndex: 2,
-        },
-      ]);
+        if (relatedQuestions.length > 0) {
+          await db.insert(assessmentQuestions).values(
+            relatedQuestions.map((q: {
+              id: string;
+              text: string;
+              text_en?: string;
+              options?: Array<{ id: string; label: string; label_en?: string; score: number }>;
+              order?: number;
+              originalQuestionNumber?: number;
+            }) => {
+              const qOptions = (q.id === 'src_marital_12' && (!q.options || q.options.length === 0))
+                ? [
+                    { id: 'src_marital_12_opt_1', label: 'Both prefer staying at home', score: 10 },
+                    { id: 'src_marital_12_opt_2', label: 'Both prefer going out', score: 3 },
+                    { id: 'src_marital_12_opt_3', label: 'I prefer staying home, spouse prefers going out', score: 2 },
+                    { id: 'src_marital_12_opt_4', label: 'I prefer going out, spouse prefers staying home', score: 2 },
+                  ]
+                : (q.options || []).map((o) => ({
+                    id: o.id,
+                    label: o.label_en || o.label,
+                    score: o.score,
+                  }));
+
+              return {
+                assessmentId: insertedAsmt.id,
+                questionCode: q.id,
+                questionText: q.text_en || q.text,
+                options: qOptions,
+                optionA: qOptions[0]?.label || '',
+                optionB: qOptions[1]?.label || '',
+                optionC: qOptions[2]?.label || '',
+                optionD: qOptions[3]?.label || '',
+                optionE: qOptions[4]?.label || null,
+                scoreMapping: qOptions.reduce((acc: Record<string, number>, opt) => {
+                  acc[opt.id] = opt.score;
+                  return acc;
+                }, {}),
+                orderIndex: q.order || q.originalQuestionNumber || 0,
+              };
+            })
+          );
+        }
+        totalAsmtsCount++;
+        totalQuestionsCount += relatedQuestions.length;
+      }
     }
 
-    // Assessment results for patient 1
-    if (as1 && as2) {
-      await db.insert(assessmentResults).values([
-        {
-          userId: patient1User.id,
-          assessmentId: as1.id,
-          score: 12,
-          severityLevel: 'Medium',
-          aiRecommendation: 'Moderate depression score. Recommend ongoing cognitive behavioral therapy and routine follow-up.',
-          completedDate: new Date('2026-09-28'),
-        },
-        {
-          userId: patient1User.id,
-          assessmentId: as2.id,
-          score: 15,
-          severityLevel: 'High',
-          aiRecommendation: 'High anxiety score detected. Priority consultation advised.',
-          completedDate: new Date('2026-10-02'),
-        },
-      ]);
+    // Seed sample assessment results for patient 1 (only if assessments were loaded)
+    if (totalAsmtsCount > 0) {
+      const firstTwoAssessments = await db.query.assessments.findMany();
+      if (firstTwoAssessments.length >= 2) {
+        await db.insert(assessmentResults).values([
+          {
+            userId: patient1User.id,
+            assessmentId: firstTwoAssessments[0].id,
+            score: 12,
+            severityLevel: 'Medium',
+            aiRecommendation: 'Moderate score. Recommend ongoing cognitive behavioral therapy and routine follow-up.',
+            completedDate: new Date('2026-09-28'),
+          },
+          {
+            userId: patient1User.id,
+            assessmentId: firstTwoAssessments[1].id,
+            score: 15,
+            severityLevel: 'High',
+            aiRecommendation: 'High score detected. Priority consultation advised.',
+            completedDate: new Date('2026-10-02'),
+          },
+        ]).onConflictDoNothing();
+      }
     }
+
+    console.log(`   Loaded ${totalAsmtsCount} assessments with ${totalQuestionsCount} questions.`);
   }
 
   // =========================================================================

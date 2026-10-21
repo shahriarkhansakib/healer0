@@ -12,14 +12,57 @@ async function runMigration() {
   console.log('Connecting to database:', connectionString.replace(/:[^:@]+@/, ':***@'));
 
   try {
-    // 1. Ensure system_role enum and essential user columns exist
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'user';`);
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'patient';`);
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'doctor';`);
-    await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'researcher';`);
+    // 1. Discover and execute all baseline migration files in sorted order
+    const drizzleDir = path.resolve(__dirname, '../drizzle');
+    const sqlFiles = fs
+      .readdirSync(drizzleDir)
+      .filter((file) => file.endsWith('.sql'))
+      .sort();
+
+    console.log(`Found ${sqlFiles.length} migration file(s): ${sqlFiles.join(', ')}`);
+
+    for (const sqlFile of sqlFiles) {
+      const sqlFilePath = path.join(drizzleDir, sqlFile);
+      const sqlContent = fs.readFileSync(sqlFilePath, 'utf-8');
+
+      const statements = sqlContent
+        .split('--> statement-breakpoint')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      console.log(`Executing ${statements.length} statements from ${sqlFile}...`);
+
+      for (let i = 0; i < statements.length; i++) {
+        const stmt = statements[i];
+        try {
+          await sqlClient.unsafe(stmt);
+        } catch (err: any) {
+          // If column, table, enum value or constraint already exists, proceed gracefully
+          if (
+            err.code === '42701' || // duplicate_column
+            err.code === '42P07' || // duplicate_table
+            err.code === '42710' || // duplicate_object
+            err.message?.includes('already exists')
+          ) {
+            continue;
+          }
+          console.warn(`Warning on statement ${i + 1} of ${sqlFile}: ${err.message}`);
+        }
+      }
+    }
+
+    // 2. Ensure system_role enum and essential user columns exist
+    try {
+      await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'user';`);
+      await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'patient';`);
+      await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'doctor';`);
+      await sqlClient.unsafe(`ALTER TYPE "system_role" ADD VALUE IF NOT EXISTS 'researcher';`);
+    } catch (e: any) {
+      // Ignore if already added
+    }
     await sqlClient.unsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "phone" text;`);
 
-    // 2. Clean up legacy orphaned tables that do not exist in current schema
+    // 3. Clean up legacy orphaned tables that do not exist in current schema
     await sqlClient.unsafe(`
       DROP TABLE IF EXISTS "meditation_history", "meditation_contents", "wellness_plan_tasks", "wellness_plans" CASCADE;
     `);
@@ -42,6 +85,11 @@ async function runMigration() {
     }
     await sqlClient.unsafe(`ALTER TABLE "journals" ADD COLUMN IF NOT EXISTS "entry_date" timestamp DEFAULT now() NOT NULL;`);
     await sqlClient.unsafe(`ALTER TABLE "doctor_reviews" ADD COLUMN IF NOT EXISTS "appointment_id" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "session_count" integer DEFAULT 8 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "duration_weeks" integer DEFAULT 8 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "daily_minutes" integer DEFAULT 25 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "emoji" text DEFAULT '🌿' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "gradient_style" text DEFAULT 'emerald' NOT NULL;`);
 
     // Emergency & Trusted Contacts
     try {
@@ -94,7 +142,30 @@ async function runMigration() {
       await sqlClient.unsafe(`DROP TABLE IF EXISTS "assessments" CASCADE;`);
     }
 
-    // Community groups
+    // Assessments & Screening Schema Enhancements
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "code" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "timeframe" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "scoring_config" jsonb;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "official_reference_bands" jsonb;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "question_code" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "options" jsonb;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "option_e" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_a" DROP NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_b" DROP NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_c" DROP NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "option_d" DROP NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ALTER COLUMN "score_mapping" DROP NOT NULL;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "max_score" integer;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "identified_problem" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "clinical_summary" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "suggested_follow_up" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "requires_follow_up" boolean DEFAULT false;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "crisis_alert" boolean DEFAULT false;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "answers" jsonb;`);
+
+    // Community groups & chat messages
     try {
       await sqlClient.unsafe(`SELECT "group_name" FROM "community_groups" LIMIT 1;`);
     } catch {
@@ -106,44 +177,30 @@ async function runMigration() {
       await sqlClient.unsafe(`DROP TABLE IF EXISTS "community_groups" CASCADE;`);
     }
 
-    // 4. Discover and execute all migration files in sorted order
-    const drizzleDir = path.resolve(__dirname, '../drizzle');
-    const sqlFiles = fs
-      .readdirSync(drizzleDir)
-      .filter((file) => file.endsWith('.sql'))
-      .sort();
+    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "avatar_emoji" text DEFAULT '💬';`);
+    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "requires_approval" boolean DEFAULT false NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "creator_id" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "anonymous_name" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "avatar_color" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "role" text DEFAULT 'member' NOT NULL;`);
 
-    console.log(`Found ${sqlFiles.length} migration file(s): ${sqlFiles.join(', ')}`);
-
-    for (const sqlFile of sqlFiles) {
-      const sqlFilePath = path.join(drizzleDir, sqlFile);
-      const sqlContent = fs.readFileSync(sqlFilePath, 'utf-8');
-
-      const statements = sqlContent
-        .split('--> statement-breakpoint')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-
-      console.log(`Executing ${statements.length} statements from ${sqlFile}...`);
-
-      for (let i = 0; i < statements.length; i++) {
-        const stmt = statements[i];
-        try {
-          await sqlClient.unsafe(stmt);
-        } catch (err: any) {
-          // If column, table, enum value or constraint already exists, proceed gracefully
-          if (
-            err.code === '42701' || // duplicate_column
-            err.code === '42P07' || // duplicate_table
-            err.code === '42710' || // duplicate_object
-            err.message?.includes('already exists')
-          ) {
-            continue;
-          }
-          console.warn(`Warning on statement ${i + 1} of ${sqlFile}: ${err.message}`);
-        }
-      }
-    }
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "community_messages" (
+        "id" text PRIMARY KEY NOT NULL,
+        "group_id" text NOT NULL REFERENCES "community_groups"("id") ON DELETE CASCADE,
+        "user_id" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "anonymous_name" text NOT NULL DEFAULT 'Anonymous Member',
+        "avatar_color" text NOT NULL DEFAULT 'sky',
+        "message_text" text NOT NULL,
+        "message_type" text NOT NULL DEFAULT 'text',
+        "reply_to_id" text,
+        "reply_to_text" text,
+        "reply_to_sender" text,
+        "ai_moderation_status" text NOT NULL DEFAULT 'Approved',
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
 
     console.log('Migration completed successfully!');
   } catch (error) {

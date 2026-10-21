@@ -7,7 +7,7 @@ import { requireParam } from '../../infra/lib/param-guard';
 
 const CreateAssessmentSchema = z.object({
   title: z.string().min(1).max(255),
-  category: z.enum(['Depression', 'Anxiety', 'Stress', 'Personality', 'Emotional Intelligence']),
+  category: z.string().min(1).max(100),
   description: z.string().min(1).max(2000),
   questions: z
     .array(
@@ -17,6 +17,7 @@ const CreateAssessmentSchema = z.object({
         optionB: z.string().min(1).max(255),
         optionC: z.string().min(1).max(255),
         optionD: z.string().min(1).max(255),
+        optionE: z.string().max(255).optional(),
         scoreMapping: z.record(z.string(), z.number()),
         orderIndex: z.number().int().min(0),
       }),

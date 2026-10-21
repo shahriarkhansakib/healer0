@@ -8,10 +8,15 @@ import { requireParam } from '../../infra/lib/param-guard';
 const CreateProgramSchema = z.object({
   title: z.string().min(1).max(255),
   resourceType: z.enum(['Therapy', 'Meditation', 'Exercise', 'Relaxation']),
-  category: z.enum(['CBT', 'Anxiety', 'Sleep', 'Focus', 'Stress', 'Depression']),
+  category: z.string().min(1).max(100),
   description: z.string().min(1).max(2000),
   difficultyLevel: z.enum(['Beginner', 'Intermediate', 'Advanced']).optional(),
   durationMinutes: z.number().int().min(1).max(300).optional(),
+  sessionCount: z.number().int().min(1).max(100).optional(),
+  durationWeeks: z.number().int().min(1).max(52).optional(),
+  dailyMinutes: z.number().int().min(1).max(120).optional(),
+  emoji: z.string().max(20).optional(),
+  gradientStyle: z.string().max(50).optional(),
   audioUrl: z.string().url().optional(),
   videoUrl: z.string().url().optional(),
 });
@@ -103,6 +108,31 @@ export const TherapyController = {
       return c.json(progress, 200);
     } catch (err: unknown) {
       logger.error({ err }, 'TherapyController.listMyProgress failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+
+  async resetProgramProgress(c: Context<{ Variables: AuthVariables }>) {
+    const user = c.get('user');
+    const resourceId = requireParam(c, 'resourceId');
+    try {
+      const result = await TherapyService.resetProgramProgress(user.id, resourceId);
+      return c.json(result, 200);
+    } catch (err: unknown) {
+      logger.error({ err }, 'TherapyController.resetProgramProgress failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+
+  async resetAllProgress(c: Context<{ Variables: AuthVariables }>) {
+    const user = c.get('user');
+    try {
+      const result = await TherapyService.resetAllProgress(user.id);
+      return c.json(result, 200);
+    } catch (err: unknown) {
+      logger.error({ err }, 'TherapyController.resetAllProgress failed');
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       return c.json({ error: 'Internal Server Error', message }, 500);
     }

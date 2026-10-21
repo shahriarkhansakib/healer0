@@ -5,6 +5,7 @@ import {
   eq,
   desc,
   and,
+  or,
 } from '@healer/db';
 
 export const TherapyService = {
@@ -35,6 +36,11 @@ export const TherapyService = {
     description: string;
     difficultyLevel?: string;
     durationMinutes?: number;
+    sessionCount?: number;
+    durationWeeks?: number;
+    dailyMinutes?: number;
+    emoji?: string;
+    gradientStyle?: string;
     audioUrl?: string;
     videoUrl?: string;
   }) {
@@ -47,6 +53,11 @@ export const TherapyService = {
         description: payload.description,
         difficultyLevel: payload.difficultyLevel ?? 'Beginner',
         durationMinutes: payload.durationMinutes ?? 10,
+        sessionCount: payload.sessionCount ?? 8,
+        durationWeeks: payload.durationWeeks ?? 8,
+        dailyMinutes: payload.dailyMinutes ?? 25,
+        emoji: payload.emoji ?? '🌿',
+        gradientStyle: payload.gradientStyle ?? 'emerald',
         audioUrl: payload.audioUrl ?? null,
         videoUrl: payload.videoUrl ?? null,
       })
@@ -109,5 +120,23 @@ export const TherapyService = {
       where: eq(userTherapyProgress.userId, userId),
       orderBy: [desc(userTherapyProgress.startTime)],
     });
+  },
+
+  async resetProgramProgress(userId: string, identifier: string) {
+    await db.delete(userTherapyProgress).where(
+      and(
+        eq(userTherapyProgress.userId, userId),
+        or(
+          eq(userTherapyProgress.resourceId, identifier),
+          eq(userTherapyProgress.id, identifier),
+        ),
+      ),
+    );
+    return { success: true, message: 'Program progress has been reset.' };
+  },
+
+  async resetAllProgress(userId: string) {
+    await db.delete(userTherapyProgress).where(eq(userTherapyProgress.userId, userId));
+    return { success: true, message: 'All program progress has been reset.' };
   },
 };

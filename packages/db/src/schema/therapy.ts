@@ -9,6 +9,11 @@ export const therapyPrograms = pgTable('therapy_programs', {
   description: text('description').notNull(),
   difficultyLevel: text('difficulty_level').default('Beginner').notNull(), // 'Beginner', 'Intermediate', 'Advanced'
   durationMinutes: integer('duration_minutes').default(10).notNull(),
+  sessionCount: integer('session_count').default(8).notNull(),
+  durationWeeks: integer('duration_weeks').default(8).notNull(),
+  dailyMinutes: integer('daily_minutes').default(25).notNull(),
+  emoji: text('emoji').default('🌿').notNull(),
+  gradientStyle: text('gradient_style').default('emerald').notNull(), // 'purple', 'emerald', 'teal', 'green', 'blue', 'lime', 'ocean', 'mint'
   audioUrl: text('audio_url'),
   videoUrl: text('video_url'),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),

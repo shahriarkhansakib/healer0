@@ -30,6 +30,7 @@
     }
   },
   "dependencies": {
-    "pnpm": "^12.14.0"
+    "@neon/config": "^1.9.2",
+    "@neon/env": "^1.6.3"
   }
 }

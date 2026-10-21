@@ -47,7 +47,6 @@ app.route('/patients', patientsRouter);
 
 // Researcher features
 app.route('/researcher', researcherRouter);
-
 // Shared features (Integrated for both Doctor & Patient)
 app.route('/appointments', appointmentsRouter);
 app.route('/counseling', counselingRouter);
