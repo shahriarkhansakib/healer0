@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { signIn } from "@/lib/auth-client";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +14,6 @@ export function SignInForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,27 +27,51 @@ export function SignInForm() {
 
       if (error) {
         toast.error(error.message || "Invalid credentials");
+        setLoading(false);
+        return;
+      }
+
+      toast.success("Welcome back!");
+
+      // Determine target destination based on returned user role or /api/auth/me fallback
+      let targetUrl = "/patient";
+      const userRole = (data as { user?: { role?: string } } | null)?.user?.role;
+
+      if (userRole === "super_admin") {
+        targetUrl = "/super-admin";
+      } else if (userRole === "admin") {
+        targetUrl = "/admin";
+      } else if (userRole === "doctor") {
+        targetUrl = "/doctor";
+      } else if (userRole === "researcher") {
+        targetUrl = "/researcher";
       } else {
-        toast.success("Welcome back!");
         try {
           const res = await fetch("/api/auth/me", { credentials: "include" });
-          const meData = await res.json().catch(() => null);
-          if (meData?.user?.role === "super_admin") {
-            router.push("/super-admin");
-          } else if (meData?.user?.role === "admin") {
-            router.push("/admin");
-          } else if (meData?.profiles?.isDoctor) {
-            router.push("/doctor");
-          } else {
-            router.push("/patient");
+          if (res.ok) {
+            const meData = await res.json().catch(() => null);
+            if (meData?.user?.role === "super_admin") {
+              targetUrl = "/super-admin";
+            } else if (meData?.user?.role === "admin") {
+              targetUrl = "/admin";
+            } else if (meData?.user?.role === "doctor" || meData?.profiles?.isDoctor) {
+              targetUrl = "/doctor";
+            } else if (meData?.user?.role === "researcher" || meData?.profiles?.isResearcher) {
+              targetUrl = "/researcher";
+            } else {
+              targetUrl = "/patient";
+            }
           }
         } catch {
-          router.push("/patient");
+          targetUrl = "/patient";
         }
       }
-    } catch (err: any) {
-      toast.error("Something went wrong.");
-    } finally {
+
+      // Hard document navigation ensures cookies, server components, and client sessions synchronize instantly
+      window.location.href = targetUrl;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      toast.error(message);
       setLoading(false);
     }
   };

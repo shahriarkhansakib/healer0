@@ -111,7 +111,7 @@ export function SignUpFlow() {
       toast.success(isDoctor ? "Doctor account created!" : "Welcome to Healer!");
 
       // Redirect to the appropriate dashboard
-      router.push(isDoctor ? "/doctor" : "/patient");
+      window.location.href = isDoctor ? "/doctor" : "/patient";
     } catch (err: any) {
       toast.error(err?.message || "Something went wrong during registration.");
       setLoading(false);

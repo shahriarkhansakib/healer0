@@ -26,20 +26,31 @@ authRouter.get('/me', async (c) => {
 
   const { user } = session;
 
-  let [patientProfile, doctorProfile, researcherProfile] = await Promise.all([
-    db.query.patientProfiles.findFirst({
-      where: eq(patientProfiles.userId, user.id),
-      columns: { id: true },
-    }),
-    db.query.doctorProfiles.findFirst({
-      where: eq(doctorProfiles.userId, user.id),
-      columns: { id: true },
-    }),
-    db.query.researcherProfiles.findFirst({
-      where: eq(researcherProfiles.userId, user.id),
-      columns: { id: true, isActive: true },
-    }),
-  ]);
+  let patientProfile: { id: string } | null = null;
+  let doctorProfile: { id: string } | null = null;
+  let researcherProfile: { id: string; isActive?: boolean } | null = null;
+
+  try {
+    const results = await Promise.allSettled([
+      db.query.patientProfiles.findFirst({
+        where: eq(patientProfiles.userId, user.id),
+        columns: { id: true },
+      }),
+      db.query.doctorProfiles.findFirst({
+        where: eq(doctorProfiles.userId, user.id),
+        columns: { id: true },
+      }),
+      db.query.researcherProfiles.findFirst({
+        where: eq(researcherProfiles.userId, user.id),
+        columns: { id: true, isActive: true },
+      }),
+    ]);
+    if (results[0].status === 'fulfilled') patientProfile = results[0].value || null;
+    if (results[1].status === 'fulfilled') doctorProfile = results[1].value || null;
+    if (results[2].status === 'fulfilled') researcherProfile = results[2].value || null;
+  } catch (err) {
+    logger.error({ err }, 'Error querying profiles in /api/auth/me');
+  }
 
   if (!doctorProfile && (user.role === 'doctor' || user.role === 'super_admin')) {
     const [created] = await db

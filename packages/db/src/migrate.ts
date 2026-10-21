@@ -57,6 +57,14 @@ async function runMigration() {
     await sqlClient.unsafe(`ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now() NOT NULL;`);
     await sqlClient.unsafe(`ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now() NOT NULL;`);
 
+    // Ensure researcher_profiles columns exist
+    await sqlClient.unsafe(`ALTER TABLE "researcher_profiles" ADD COLUMN IF NOT EXISTS "full_name" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "researcher_profiles" ADD COLUMN IF NOT EXISTS "email" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "researcher_profiles" ADD COLUMN IF NOT EXISTS "designation" text DEFAULT 'Principal Investigator';`);
+    await sqlClient.unsafe(`ALTER TABLE "researcher_profiles" ADD COLUMN IF NOT EXISTS "verification_status" text DEFAULT 'Verified';`);
+    await sqlClient.unsafe(`ALTER TABLE "researcher_profiles" ADD COLUMN IF NOT EXISTS "is_active" boolean DEFAULT true NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "user_preferences" ADD COLUMN IF NOT EXISTS "researcher_mode_enabled" boolean DEFAULT false NOT NULL;`);
+
     await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "consultation_reason" text;`);
     await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "appointment_status" text DEFAULT 'Scheduled' NOT NULL;`);
     await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "session_duration_minutes" integer DEFAULT 50 NOT NULL;`);
@@ -158,7 +166,216 @@ async function runMigration() {
       );
     `);
 
-    // 3. Ensure community schema consistency
+    // 3. Ensure researcher domain tables exist
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "researcher_dashboard_summaries" (
+        "id" text PRIMARY KEY NOT NULL,
+        "researcher_id" text NOT NULL UNIQUE REFERENCES "researcher_profiles"("id") ON DELETE CASCADE,
+        "active_projects" integer DEFAULT 0 NOT NULL,
+        "total_participants" integer DEFAULT 0 NOT NULL,
+        "completed_surveys" integer DEFAULT 0 NOT NULL,
+        "collected_records" integer DEFAULT 0 NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "research_projects" (
+        "id" text PRIMARY KEY NOT NULL,
+        "researcher_id" text NOT NULL REFERENCES "researcher_profiles"("id") ON DELETE CASCADE,
+        "project_title" text NOT NULL,
+        "research_area" text NOT NULL,
+        "description" text NOT NULL,
+        "start_date" timestamp,
+        "end_date" timestamp,
+        "status" text DEFAULT 'Active' NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "research_participants" (
+        "id" text PRIMARY KEY NOT NULL,
+        "project_id" text NOT NULL REFERENCES "research_projects"("id") ON DELETE CASCADE,
+        "user_id" text REFERENCES "users"("id") ON DELETE SET NULL,
+        "participant_code" text NOT NULL,
+        "age_group" text NOT NULL,
+        "gender" text NOT NULL,
+        "eligibility_status" text DEFAULT 'Eligible' NOT NULL,
+        "consent_status" text DEFAULT 'Consented' NOT NULL,
+        "joined_date" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "participant_screening" (
+        "id" text PRIMARY KEY NOT NULL,
+        "participant_id" text NOT NULL REFERENCES "research_participants"("id") ON DELETE CASCADE,
+        "project_id" text NOT NULL REFERENCES "research_projects"("id") ON DELETE CASCADE,
+        "criteria" text NOT NULL,
+        "result" text NOT NULL,
+        "screened_date" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "research_surveys" (
+        "id" text PRIMARY KEY NOT NULL,
+        "project_id" text NOT NULL REFERENCES "research_projects"("id") ON DELETE CASCADE,
+        "title" text NOT NULL,
+        "description" text,
+        "form_url" text,
+        "embed_url" text,
+        "total_questions" integer DEFAULT 0 NOT NULL,
+        "status" text DEFAULT 'Published' NOT NULL,
+        "created_date" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "survey_questions" (
+        "id" text PRIMARY KEY NOT NULL,
+        "survey_id" text NOT NULL REFERENCES "research_surveys"("id") ON DELETE CASCADE,
+        "question_text" text NOT NULL,
+        "question_type" text NOT NULL,
+        "options" jsonb,
+        "order_index" integer DEFAULT 1 NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "research_data_collection" (
+        "id" text PRIMARY KEY NOT NULL,
+        "project_id" text NOT NULL REFERENCES "research_projects"("id") ON DELETE CASCADE,
+        "participant_id" text REFERENCES "research_participants"("id") ON DELETE SET NULL,
+        "data_type" text NOT NULL,
+        "data_value" jsonb NOT NULL,
+        "collected_date" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "research_analytics" (
+        "id" text PRIMARY KEY NOT NULL,
+        "project_id" text NOT NULL REFERENCES "research_projects"("id") ON DELETE CASCADE,
+        "analysis_type" text NOT NULL,
+        "result_summary" text NOT NULL,
+        "generated_report" text,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "participant_matching_requests" (
+        "id" text PRIMARY KEY NOT NULL,
+        "researcher_id" text NOT NULL REFERENCES "researcher_profiles"("id") ON DELETE CASCADE,
+        "project_id" text NOT NULL REFERENCES "research_projects"("id") ON DELETE CASCADE,
+        "target_group" text NOT NULL,
+        "criteria" jsonb NOT NULL,
+        "matched_count" integer DEFAULT 0 NOT NULL,
+        "status" text DEFAULT 'Completed' NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "matched_participants" (
+        "id" text PRIMARY KEY NOT NULL,
+        "matching_request_id" text NOT NULL REFERENCES "participant_matching_requests"("id") ON DELETE CASCADE,
+        "participant_id" text NOT NULL REFERENCES "research_participants"("id") ON DELETE CASCADE,
+        "match_score" text NOT NULL,
+        "reason" text NOT NULL,
+        "approval_status" text DEFAULT 'Approved' NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "literature_search_history" (
+        "id" text PRIMARY KEY NOT NULL,
+        "researcher_id" text NOT NULL REFERENCES "researcher_profiles"("id") ON DELETE CASCADE,
+        "search_keyword" text NOT NULL,
+        "filters" jsonb,
+        "result_count" integer DEFAULT 0 NOT NULL,
+        "searched_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "research_papers" (
+        "id" text PRIMARY KEY NOT NULL,
+        "researcher_id" text NOT NULL REFERENCES "researcher_profiles"("id") ON DELETE CASCADE,
+        "title" text NOT NULL,
+        "authors" text NOT NULL,
+        "journal_name" text NOT NULL,
+        "publication_year" integer NOT NULL,
+        "paper_url" text,
+        "added_date" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "collaboration_network" (
+        "id" text PRIMARY KEY NOT NULL,
+        "researcher_id" text NOT NULL REFERENCES "researcher_profiles"("id") ON DELETE CASCADE,
+        "connected_researcher_id" text,
+        "connected_researcher_name" text NOT NULL,
+        "connected_institution" text NOT NULL,
+        "collaboration_type" text NOT NULL,
+        "status" text DEFAULT 'Active' NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "research_collaboration_messages" (
+        "id" text PRIMARY KEY NOT NULL,
+        "collaboration_id" text NOT NULL REFERENCES "collaboration_network"("id") ON DELETE CASCADE,
+        "sender_id" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "sender_name" text NOT NULL,
+        "message" text NOT NULL,
+        "sent_time" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "research_reports" (
+        "id" text PRIMARY KEY NOT NULL,
+        "project_id" text NOT NULL REFERENCES "research_projects"("id") ON DELETE CASCADE,
+        "researcher_id" text NOT NULL REFERENCES "researcher_profiles"("id") ON DELETE CASCADE,
+        "report_title" text NOT NULL,
+        "summary" text NOT NULL,
+        "file_url" text,
+        "generated_date" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "researcher_permissions" (
+        "id" text PRIMARY KEY NOT NULL,
+        "researcher_id" text NOT NULL REFERENCES "researcher_profiles"("id") ON DELETE CASCADE,
+        "project_id" text NOT NULL REFERENCES "research_projects"("id") ON DELETE CASCADE,
+        "data_access_type" text NOT NULL,
+        "approval_status" text DEFAULT 'Approved' NOT NULL,
+        "approved_date" timestamp,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "researcher_settings" (
+        "id" text PRIMARY KEY NOT NULL,
+        "researcher_id" text NOT NULL UNIQUE REFERENCES "researcher_profiles"("id") ON DELETE CASCADE,
+        "notification_enabled" boolean DEFAULT true NOT NULL,
+        "language" text DEFAULT 'en' NOT NULL,
+        "privacy_mode" boolean DEFAULT true NOT NULL,
+        "is_enabled" boolean DEFAULT true NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    // 4. Ensure community schema consistency
     const legacyPostsExist = await sqlClient.unsafe(`
       SELECT 1 FROM information_schema.tables WHERE table_name = 'community_posts';
     `);
@@ -170,17 +387,38 @@ async function runMigration() {
       await sqlClient.unsafe(`DROP TABLE IF EXISTS "community_groups" CASCADE;`);
     }
 
-    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "avatar_emoji" text DEFAULT '💬';`);
-    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "requires_approval" boolean DEFAULT false NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "creator_id" text;`);
-    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "is_hidden" boolean DEFAULT false NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "is_invite_only" boolean DEFAULT false NOT NULL;`);
-    await sqlClient.unsafe(`ALTER TABLE "community_groups" ADD COLUMN IF NOT EXISTS "invite_code" text;`);
-    await sqlClient.unsafe(`UPDATE "community_groups" SET "invite_code" = UPPER(SUBSTRING(MD5(RANDOM()::TEXT), 1, 8)) WHERE "invite_code" IS NULL;`);
-    await sqlClient.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "community_groups_invite_code_unique" ON "community_groups" ("invite_code");`);
-    await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "anonymous_name" text;`);
-    await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "avatar_color" text;`);
-    await sqlClient.unsafe(`ALTER TABLE "community_group_members" ADD COLUMN IF NOT EXISTS "role" text DEFAULT 'member' NOT NULL;`);
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "community_groups" (
+        "id" text PRIMARY KEY NOT NULL,
+        "group_name" text NOT NULL,
+        "topic" text NOT NULL,
+        "description" text,
+        "avatar_emoji" text DEFAULT '💬',
+        "anonymous_allowed" boolean DEFAULT true NOT NULL,
+        "requires_approval" boolean DEFAULT false NOT NULL,
+        "is_hidden" boolean DEFAULT false NOT NULL,
+        "is_invite_only" boolean DEFAULT false NOT NULL,
+        "invite_code" text UNIQUE,
+        "creator_id" text REFERENCES "users"("id") ON DELETE SET NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
+    await sqlClient.unsafe(`
+      CREATE TABLE IF NOT EXISTS "community_group_members" (
+        "id" text PRIMARY KEY NOT NULL,
+        "group_id" text NOT NULL REFERENCES "community_groups"("id") ON DELETE CASCADE,
+        "user_id" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "anonymous_name" text,
+        "avatar_color" text,
+        "joined_date" timestamp DEFAULT now() NOT NULL,
+        "member_status" text DEFAULT 'Active' NOT NULL,
+        "role" text DEFAULT 'member' NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
 
     await sqlClient.unsafe(`
       CREATE TABLE IF NOT EXISTS "community_messages" (
