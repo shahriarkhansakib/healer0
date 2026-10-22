@@ -372,21 +372,21 @@ export default function AppointmentsAndPrescriptionsPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/80 w-fit flex-wrap">
+      <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-muted/50 border border-border/80 w-full sm:w-fit overflow-x-auto scrollbar-none">
         <button
           type="button"
           onClick={() => setActiveTab('appointments')}
-          className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+          className={`flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer flex-1 sm:flex-initial shrink-0 ${
             activeTab === 'appointments'
               ? 'bg-background text-foreground shadow-sm border border-border/60'
               : 'text-muted-foreground hover:text-foreground hover:bg-muted'
           }`}
         >
           <Calendar className="w-4 h-4 text-primary" />
-          <span>1. Appointments</span>
+          <span>Appointments</span>
           {scheduledCount > 0 && (
             <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
-              {scheduledCount} Active
+              {scheduledCount}
             </span>
           )}
         </button>
@@ -394,14 +394,14 @@ export default function AppointmentsAndPrescriptionsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('prescriptions')}
-          className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+          className={`flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer flex-1 sm:flex-initial shrink-0 ${
             activeTab === 'prescriptions'
               ? 'bg-background text-foreground shadow-sm border border-border/60'
               : 'text-muted-foreground hover:text-foreground hover:bg-muted'
           }`}
         >
           <Pill className="w-4 h-4 text-indigo-500" />
-          <span>2. Prescriptions</span>
+          <span>Prescriptions</span>
           {prescriptionsCount > 0 && (
             <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
               {prescriptionsCount} Total

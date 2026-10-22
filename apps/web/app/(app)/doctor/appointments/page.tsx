@@ -244,7 +244,7 @@ export default function DoctorAppointmentsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1.5 bg-slate-100 p-1.5 rounded-xl w-fit flex-wrap">
+      <div className="flex gap-1.5 bg-slate-100 p-1.5 rounded-xl w-full sm:w-fit overflow-x-auto scrollbar-none flex-nowrap sm:flex-wrap">
         {tabs.map((tab) => {
           const isPendingTab = tab === 'pending';
           const isSelected = activeTab === tab;
@@ -253,7 +253,7 @@ export default function DoctorAppointmentsPage() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize flex items-center gap-1.5",
+                "px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize flex items-center gap-1.5 shrink-0 cursor-pointer",
                 isSelected
                   ? "bg-white text-teal-700 shadow-2xs font-bold"
                   : "text-slate-600 hover:text-slate-900"

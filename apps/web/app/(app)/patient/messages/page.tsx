@@ -275,11 +275,14 @@ function PatientMessagesContent() {
       </div>
 
       {/* Main Dual-Pane Messaging Container */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[calc(100vh-14.5rem)] min-h-[580px]">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[calc(100dvh-12rem)] md:h-[calc(100vh-14.5rem)] min-h-[500px]">
         {/* ========================================================================= */}
         {/* LEFT PANE: CONVERSATION LIST (COL 1-4)                                   */}
         {/* ========================================================================= */}
-        <div className="md:col-span-4 lg:col-span-4 flex flex-col rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+        <div className={cn(
+          "md:col-span-4 lg:col-span-4 flex flex-col rounded-2xl border border-border bg-card overflow-hidden shadow-xs",
+          activeDoctorUserId && "hidden md:flex"
+        )}>
           {/* Conversation Search Header */}
           <div className="p-3.5 border-b border-border space-y-2.5 bg-card/60">
             <div className="flex items-center justify-between">
@@ -408,7 +411,10 @@ function PatientMessagesContent() {
         {/* ========================================================================= */}
         {/* RIGHT PANE: ACTIVE CHAT THREAD (COL 5-12)                                */}
         {/* ========================================================================= */}
-        <div className="md:col-span-8 lg:col-span-8 flex flex-col rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
+        <div className={cn(
+          "md:col-span-8 lg:col-span-8 flex flex-col rounded-2xl border border-border bg-card overflow-hidden shadow-xs",
+          !activeDoctorUserId && "hidden md:flex"
+        )}>
           {!activeDoctorUserId || !activeClinician ? (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center">
@@ -427,8 +433,16 @@ function PatientMessagesContent() {
           ) : (
             <>
               {/* Active Clinician Top Bar */}
-              <div className="p-3.5 sm:p-4 border-b border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
+              <div className="p-3 sm:p-4 border-b border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setActiveDoctorUserId(null)}
+                    className="md:hidden p-1.5 -ml-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                    aria-label="Back to contacts list"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
                   <div className="relative shrink-0">
                     <div className="w-11 h-11 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shadow-inner">
                       {activeClinician.name.replace(/^Dr\.\s*/i, "").trim().slice(0, 2).toUpperCase() || "DR"}

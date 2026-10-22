@@ -4,6 +4,7 @@ import { useSession } from "@/lib/auth-client";
 import { usePathname } from "next/navigation";
 import { Sidebar, SystemRole } from "./sidebar";
 import { Topbar } from "./topbar";
+import { MobileBottomNav } from "./mobile-bottom-nav";
 import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -34,24 +35,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={cn(
-      "flex h-screen bg-background text-foreground overflow-hidden",
+      "flex h-dvh bg-background text-foreground overflow-hidden relative",
       isDoctor && "doctor-theme bg-slate-50 text-slate-900",
       isResearcher && "researcher-theme bg-[#fdf4ff] text-[#4a044e]"
     )}>
       <Sidebar role={mappedRole} />
       <div className={cn(
-        "flex flex-col flex-1 min-w-0 bg-background text-foreground",
+        "flex flex-col flex-1 min-w-0 bg-background text-foreground relative overflow-hidden",
         isDoctor && "bg-slate-50 text-slate-900",
         isResearcher && "bg-[#fdf4ff] text-[#4a044e]"
       )}>
         <Topbar user={session.user} />
         <main className={cn(
-          "flex-1 overflow-auto p-6 bg-background text-foreground",
+          "flex-1 overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 md:p-6 pb-20 md:pb-6 bg-background text-foreground min-h-0",
           isDoctor && "bg-slate-50 text-slate-900",
           isResearcher && "bg-[#fdf4ff] text-[#4a044e]"
         )}>
           {children}
         </main>
+        <MobileBottomNav role={mappedRole} />
       </div>
     </div>
   );

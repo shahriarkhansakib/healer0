@@ -125,7 +125,9 @@ function DoctorMessagesContent() {
         hasInitializedRef.current = true;
       }
     } else if (conversations.length > 0) {
-      setActivePatientUserId(conversations[0].otherUser.userId);
+      if (typeof window === "undefined" || window.innerWidth >= 768) {
+        setActivePatientUserId(conversations[0].otherUser.userId);
+      }
       hasInitializedRef.current = true;
     }
   }, [patientIdParam, conversations]);
@@ -255,11 +257,14 @@ function DoctorMessagesContent() {
       </div>
 
       {/* Main Dual-Pane Messaging Container */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[calc(100vh-14.5rem)] min-h-[580px]">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[calc(100dvh-12rem)] md:h-[calc(100vh-14.5rem)] min-h-[500px]">
         {/* ========================================================================= */}
         {/* LEFT PANE: CONVERSATION LIST (COL 1-4)                                   */}
         {/* ========================================================================= */}
-        <div className="md:col-span-4 lg:col-span-4 flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+        <div className={cn(
+          "md:col-span-4 lg:col-span-4 flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs",
+          activePatientUserId && "hidden md:flex"
+        )}>
           {/* Conversation Search Header */}
           <div className="p-3.5 border-b border-slate-100 space-y-2.5 bg-slate-50/50">
             <div className="flex items-center justify-between">
@@ -367,12 +372,23 @@ function DoctorMessagesContent() {
         {/* ========================================================================= */}
         {/* RIGHT PANE: ACTIVE CHAT THREAD (COL 5-12)                                */}
         {/* ========================================================================= */}
-        <div className="md:col-span-8 lg:col-span-8 flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+        <div className={cn(
+          "md:col-span-8 lg:col-span-8 flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs",
+          !activePatientUserId && "hidden md:flex"
+        )}>
           {activePatient ? (
             <>
               {/* Active Header */}
-              <div className="p-3.5 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/40">
-                <div className="flex items-center gap-3 min-w-0">
+              <div className="p-3 sm:p-3.5 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/40">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setActivePatientUserId(null)}
+                    className="md:hidden p-1.5 -ml-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 shrink-0 cursor-pointer"
+                    aria-label="Back to contacts list"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
                   <div className="w-10 h-10 rounded-full bg-teal-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
                     {activePatient.name.slice(0, 2).toUpperCase()}
                   </div>

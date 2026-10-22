@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useSidebarStore } from "@/hooks/use-sidebar-store";
 
 interface SidebarNavLinkProps {
   href: string;
@@ -10,10 +11,12 @@ interface SidebarNavLinkProps {
   label: string;
   isCollapsed?: boolean;
   isSubItem?: boolean;
+  onClick?: () => void;
 }
 
-export function SidebarNavLink({ href, icon, label, isCollapsed, isSubItem }: SidebarNavLinkProps) {
+export function SidebarNavLink({ href, icon, label, isCollapsed, isSubItem, onClick }: SidebarNavLinkProps) {
   const pathname = usePathname();
+  const { setMobileOpen } = useSidebarStore();
   const isBaseDashboard = ['/patient', '/doctor', '/researcher', '/admin', '/super-admin'].includes(href);
   const isActive = isBaseDashboard ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   const isDoctorRoute = pathname.startsWith('/doctor');
@@ -23,6 +26,10 @@ export function SidebarNavLink({ href, icon, label, isCollapsed, isSubItem }: Si
     <Link
       href={href}
       title={isCollapsed ? label : undefined}
+      onClick={() => {
+        setMobileOpen(false);
+        onClick?.();
+      }}
       className={cn(
         "relative flex items-center gap-3 rounded-xl transition-all duration-200 group cursor-pointer",
         isSubItem ? "px-3 pl-8 py-2 text-[13px] font-medium" : "px-3 py-2.5 text-sm font-medium",

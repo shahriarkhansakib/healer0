@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { Bot, Send, CheckCircle2, Clock, Plus, ShieldAlert, Cpu, ChevronDown, Check, Sparkles, Trash2 } from "lucide-react";
+import { Bot, Send, CheckCircle2, Clock, Plus, ShieldAlert, Cpu, ChevronDown, Check, Sparkles, Trash2, AlertCircle, ArrowLeft } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface CounselingSession {
   id: string;
@@ -180,9 +181,9 @@ export default function CounselingPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[720px]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[520px] lg:h-[720px]">
         {/* Left Column: Sessions List & Start New */}
-        <div className="flex flex-col gap-4">
+        <div className={cn("flex flex-col gap-4", activeSessionId && "hidden lg:flex")}>
           <Card className="flex-1 flex flex-col overflow-hidden">
             <CardHeader className="pb-3 border-b">
               <CardTitle className="text-base font-semibold">Your Sessions</CardTitle>
@@ -282,18 +283,27 @@ export default function CounselingPage() {
         </div>
 
         {/* Right Column: Chat Window */}
-        <div className="lg:col-span-2">
+        <div className={cn("lg:col-span-2", !activeSessionId && "hidden lg:block")}>
           <Card className="h-full flex flex-col overflow-hidden">
             {activeSession ? (
               <>
-                <CardHeader className="py-3 px-5 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <CardHeader className="py-3 px-4 sm:px-5 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-2.5 sm:gap-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="lg:hidden p-1.5 h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                      onClick={() => setActiveSessionId(null)}
+                      aria-label="Back to sessions list"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </Button>
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
                       <Bot className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-base font-semibold">{activeSession.sessionType}</CardTitle>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <CardTitle className="text-sm sm:text-base font-semibold">{activeSession.sessionType}</CardTitle>
                         {activeSession.sessionType === 'Crisis Support' && (
                           <span className="flex items-center gap-1 text-[10px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full">
                             <ShieldAlert className="w-3 h-3" /> 24/7 Lifeline: 988

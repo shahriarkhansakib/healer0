@@ -19,7 +19,7 @@ export default function SignInPage() {
       </div>
 
       {/* Main Glassmorphic Card */}
-      <div className="bg-card/70 backdrop-blur-xl border border-border/60 rounded-3xl shadow-2xl p-7 sm:p-9 relative overflow-hidden">
+      <div className="bg-card/70 backdrop-blur-xl border border-border/60 rounded-3xl shadow-2xl p-5 sm:p-9 relative overflow-hidden">
         {/* Soft Ambient Background Glows */}
         <div className="absolute -top-24 -right-24 w-60 h-60 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-60 h-60 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
