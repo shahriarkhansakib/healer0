@@ -13,6 +13,7 @@ import { therapyPrograms } from './schema/therapy';
 import { assessments, assessmentQuestions, assessmentResults } from './schema/assessments';
 import { doctorPatientMessages } from './schema/messages';
 import { crisisEvents } from './schema/emergency';
+import { communityGroups } from './schema/community';
 import {
   researcherDashboardSummaries,
   researchProjects,
@@ -961,6 +962,36 @@ async function main() {
     }
 
     console.log(`   Loaded ${totalAsmtsCount} assessments with ${totalQuestionsCount} questions.`);
+  }
+
+  // =========================================================================
+  // 15. COMMUNITY GROUPS
+  // =========================================================================
+
+  console.log('👥  Seeding community groups…');
+
+  const existingGroups = await db.query.communityGroups.findMany();
+  if (existingGroups.length === 0) {
+    await db.insert(communityGroups).values([
+      {
+        groupName: 'Anxiety Support & Recovery',
+        topic: 'Anxiety Recovery',
+        description: 'A compassionate, peer-supported safe haven for individuals managing panic and anxiety.',
+        anonymousAllowed: true,
+      },
+      {
+        groupName: 'Student & Academic Stress',
+        topic: 'Academic Pressure',
+        description: 'Discuss exam pressure, university expectations, and healthy work-life boundaries.',
+        anonymousAllowed: true,
+      },
+      {
+        groupName: 'Sleep Improvement & Insomnia',
+        topic: 'Sleep Improvement',
+        description: 'Techniques, bedtime routines, and support for restoring natural sleep cycles.',
+        anonymousAllowed: true,
+      },
+    ]);
   }
 
 
