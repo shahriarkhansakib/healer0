@@ -14,19 +14,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { toast } from "sonner";
 import {
-  Calendar as CalendarIcon,
+  Smile,
   Plus,
   Trash2,
+  Calendar as CalendarIcon,
   Brain,
-  Smile,
   Clock,
   BookOpen,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export interface JournalEntry {
   id: string;
+  userId: string;
   title: string;
   content: string;
   mood: string | null;
@@ -34,6 +35,7 @@ export interface JournalEntry {
   aiSummary: string | null;
   entryDate?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 interface JournalDayDialogProps {
@@ -46,14 +48,14 @@ interface JournalDayDialogProps {
 const MOOD_OPTIONS = [
   "Happy",
   "Calm",
+  "Grateful",
   "Normal",
   "Worried",
   "Stressed",
   "Sad",
   "Anxious",
   "Angry",
-  "Grateful",
-] as const;
+];
 
 export function JournalDayDialog({
   isOpen,
@@ -65,14 +67,20 @@ export function JournalDayDialog({
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [mood, setMood] = useState<string>("Happy");
+  const [mood, setMood] = useState("Calm");
+  const [customTime, setCustomTime] = useState("");
 
-  // Reset form when dialog closes or date changes
+  const resetForm = () => {
+    setTitle("");
+    setContent("");
+    setMood("Calm");
+    setCustomTime("");
+    setShowForm(false);
+  };
+
   const handleDialogChange = (open: boolean) => {
     if (!open) {
-      setShowForm(false);
-      setTitle("");
-      setContent("");
+      resetForm();
       onClose();
     }
   };
@@ -93,9 +101,7 @@ export function JournalDayDialog({
       if (newEntry.aiSentiment) {
         toast.info(`Sentiment analyzed: ${newEntry.aiSentiment}`);
       }
-      setTitle("");
-      setContent("");
-      setShowForm(false);
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ["journal", "entries"] });
     },
     onError: (err: Error) => {
@@ -123,11 +129,20 @@ export function JournalDayDialog({
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
+    const now = new Date();
+    const finalDate = new Date(selectedDate);
+    if (customTime) {
+      const [hours, minutes] = customTime.split(":").map(Number);
+      finalDate.setHours(hours, minutes, 0, 0);
+    } else {
+      finalDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+    }
+
     createMutation.mutate({
       title: title.trim(),
       content: content.trim(),
       mood,
-      entryDate: selectedDate.toISOString(),
+      entryDate: finalDate.toISOString(),
     });
   };
 
@@ -164,49 +179,45 @@ export function JournalDayDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4 py-3 pr-1">
-          {/* Create Form Section */}
+        {/* Scrollable Content: Form or Entries */}
+        <div className="flex-1 overflow-y-auto py-4 pr-1 space-y-4">
+          {/* New Reflection Form */}
           {showForm && (
-            <Card className="border-primary/40 bg-card/60 shadow-sm animate-in fade-in-50 duration-200">
+            <Card className="border-primary/30 bg-primary/5 shadow-xs">
               <CardContent className="p-4 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between border-b border-border/40 pb-2">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                     <BookOpen className="w-4 h-4 text-primary" />
-                    New Reflection for {format(selectedDate, "MMM d")}
+                    New Daily Reflection
                   </h3>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowForm(false)}
-                  >
-                    Cancel
-                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Private & Secure
+                  </span>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="md:col-span-2 space-y-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2 space-y-1">
                       <label className="text-xs font-medium text-foreground">
-                        Title
+                        Title / Theme
                       </label>
                       <Input
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        placeholder="E.g. Overcoming pressure before exams..."
-                        required
+                        placeholder="E.g., Morning mindfulness, Difficult meeting..."
                         className="text-xs"
+                        required
                       />
                     </div>
+
                     <div className="space-y-1">
                       <label className="text-xs font-medium text-foreground">
-                        Mood Tag
+                        Primary Mood
                       </label>
                       <select
                         value={mood}
                         onChange={(e) => setMood(e.target.value)}
-                        className="w-full h-9 rounded-md border border-input bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+                        className="w-full h-9 rounded-md border border-input bg-card px-2.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
                       >
                         {MOOD_OPTIONS.map((m) => (
                           <option key={m} value={m}>
@@ -215,6 +226,33 @@ export function JournalDayDialog({
                         ))}
                       </select>
                     </div>
+                  </div>
+
+                  {/* Optional Time Selector */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-foreground flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-muted-foreground" /> Reflection Time (Optional)
+                      </label>
+                      {customTime && (
+                        <button
+                          type="button"
+                          onClick={() => setCustomTime("")}
+                          className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                        >
+                          Reset to Now
+                        </button>
+                      )}
+                    </div>
+                    <Input
+                      type="time"
+                      value={customTime}
+                      onChange={(e) => setCustomTime(e.target.value)}
+                      className="text-xs h-8"
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Leave blank to automatically save at current time.
+                    </p>
                   </div>
 
                   <div className="space-y-1">
@@ -269,7 +307,7 @@ export function JournalDayDialog({
 
               {entries.map((entry) => {
                 const entryTime = format(
-                  new Date(entry.createdAt),
+                  new Date(entry.entryDate || entry.createdAt),
                   "h:mm a"
                 );
 
@@ -331,7 +369,7 @@ export function JournalDayDialog({
                       {entry.aiSummary && (
                         <div className="p-2.5 rounded-lg bg-muted/60 border border-border/40 text-[11px] space-y-1">
                           <span className="font-semibold text-primary flex items-center gap-1">
-                            <Brain className="w-3 h-3" /> AI Summary:
+                            <Brain className="w-3 h-3" /> Summary:
                           </span>
                           <p className="text-muted-foreground leading-relaxed">
                             {entry.aiSummary}
@@ -348,22 +386,14 @@ export function JournalDayDialog({
               <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
                 <BookOpen className="w-5 h-5" />
               </div>
-              <div className="space-y-1">
+              <div>
                 <p className="text-sm font-medium text-foreground">
-                  No reflection recorded for this day
+                  No entries for this date
                 </p>
-                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  Take a quiet moment to jot down your thoughts, emotions, or
-                  experiences.
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Click "Add Reflection" above to record your feelings and thoughts.
                 </p>
               </div>
-              <Button
-                size="sm"
-                onClick={() => setShowForm(true)}
-                className="mt-2"
-              >
-                <Plus className="w-4 h-4 mr-1" /> Write Reflection Now
-              </Button>
             </div>
           ) : null}
         </div>

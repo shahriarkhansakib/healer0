@@ -13,6 +13,7 @@ import { therapyPrograms } from './schema/therapy';
 import { assessments, assessmentQuestions, assessmentResults } from './schema/assessments';
 import { doctorPatientMessages } from './schema/messages';
 import { crisisEvents } from './schema/emergency';
+import { communityGroups } from './schema/community';
 import {
   researcherDashboardSummaries,
   researchProjects,
@@ -962,6 +963,7 @@ async function main() {
 
     console.log(`   Loaded ${totalAsmtsCount} assessments with ${totalQuestionsCount} questions.`);
   }
+
 
 
   // =========================================================================

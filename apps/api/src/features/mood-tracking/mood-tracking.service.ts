@@ -15,6 +15,7 @@ export type CreateMoodPayload = {
   anxietyLevel: number;
   sleepQuality: number;
   notes?: string;
+  recordedDate?: string | Date;
 };
 
 /**
@@ -61,13 +62,23 @@ async function applyWellnessRuleEngine(payload: CreateMoodPayload): Promise<{
       continue;
     }
 
-    if (value !== null && rule.minimumValue !== null && value >= rule.minimumValue) {
-      return {
-        wellnessGoal: rule.recommendedGoal,
-        wellnessActivity: rule.recommendedActivity,
-        activityDescription: `Recommended because your ${rule.conditionType.toLowerCase()} level (${value}/10) meets the threshold of ${rule.minimumValue}.`,
-        activityPriority: rule.priority,
-      };
+    if (value !== null && rule.minimumValue !== null) {
+      // Clinically: Higher Stress & Anxiety are concerning (>= minimumValue),
+      // whereas LOWER Sleep is concerning (<= minimumValue, indicating deficit/poor rest).
+      const isSleep = rule.conditionType === 'Sleep';
+      const conditionFired = isSleep
+        ? value <= rule.minimumValue
+        : value >= rule.minimumValue;
+
+      if (conditionFired) {
+        const comparisonWord = isSleep ? 'is low at' : 'reached';
+        return {
+          wellnessGoal: rule.recommendedGoal,
+          wellnessActivity: rule.recommendedActivity,
+          activityDescription: `Recommended because your ${rule.conditionType.toLowerCase()} level ${comparisonWord} ${value}/10 (clinical threshold: ${rule.minimumValue}).`,
+          activityPriority: rule.priority,
+        };
+      }
     }
   }
 
@@ -82,6 +93,7 @@ async function applyWellnessRuleEngine(payload: CreateMoodPayload): Promise<{
 export const MoodTrackingService = {
   async create(userId: string, payload: CreateMoodPayload) {
     const ruleResult = await applyWellnessRuleEngine(payload);
+    const recordedDate = payload.recordedDate ? new Date(payload.recordedDate) : new Date();
 
     const [record] = await db
       .insert(moodTracking)
@@ -92,6 +104,7 @@ export const MoodTrackingService = {
         anxietyLevel: payload.anxietyLevel,
         sleepQuality: payload.sleepQuality,
         notes: payload.notes ?? null,
+        recordedDate,
         wellnessGoal: ruleResult.wellnessGoal,
         wellnessActivity: ruleResult.wellnessActivity,
         activityDescription: ruleResult.activityDescription,
@@ -115,6 +128,19 @@ export const MoodTrackingService = {
       where: and(eq(moodTracking.id, id), eq(moodTracking.userId, userId)),
     });
     return record ?? null;
+  },
+
+  async delete(id: string, userId: string) {
+    const existing = await db.query.moodTracking.findFirst({
+      where: and(eq(moodTracking.id, id), eq(moodTracking.userId, userId)),
+    });
+    if (!existing) return null;
+
+    const [deleted] = await db
+      .delete(moodTracking)
+      .where(and(eq(moodTracking.id, id), eq(moodTracking.userId, userId)))
+      .returning();
+    return deleted;
   },
 
   async markActivityComplete(id: string, userId: string) {

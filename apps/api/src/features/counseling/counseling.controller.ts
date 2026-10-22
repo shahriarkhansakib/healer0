@@ -28,11 +28,13 @@ export async function updateCounselingStatusHandler(c: Context) {
 
 const CreateSessionSchema = z.object({
   sessionType: z.enum(['Basic Counseling', 'Deep Counseling', 'Crisis Support']),
+  provider: z.enum(['auto', 'tokenharbor', 'groq']).optional(),
 });
 
 const SendMessageSchema = z.object({
   messageText: z.string().min(1).max(5000),
   emotionDetected: z.string().max(100).optional(),
+  provider: z.enum(['auto', 'tokenharbor', 'groq']).optional(),
 });
 
 export const CounselingController = {
@@ -88,6 +90,20 @@ export const CounselingController = {
       return c.json(updated, 200);
     } catch (err: unknown) {
       logger.error({ err }, 'CounselingController.endSession failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+
+  async deleteSession(c: Context<{ Variables: AuthVariables }>) {
+    const user = c.get('user');
+    const id = requireParam(c, 'id');
+    try {
+      const deleted = await CounselingService.deleteSession(id, user.id);
+      if (!deleted) return c.json({ error: 'Not Found', message: 'Session not found.' }, 404);
+      return c.json({ success: true, message: 'Session deleted successfully.' }, 200);
+    } catch (err: unknown) {
+      logger.error({ err }, 'CounselingController.deleteSession failed');
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       return c.json({ error: 'Internal Server Error', message }, 500);
     }
