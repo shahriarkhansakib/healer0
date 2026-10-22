@@ -4,8 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAppointments } from "@/lib/api/doctor";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { Clock, User, FileText, ChevronRight, Calendar } from "lucide-react";
+import { Clock, User, ChevronRight, Calendar } from "lucide-react";
 import Link from "next/link";
+
+interface AppointmentSession {
+  id: string;
+  patientName: string;
+  appointmentDate: string | Date;
+  consultationType?: string;
+  reason?: string;
+  consultationReason?: string;
+  status: string;
+}
 
 export default function SessionsPage() {
   const [activeTab, setActiveTab] = useState<string>("all");
@@ -15,9 +25,9 @@ export default function SessionsPage() {
     queryFn: () => fetchAppointments("all"),
   });
 
-  const appointments = data?.data || [];
+  const appointments: AppointmentSession[] = data?.data || [];
 
-  const filteredSessions = appointments.filter((appt: any) => {
+  const filteredSessions = appointments.filter((appt) => {
     if (activeTab === "all") return true;
 
     const recordDate = new Date(appt.appointmentDate);
@@ -76,7 +86,7 @@ export default function SessionsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredSessions.map((session: any) => (
+          {filteredSessions.map((session) => (
             <Link
               key={session.id}
               href={`/doctor/sessions/${session.id}`}

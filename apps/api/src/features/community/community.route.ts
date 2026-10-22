@@ -12,8 +12,12 @@ communityRouter.use('*', requireAuth, requireActiveAccount, requireProfile('pati
 
 // Group catalogue & creation — accessible to authenticated patients
 communityRouter.get('/groups', CommunityController.listGroups);
+communityRouter.get('/groups/by-invite/:inviteCode', CommunityController.getGroupByInviteCode);
+communityRouter.post('/groups/join-by-code', CommunityController.joinGroupByCode);
 communityRouter.get('/groups/:groupId', CommunityController.getGroup);
 communityRouter.post('/groups', CommunityController.createGroup);
+communityRouter.patch('/groups/:groupId/settings', CommunityController.updateGroupSettings);
+communityRouter.post('/groups/:groupId/regenerate-invite-code', CommunityController.regenerateInviteCode);
 
 // Membership, approval & anonymous pseudonym management
 communityRouter.post('/groups/:groupId/join', CommunityController.joinGroup);

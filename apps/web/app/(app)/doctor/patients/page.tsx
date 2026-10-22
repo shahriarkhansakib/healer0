@@ -34,7 +34,7 @@ export default function PatientRecordsPage() {
   const patients = data?.data || [];
 
   const filteredPatients = patients.filter((record: any) => {
-    const patientName = record.patient?.user?.name?.toLowerCase() || "";
+    const patientName = (record.patientName || record.patient?.user?.name || "").toLowerCase();
     const condition = record.condition?.toLowerCase() || "";
     return patientName.includes(searchTerm.toLowerCase()) || condition.includes(searchTerm.toLowerCase());
   });
@@ -105,7 +105,7 @@ export default function PatientRecordsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredPatients.map((record: any) => {
-                  const patientName = record.patient?.user?.name || "Patient";
+                  const patientName = record.patientName || record.patient?.user?.name || "Patient";
                   const patientEmail = record.patient?.user?.email || "";
 
                   return (

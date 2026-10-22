@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import {
-  Sparkles,
+  HeartPulse,
   Play,
   Pause,
   CheckCircle,
@@ -648,11 +648,12 @@ export default function TherapyPage() {
   // Selected Program Modal
   const [activeProgram, setActiveProgram] = useState<TherapyProgram | null>(null);
   const [activeSession, setActiveSession] = useState<ProgramSession | null>(null);
+  const [completedSessionNumbers, setCompletedSessionNumbers] = useState<Set<number>>(new Set());
 
   // Orbital Navigation & Spotlight States
   const [selectedTopicIndex, setSelectedTopicIndex] = useState(0); // 0 = DBT
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
-  const [programDisplayMode, setProgramDisplayMode] = useState<"orbital" | "grid">("orbital");
+  const [programDisplayMode, setProgramDisplayMode] = useState<"orbital" | "grid">("grid");
 
   // Guided Practice Session Timer
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -686,6 +687,56 @@ export default function TherapyPage() {
     queryKey: ["therapy", "progress"],
     queryFn: () => apiFetch<UserProgress[]>("/therapy/progress"),
   });
+
+  // Auto-activate program or tab if specified in URL query
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    const programParam = params.get("program");
+
+    if (tabParam === "breathing") {
+      setActiveTab("breathing");
+    } else if (tabParam === "soundscapes") {
+      setActiveTab("soundscapes");
+    }
+
+    if (programParam && programs && programs.length > 0) {
+      const match = programs.find((p) =>
+        p.title.toLowerCase().includes(programParam.toLowerCase()) ||
+        programParam.toLowerCase().includes(p.title.toLowerCase())
+      );
+      if (match) {
+        setActiveProgram(match);
+        setSelectedProgramId(match.id);
+      }
+    }
+  }, [programs]);
+
+  // Synchronize completed sessions for active program
+  useEffect(() => {
+    if (activeProgram && progressList) {
+      const prog = progressList.find((p) => p.resourceId === activeProgram.id);
+      if (prog) {
+        const total = activeProgram.sessionCount || 8;
+        const count = Math.round((prog.progressPercentage / 100) * total);
+        const set = new Set<number>();
+        for (let i = 1; i <= count; i++) {
+          set.add(i);
+        }
+        if (prog.status === "Completed") {
+          for (let i = 1; i <= total; i++) {
+            set.add(i);
+          }
+        }
+        setCompletedSessionNumbers(set);
+      } else {
+        setCompletedSessionNumbers(new Set());
+      }
+    } else {
+      setCompletedSessionNumbers(new Set());
+    }
+  }, [activeProgram, progressList]);
 
   // 3. Start Program Mutation
   const startProgressMutation = useMutation({
@@ -740,6 +791,7 @@ export default function TherapyPage() {
       toast.success("Program progress has been reset.");
       queryClient.invalidateQueries({ queryKey: ["therapy", "progress"] });
       setProgramToReset(null);
+      setCompletedSessionNumbers(new Set());
       if (activeSession) setActiveSession(null);
     },
     onError: (err: Error) => {
@@ -757,6 +809,7 @@ export default function TherapyPage() {
       toast.success("All therapy programs have been reset to 0%!");
       queryClient.invalidateQueries({ queryKey: ["therapy", "progress"] });
       setShowResetAllDialog(false);
+      setCompletedSessionNumbers(new Set());
       if (activeSession) setActiveSession(null);
     },
     onError: (err: Error) => {
@@ -921,15 +974,45 @@ export default function TherapyPage() {
 
   const handleStartSession = (session: ProgramSession) => {
     setActiveSession(session);
-    setTimerSecondsLeft(session.number * 3 * 60 + 120); // Dynamic timer
-    setIsTimerRunning(true);
+    const existingProgress = progressList?.find((p) => p.resourceId === activeProgram?.id);
+    const totalSessions = activeProgram?.sessionCount || 8;
+    const isAlreadyCompleted =
+      completedSessionNumbers.has(session.number) ||
+      (existingProgress &&
+        (existingProgress.status === "Completed" ||
+          existingProgress.progressPercentage >= (session.number / totalSessions) * 100));
+
+    if (isAlreadyCompleted) {
+      setIsTimerRunning(false);
+      setTimerSecondsLeft(session.number * 3 * 60 + 120);
+    } else {
+      setTimerSecondsLeft(session.number * 3 * 60 + 120); // Dynamic timer
+      setIsTimerRunning(true);
+    }
   };
 
-  const handleCompleteSession = (sessionNumber: number) => {
+  const handleCompleteSession = async (sessionNumber: number) => {
     if (!activeProgram) return;
-    const existingProgress = progressList?.find((p) => p.resourceId === activeProgram.id);
+
+    // 1. Immediately stop and remove the active timer
+    setIsTimerRunning(false);
+
+    // 2. Mark this session as completed in local state immediately
+    setCompletedSessionNumbers((prev) => new Set(prev).add(sessionNumber));
+
     const totalSessions = activeProgram.sessionCount || 8;
     const newPercentage = Math.min(Math.round((sessionNumber / totalSessions) * 100), 100);
+
+    let existingProgress = progressList?.find((p) => p.resourceId === activeProgram.id);
+    if (!existingProgress) {
+      try {
+        existingProgress = await apiFetch<UserProgress>(`/therapy/progress/${activeProgram.id}`, {
+          method: "POST",
+        });
+      } catch {
+        // Fallback
+      }
+    }
 
     if (existingProgress) {
       updateProgressMutation.mutate({
@@ -962,10 +1045,10 @@ export default function TherapyPage() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12 animate-in fade-in-50 duration-200">
       {/* Top Hero & Hub Navigation */}
-      <div className="relative overflow-hidden rounded-3xl bg-linear-to-r from-primary/10 via-primary/5 to-background border p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xs">
+      <div className="relative overflow-hidden rounded-3xl bg-linear-to-r from-primary/10 via-primary/5 to-background border p-6 md:p-8 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6 shadow-xs">
         <div className="space-y-2 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary border border-primary/20">
-            <Sparkles className="w-3.5 h-3.5" />
+            <HeartPulse className="w-3.5 h-3.5" />
             <span>Clinical Programs & Somatic Relaxation Suite</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
@@ -976,43 +1059,74 @@ export default function TherapyPage() {
           </p>
         </div>
 
-        {/* View Mode Switcher */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card border shadow-2xs self-stretch sm:self-auto">
+        {/* Hub Tabs & View Mode Switcher */}
+        <div className="flex items-center gap-1.5 p-1.5 rounded-full bg-[#111c1d]/90 border border-white/[0.08] shadow-inner backdrop-blur-md shrink-0 max-w-full overflow-x-auto scrollbar-none">
           <button
+            type="button"
             onClick={() => setActiveTab("programs")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
               activeTab === "programs"
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:bg-muted"
+                ? "bg-teal-600 text-white shadow-xs"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.06]"
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Programs ({programs?.length || 8})</span>
+            <BookOpen className="w-3.5 h-3.5 shrink-0" />
+            <span>Programs</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold leading-none ${
+                activeTab === "programs"
+                  ? "bg-white/20 text-white"
+                  : "bg-white/[0.08] text-zinc-400"
+              }`}
+            >
+              {programs?.length || 8}
+            </span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("breathing")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
               activeTab === "breathing"
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:bg-muted"
+                ? "bg-teal-600 text-white shadow-xs"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.06]"
             }`}
           >
-            <Wind className="w-3.5 h-3.5" />
+            <Wind className="w-3.5 h-3.5 shrink-0" />
             <span>Breathing</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("soundscapes")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
               activeTab === "soundscapes"
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:bg-muted"
+                ? "bg-teal-600 text-white shadow-xs"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.06]"
             }`}
           >
-            <Headphones className="w-3.5 h-3.5" />
+            <Headphones className="w-3.5 h-3.5 shrink-0" />
             <span>Soundscapes</span>
           </button>
+
+          {activeTab === "programs" && (
+            <>
+              <div className="h-4 w-px bg-white/10 mx-1 shrink-0" />
+              <button
+                type="button"
+                onClick={() => setProgramDisplayMode((prev) => (prev === "grid" ? "orbital" : "grid"))}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer shrink-0 border ${
+                  programDisplayMode === "orbital"
+                    ? "bg-teal-500/20 text-teal-300 border-teal-500/50 shadow-xs"
+                    : "border-white/10 text-zinc-400 hover:text-zinc-100 hover:border-white/20 hover:bg-white/[0.04]"
+                }`}
+                title={programDisplayMode === "grid" ? "Switch to Orbital Spotlight view" : "Switch to Default Grid view"}
+              >
+                <Layers className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                <span>{programDisplayMode === "grid" ? "Orbital View" : "Grid View"}</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1022,9 +1136,166 @@ export default function TherapyPage() {
       {activeTab === "programs" && (
         <div className="space-y-8">
           {/* =========================================================================
-              CALM THERAPEUTIC TEAL / GLASSMORPHIC ORBITAL ARC HERO (MATCHING USER SCREENSHOT)
+              DEFAULT INTERFACE: CATEGORY PILLS & 3-COLUMN CLINICAL THERAPY PROGRAMS GRID
               ========================================================================= */}
-          <div className="relative rounded-3xl border border-teal-500/25 bg-linear-to-b from-teal-950/20 via-card to-card dark:from-teal-950/40 dark:via-background dark:to-background p-6 sm:p-8 overflow-hidden backdrop-blur-xl shadow-xl space-y-6">
+          {programDisplayMode === "grid" && (
+            <div className="space-y-6 animate-in fade-in-50 duration-200">
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                {CATEGORIES.map((cat) => {
+                  const isSelected = selectedCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                        isSelected
+                          ? "bg-teal-600 text-white font-semibold shadow-xs"
+                          : "bg-[#131f20] hover:bg-[#1a2d2f] text-zinc-400 hover:text-zinc-100 border border-teal-950/40"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Programs Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {loadingPrograms ? (
+                  [1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="h-80 rounded-3xl bg-[#121c1d] border border-[#1c2d2f] animate-pulse" />
+                  ))
+                ) : filteredPrograms && filteredPrograms.length > 0 ? (
+                  filteredPrograms.map((prog) => {
+                    const progress = progressList?.find((p) => p.resourceId === prog.id);
+                    const isCompleted =
+                      progress?.status === "Completed" || (progress?.progressPercentage ?? 0) >= 100;
+                    const isInProgress = progress && !isCompleted;
+                    const gradientClass =
+                      GRADIENT_MAP[prog.gradientStyle || "emerald"] || GRADIENT_MAP.emerald;
+
+                    return (
+                      <div
+                        key={prog.id}
+                        onClick={() => handleOpenProgram(prog)}
+                        className="group flex flex-col justify-between overflow-hidden rounded-3xl border border-[#1c2d2f] bg-[#121c1d] shadow-xs hover:border-teal-500/50 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                      >
+                        <div
+                          className={`relative h-36 bg-linear-to-r ${gradientClass} p-5 flex items-center justify-between overflow-hidden select-none`}
+                        >
+                          <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/15 blur-xl pointer-events-none" />
+                          <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-black/10 blur-lg pointer-events-none" />
+
+                          <span className="text-5xl group-hover:scale-110 group-hover:rotate-3 transition-transform drop-shadow-md z-10">
+                            {prog.emoji || "🌿"}
+                          </span>
+
+                          <div className="self-start z-10">
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/20 backdrop-blur-md text-white border border-white/30 shadow-xs">
+                              {prog.sessionCount || 8} Sessions
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-teal-400 transition-colors">
+                                {prog.title}
+                              </h3>
+                              <span className="text-xs font-medium text-teal-400 bg-teal-950/60 border border-teal-800/40 px-2.5 py-0.5 rounded-full select-none shrink-0">
+                                {prog.category}
+                              </span>
+                            </div>
+                            <p className="text-xs text-zinc-400/90 leading-relaxed line-clamp-3 min-h-[44px]">
+                              {prog.description}
+                            </p>
+                          </div>
+
+                          <div className="space-y-3 pt-2">
+                            <div className="flex items-center justify-between text-xs text-zinc-400 flex-wrap gap-2">
+                              <span className="flex items-center gap-1.5 font-medium">
+                                <Clock className="w-3.5 h-3.5 text-zinc-400" />
+                                <span>{prog.durationWeeks || 8} weeks</span>
+                              </span>
+                              <span className="flex items-center gap-1.5 font-medium">
+                                <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+                                <span>{prog.dailyMinutes || 25} min/day</span>
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-950/50 text-teal-400 border border-teal-800/30">
+                                {prog.difficultyLevel || "Beginner"}
+                              </span>
+                            </div>
+
+                            {progress && (
+                              <div className="space-y-1.5 pt-1">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-zinc-400 font-medium">Your Progress</span>
+                                  <span className="font-bold text-white">
+                                    {progress.progressPercentage}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-[#1b2b2d] rounded-full h-1.5 overflow-hidden">
+                                  <div
+                                    className="bg-emerald-500 h-full rounded-full transition-all duration-300"
+                                    style={{ width: `${progress.progressPercentage}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="pt-2 flex items-center justify-between border-t border-[#1c2d2f]">
+                              <span className="text-xs sm:text-sm font-semibold text-teal-400 flex items-center gap-1.5 group-hover:gap-2 transition-all">
+                                <span>
+                                  {isCompleted
+                                    ? "Review Program"
+                                    : isInProgress
+                                    ? "Continue Program"
+                                    : "Start Program"}
+                                </span>
+                                <ArrowRight className="w-4 h-4" />
+                              </span>
+
+                              <div className="flex items-center gap-1.5">
+                                {progress && (
+                                  <button
+                                    type="button"
+                                    title="Reset program progress"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setProgramToReset(prog);
+                                    }}
+                                    className="px-2 py-1 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors text-xs flex items-center gap-1 font-medium border border-transparent hover:border-rose-500/20"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span className="text-[11px]">Reset</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-3 p-8 text-center text-muted-foreground text-sm rounded-3xl bg-[#121c1d] border border-[#1c2d2f]">
+                    No programs found matching category &ldquo;{selectedCategory}&rdquo;.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* =========================================================================
+              ALTERNATIVE ORBITAL SPOTLIGHT MODE (Available on toggle)
+              ========================================================================= */}
+          {programDisplayMode === "orbital" && (
+            <div className="space-y-8 animate-in fade-in-50 duration-200">
+              {/* CALM THERAPEUTIC TEAL / GLASSMORPHIC ORBITAL ARC HERO (MATCHING USER SCREENSHOT) */}
+              <div className="relative rounded-3xl border border-teal-500/25 bg-linear-to-b from-teal-950/20 via-card to-card dark:from-teal-950/40 dark:via-background dark:to-background p-6 sm:p-8 overflow-hidden backdrop-blur-xl shadow-xl space-y-6">
             {/* Soft Ambient Teal Backlight Glow */}
             <div className="absolute -top-28 left-1/2 -translate-x-1/2 w-[520px] h-64 bg-teal-500/15 blur-3xl pointer-events-none rounded-full" />
 
@@ -1268,7 +1539,7 @@ export default function TherapyPage() {
           {/* =========================================================================
               SPOTLIGHT CARD WITH MINI-SWITCHER (USER CHOICE #3)
               ========================================================================= */}
-          {programDisplayMode === "orbital" && currentSpotlightProgram && (
+          {currentSpotlightProgram && (
             <div className="space-y-6 animate-in fade-in-50 duration-300">
               {/* Mini-Switcher for topics with multiple programs (e.g. DBT -> Emotional Regulation & Dialectical Behavior Therapy) */}
               {topicPrograms.length > 1 && (
@@ -1515,160 +1786,6 @@ export default function TherapyPage() {
               })()}
             </div>
           )}
-
-          {/* =========================================================================
-              BROWSE ALL GRID MODE (OPTIONAL TOGGLE)
-              ========================================================================= */}
-          {programDisplayMode === "grid" && (
-            <div className="space-y-6">
-              {/* Category Filter Chips */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-                <span className="text-muted-foreground font-medium flex items-center gap-1 text-[11px] mr-1 flex-shrink-0">
-                  <Filter className="w-3 h-3" /> Filter by:
-                </span>
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-3.5 py-1.5 rounded-full font-semibold transition-all text-xs whitespace-nowrap ${
-                      selectedCategory === cat
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "bg-card border text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-
-              {/* Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {loadingPrograms ? (
-                  [1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i} className="h-80 rounded-3xl bg-muted/60 animate-pulse" />
-                  ))
-                ) : filteredPrograms && filteredPrograms.length > 0 ? (
-                  filteredPrograms.map((prog) => {
-                    const progress = progressList?.find((p) => p.resourceId === prog.id);
-                    const isCompleted =
-                      progress?.status === "Completed" || (progress?.progressPercentage ?? 0) >= 100;
-                    const isInProgress = progress && !isCompleted;
-                    const gradientClass =
-                      GRADIENT_MAP[prog.gradientStyle || "emerald"] || GRADIENT_MAP.emerald;
-
-                    return (
-                      <div
-                        key={prog.id}
-                        onClick={() => handleOpenProgram(prog)}
-                        className="group flex flex-col justify-between overflow-hidden rounded-3xl border border-border/70 bg-card shadow-xs hover:border-teal-500/50 hover:shadow-lg transition-all cursor-pointer"
-                      >
-                        <div
-                          className={`relative h-36 bg-linear-to-r ${gradientClass} p-5 flex items-center justify-between overflow-hidden select-none`}
-                        >
-                          <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/15 blur-xl pointer-events-none" />
-                          <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-black/10 blur-lg pointer-events-none" />
-
-                          <span className="text-5xl group-hover:scale-110 group-hover:rotate-3 transition-transform drop-shadow-md z-10">
-                            {prog.emoji || "🌿"}
-                          </span>
-
-                          <div className="self-start z-10">
-                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/20 backdrop-blur-md text-white border border-white/30 shadow-xs">
-                              {prog.sessionCount || 8} Sessions
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                          <div className="space-y-2">
-                            <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors">
-                              {prog.title}
-                            </h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                              {prog.description}
-                            </p>
-                          </div>
-
-                          <div className="space-y-3 pt-2">
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                              <span className="flex items-center gap-1.5 font-medium">
-                                <Clock className="w-3.5 h-3.5 text-primary" />
-                                <span>{prog.durationWeeks || 8} weeks</span>
-                              </span>
-                              <span className="w-1 h-1 rounded-full bg-border" />
-                              <span className="flex items-center gap-1.5 font-medium">
-                                <Calendar className="w-3.5 h-3.5 text-primary" />
-                                <span>{prog.dailyMinutes || 25} min/day</span>
-                              </span>
-                              <span className="w-1 h-1 rounded-full bg-border" />
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-secondary text-secondary-foreground border">
-                                {prog.difficultyLevel || "Beginner"}
-                              </span>
-                            </div>
-
-                            {progress && (
-                              <div className="space-y-1.5 pt-1">
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-muted-foreground font-medium">Your Progress</span>
-                                  <span className="font-bold text-foreground">
-                                    {progress.progressPercentage}%
-                                  </span>
-                                </div>
-                                <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                                  <div
-                                    className="bg-emerald-500 h-full rounded-full transition-all duration-300"
-                                    style={{ width: `${progress.progressPercentage}%` }}
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="pt-2 flex items-center justify-between border-t border-border/50">
-                              <span className="text-xs sm:text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 group-hover:gap-2 transition-all">
-                                <span>
-                                  {isCompleted
-                                    ? "Review Program"
-                                    : isInProgress
-                                    ? "Continue Program"
-                                    : "Start Program"}
-                                </span>
-                                <ArrowRight className="w-4 h-4" />
-                              </span>
-
-                              <div className="flex items-center gap-1.5">
-                                {progress && (
-                                  <button
-                                    type="button"
-                                    title="Reset program progress"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setProgramToReset(prog);
-                                    }}
-                                    className="px-2 py-1 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors text-xs flex items-center gap-1 font-medium border border-transparent hover:border-destructive/20"
-                                  >
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                    <span className="text-[11px]">Reset</span>
-                                  </button>
-                                )}
-
-                                {isCompleted && (
-                                  <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                                    <CheckCircle className="w-3.5 h-3.5" /> Completed
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <Card className="col-span-3 p-12 text-center text-muted-foreground text-sm">
-                    No programs found matching category &ldquo;{selectedCategory}&rdquo;.
-                  </Card>
-                )}
-              </div>
             </div>
           )}
         </div>
@@ -1960,57 +2077,105 @@ export default function TherapyPage() {
                 })()}
 
                 {/* Active Session Guided Timer Drawer (if open) */}
-                {activeSession && (
-                  <div className="p-5 rounded-2xl border-2 border-primary/40 bg-primary/5 space-y-4 animate-in fade-in-50">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <span className="text-xs font-bold text-primary uppercase tracking-wide block">
-                          Session {activeSession.number} in progress
-                        </span>
-                        <h3 className="text-base font-bold text-foreground break-words">
-                          {activeSession.title}
-                        </h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed break-words">
-                          {activeSession.objective}
-                        </p>
+                {activeSession && (() => {
+                  const existingProgress = progressList?.find((p) => p.resourceId === activeProgram.id);
+                  const totalSessions = activeProgram.sessionCount || 8;
+                  const isCurrentSessionCompleted =
+                    completedSessionNumbers.has(activeSession.number) ||
+                    (existingProgress &&
+                      (existingProgress.status === "Completed" ||
+                        existingProgress.progressPercentage >= (activeSession.number / totalSessions) * 100));
+
+                  return (
+                    <div className="p-5 rounded-2xl border-2 border-primary/40 bg-primary/5 space-y-4 animate-in fade-in-50">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          {isCurrentSessionCompleted ? (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 uppercase tracking-wide">
+                              <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>Completed Session {activeSession.number}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-bold text-primary uppercase tracking-wide block">
+                              Session {activeSession.number} in progress
+                            </span>
+                          )}
+                          <h3 className="text-base font-bold text-foreground break-words">
+                            {activeSession.title}
+                          </h3>
+                          <p className="text-xs text-muted-foreground leading-relaxed break-words">
+                            {activeSession.objective}
+                          </p>
+                        </div>
+
+                        {/* Timer Display - completely removed once session is completed */}
+                        {!isCurrentSessionCompleted && (
+                          <div className="px-3 py-1.5 rounded-xl bg-card border font-mono font-bold text-base text-primary flex-shrink-0 shadow-2xs">
+                            {Math.floor(timerSecondsLeft / 60)}:
+                            {(timerSecondsLeft % 60).toString().padStart(2, "0")}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Timer Display */}
-                      <div className="px-3 py-1.5 rounded-xl bg-card border font-mono font-bold text-base text-primary flex-shrink-0 shadow-2xs">
-                        {Math.floor(timerSecondsLeft / 60)}:
-                        {(timerSecondsLeft % 60).toString().padStart(2, "0")}
+                      {/* Reflection / Practice Prompt */}
+                      <div className="p-3 rounded-xl bg-card border text-xs text-foreground/90 space-y-1 overflow-hidden">
+                        <strong className="text-primary flex items-center gap-1 font-semibold">
+                          <BookOpen className="w-3.5 h-3.5 flex-shrink-0" /> Practice Reflection:
+                        </strong>
+                        <p className="leading-relaxed italic break-words">&ldquo;{activeSession.practicePrompt}&rdquo;</p>
                       </div>
-                    </div>
 
-                    {/* Reflection / Practice Prompt */}
-                    <div className="p-3 rounded-xl bg-card border text-xs text-foreground/90 space-y-1 overflow-hidden">
-                      <strong className="text-primary flex items-center gap-1 font-semibold">
-                        <Sparkles className="w-3.5 h-3.5 flex-shrink-0" /> Practice Reflection:
-                      </strong>
-                      <p className="leading-relaxed italic break-words">&ldquo;{activeSession.practicePrompt}&rdquo;</p>
-                    </div>
+                      {/* Actions: Timer controls removed when completed */}
+                      {isCurrentSessionCompleted ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+                          <div className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                            <Check className="w-4 h-4 shrink-0 text-emerald-500" />
+                            <span>Session {activeSession.number} Completed</span>
+                          </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setIsTimerRunning(!isTimerRunning)}
-                        className="text-xs rounded-xl h-8 px-3"
-                      >
-                        {isTimerRunning ? "Pause Timer" : "Resume Timer"}
-                      </Button>
+                          <div className="flex items-center gap-2">
+                            {activeSession.number < totalSessions && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const nextNum = activeSession.number + 1;
+                                  const nextSession = getProgramSessions(activeProgram.title).find((s) => s.number === nextNum);
+                                  if (nextSession) {
+                                    handleStartSession(nextSession);
+                                  }
+                                }}
+                                className="text-xs gap-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl h-8 px-3.5 flex-shrink-0"
+                              >
+                                <span>Next: Session {activeSession.number + 1}</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setIsTimerRunning(!isTimerRunning)}
+                            className="text-xs rounded-xl h-8 px-3"
+                          >
+                            {isTimerRunning ? "Pause Timer" : "Resume Timer"}
+                          </Button>
 
-                      <Button
-                        size="sm"
-                        onClick={() => handleCompleteSession(activeSession.number)}
-                        className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-3.5 flex-shrink-0"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Complete Session {activeSession.number}</span>
-                      </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleCompleteSession(activeSession.number)}
+                            className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-3.5 flex-shrink-0"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Complete Session {activeSession.number}</span>
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* 8-Session Roadmap List (Rendered without nested scrollbar) */}
                 <div className="space-y-3">
@@ -2027,9 +2192,10 @@ export default function TherapyPage() {
                         (p) => p.resourceId === activeProgram.id
                       );
                       const isCompleted =
-                        existingProgress &&
-                        (existingProgress.progressPercentage >= (session.number / 8) * 100 ||
-                          existingProgress.status === "Completed");
+                        completedSessionNumbers.has(session.number) ||
+                        (existingProgress &&
+                          (existingProgress.progressPercentage >= (session.number / 8) * 100 ||
+                            existingProgress.status === "Completed"));
 
                       return (
                         <div

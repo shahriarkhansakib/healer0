@@ -12,6 +12,8 @@
     "db:migrate": "pnpm --filter @healer/db migrate",
     "db:push": "pnpm --filter @healer/db push --force",
     "db:seed": "pnpm --filter @healer/db seed",
+    "db:seed:demo": "pnpm --filter @healer/db seed:demo",
+    "db:flush": "pnpm --filter @healer/db flush",
     "db:reset": "docker compose down -v --remove-orphans && docker compose up -d && node -e \"setTimeout(()=>{},3000)\" && pnpm db:push && pnpm db:seed"
   },
   "devDependencies": {

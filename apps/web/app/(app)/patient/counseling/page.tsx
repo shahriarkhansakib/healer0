@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { Bot, Send, CheckCircle2, Clock, Plus, Sparkles, AlertCircle } from "lucide-react";
+import { Bot, Send, CheckCircle2, Clock, Plus, AlertCircle } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -262,7 +262,7 @@ export default function CounselingPage() {
                     })
                   ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
-                      <Sparkles className="w-10 h-10 text-primary/40 mb-2" />
+                      <Bot className="w-10 h-10 text-primary/40 mb-2" />
                       <p className="text-sm font-medium text-foreground">Begin Your Conversation</p>
                       <p className="text-xs max-w-sm mt-1">
                         Type below to share how you're feeling, discuss any challenges, or ask for guidance.

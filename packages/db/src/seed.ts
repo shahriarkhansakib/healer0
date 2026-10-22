@@ -11,7 +11,7 @@ import { counselingSessions } from './schema/counseling';
 import { wellnessRules, moodTracking, journals } from './schema/wellness';
 import { therapyPrograms } from './schema/therapy';
 import { assessments, assessmentQuestions, assessmentResults } from './schema/assessments';
-import { communityGroups } from './schema/community';
+import { doctorPatientMessages } from './schema/messages';
 import { crisisEvents } from './schema/emergency';
 import {
   researcherDashboardSummaries,
@@ -47,31 +47,34 @@ function generateKey(password: string, salt: string): Promise<Buffer> {
         p: 1,
         maxmem: 128 * 16384 * 16 * 2,
       },
-      (err, buff) => {
+      (err, derivedKey) => {
         if (err) return reject(err);
-        resolve(buff);
+        resolve(derivedKey);
       }
     );
   });
 }
 
 async function hashPassword(password: string): Promise<string> {
-  const salt = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString('hex');
+  const salt = 'healer-static-dev-salt-2026';
   const key = await generateKey(password, salt);
   return `${salt}:${key.toString('hex')}`;
 }
 
 // ---------------------------------------------------------------------------
-// Idempotent helpers: find-or-create patterns prevent duplicate rows
+// Helper: Idempotent User Provisioning
 // ---------------------------------------------------------------------------
 
 async function findOrCreateUser(data: {
   email: string;
   name: string;
-  role: 'user' | 'patient' | 'doctor' | 'researcher' | 'admin' | 'super_admin';
+  role: 'patient' | 'doctor' | 'researcher' | 'admin' | 'super_admin';
   hashedPassword: string;
 }) {
-  let user = await db.query.users.findFirst({ where: eq(users.email, data.email) });
+  let user = await db.query.users.findFirst({
+    where: eq(users.email, data.email),
+  });
+
   if (!user) {
     [user] = await db.insert(users).values({
       name: data.name,
@@ -177,6 +180,137 @@ async function main() {
       offDay: 'Sunday',
       bio: 'Senior Consultant Psychiatrist specializing in generalized anxiety disorders, depression therapy, and clinical neuro-rehabilitation.',
     });
+  }
+
+  // 2b. Seed Additional Verified Doctors
+  const additionalDoctors = [
+    {
+      name: 'Dr. Farhana Rahman',
+      email: 'doctor2@healer.app',
+      specialization: 'Clinical Psychology & Cognitive Therapy',
+      licenseNumber: 'MD-832104-BD',
+      hospitalAffiliation: 'Center for Cognitive Behavioral Health',
+      dutyStartTime: '09:00',
+      dutyEndTime: '17:00',
+      offDay: 'Friday',
+      bio: 'Specialist in evidence-based cognitive behavioral therapy, acute trauma recovery, emotional regulation frameworks, and mindfulness-based stress reduction.',
+      qualifications: [
+        { degree: 'B.Sc (Hons) Clinical Psychology', institution: 'University of Dhaka', year: 2013 },
+        { degree: 'M.S. in Clinical Psychology', institution: 'University of Dhaka', year: 2015 },
+        { degree: 'Ph.D. in Cognitive Neuropsychology', institution: 'University of Melbourne', year: 2020 },
+      ],
+      reviews: [
+        { patientName: 'Sarah J.', rating: 5, comment: 'Dr. Farhana provided a safe, non-judgmental space and gave me actionable breathing exercises that immediately eased my panic symptoms.' },
+        { patientName: 'Michael C.', rating: 5, comment: 'Exceptional clinician. Her CBT frameworks are clear, empathetic, and genuinely life-changing.' },
+      ],
+    },
+    {
+      name: 'Dr. Tanvir Ahmed',
+      email: 'doctor3@healer.app',
+      specialization: 'Neuropsychiatry & Sleep Disorders',
+      licenseNumber: 'MD-741908-BD',
+      hospitalAffiliation: 'National Institute of Mental Health & Neurosciences',
+      dutyStartTime: '10:00',
+      dutyEndTime: '18:00',
+      offDay: 'Saturday',
+      bio: 'Consultant Neuropsychiatrist focusing on severe refractory mood disorders, circadian rhythm alignment, chronic insomnia, and neurological sleep cycle restoration.',
+      qualifications: [
+        { degree: 'MBBS', institution: 'Chittagong Medical College', year: 2011 },
+        { degree: 'MD (Psychiatry)', institution: 'BSMMU Bangladesh', year: 2017 },
+        { degree: 'Fellowship in Sleep Medicine', institution: 'International Neuropsychiatric Association (INA)', year: 2021 },
+      ],
+      reviews: [
+        { patientName: 'David M.', rating: 5, comment: 'Dr. Tanvir identified the root cause of my chronic insomnia after years of struggle. Cannot recommend him enough.' },
+        { patientName: 'Emily D.', rating: 4, comment: 'Very knowledgeable on neurological sleep cycles and safe medication tapering.' },
+      ],
+    },
+    {
+      name: 'Dr. Tasneem Kabir',
+      email: 'doctor4@healer.app',
+      specialization: 'Child, Adolescent & Family Psychiatry',
+      licenseNumber: 'MD-652390-BD',
+      hospitalAffiliation: 'Apollo Mind Health Center',
+      dutyStartTime: '08:30',
+      dutyEndTime: '16:30',
+      offDay: 'Wednesday',
+      bio: 'Dedicated to adolescent behavioral health, family systemic counseling, academic anxiety management, and neurodevelopmental support.',
+      qualifications: [
+        { degree: 'MBBS', institution: 'Sir Salimullah Medical College', year: 2014 },
+        { degree: 'FCPS (Child & Adolescent Psychiatry)', institution: 'BCPS Bangladesh', year: 2019 },
+      ],
+      reviews: [
+        { patientName: 'Lisa A.', rating: 5, comment: 'Extremely patient, compassionate, and gentle. Guided our family through difficult transitions with immense skill.' },
+        { patientName: 'Michael C.', rating: 5, comment: 'Wonderful bedside manner. Explained teenage emotional dynamics in a way that truly resonated.' },
+      ],
+    },
+  ];
+
+  for (const doc of additionalDoctors) {
+    let dUser = await db.query.users.findFirst({ where: eq(users.email, doc.email) });
+    if (!dUser) {
+      [dUser] = await db.insert(users).values({
+        name: doc.name,
+        email: doc.email,
+        emailVerified: true,
+        role: 'doctor',
+        status: 'active',
+      }).returning();
+
+      await db.insert(accounts).values({
+        userId: dUser.id,
+        accountId: doc.email,
+        providerId: 'credential',
+        password: commonPassword,
+      });
+    }
+
+    let dProf = await db.query.doctorProfiles.findFirst({ where: eq(doctorProfiles.userId, dUser.id) });
+    if (!dProf) {
+      [dProf] = await db.insert(doctorProfiles).values({
+        userId: dUser.id,
+        specialization: doc.specialization,
+        licenseNumber: doc.licenseNumber,
+        hospitalAffiliation: doc.hospitalAffiliation,
+      }).returning();
+    }
+
+    const docQuals = await db.query.doctorQualifications.findMany({ where: eq(doctorQualifications.doctorId, dProf.id) });
+    if (docQuals.length === 0) {
+      await db.insert(doctorQualifications).values(
+        doc.qualifications.map(q => ({
+          doctorId: dProf.id,
+          degree: q.degree,
+          institution: q.institution,
+          year: q.year,
+        }))
+      );
+    }
+
+    const docSet = await db.query.doctorSettings.findFirst({ where: eq(doctorSettings.doctorId, dProf.id) });
+    if (!docSet) {
+      await db.insert(doctorSettings).values({
+        doctorId: dProf.id,
+        autoAcceptBooking: true,
+        notificationEnabled: true,
+        language: 'en',
+        dutyStartTime: doc.dutyStartTime,
+        dutyEndTime: doc.dutyEndTime,
+        offDay: doc.offDay,
+        bio: doc.bio,
+      });
+    }
+
+    const docRevs = await db.query.doctorReviews.findMany({ where: eq(doctorReviews.doctorId, dProf.id) });
+    if (docRevs.length === 0) {
+      await db.insert(doctorReviews).values(
+        doc.reviews.map(r => ({
+          doctorId: dProf.id,
+          patientName: r.patientName,
+          rating: r.rating,
+          comment: r.comment,
+        }))
+      );
+    }
   }
 
   // =========================================================================
@@ -299,8 +433,6 @@ async function main() {
     if (!firstApptId && inserted.length > 0) {
       firstApptId = inserted[0].id;
     }
-  } else {
-    firstApptId = existingAppts[0].id;
   }
 
   // =========================================================================
@@ -410,23 +542,14 @@ async function main() {
         status: 'completed',
         notes: 'Patient completed cognitive exposure session smoothly.',
       },
-      {
-        doctorId: doctorProf.id,
-        patientId: createdPatients[4].profileId,
-        patientName: createdPatients[4].name,
-        sessionType: 'Mental Health',
-        startTime: new Date(today.getTime() + 1000 * 60 * 60 * 30),
-        status: 'upcoming',
-        notes: 'Post-trauma recovery milestone check-in.',
-      },
     ]);
   }
 
   // =========================================================================
-  // 9.  VISIT SUMMARIES
+  // 9.  PATIENT DOCTOR VISIT SUMMARY
   // =========================================================================
 
-  console.log('📊  Seeding visit summaries…');
+  console.log('📊  Seeding patient-doctor visit summaries…');
 
   const existingSummary = await db.query.patientDoctorVisitSummary.findFirst({
     where: eq(patientDoctorVisitSummary.doctorId, doctorProf.id),
@@ -840,35 +963,6 @@ async function main() {
     console.log(`   Loaded ${totalAsmtsCount} assessments with ${totalQuestionsCount} questions.`);
   }
 
-  // =========================================================================
-  // 15. COMMUNITY GROUPS
-  // =========================================================================
-
-  console.log('👥  Seeding community groups…');
-
-  const existingGroups = await db.query.communityGroups.findMany();
-  if (existingGroups.length === 0) {
-    await db.insert(communityGroups).values([
-      {
-        groupName: 'Anxiety Support & Recovery',
-        topic: 'Anxiety Recovery',
-        description: 'A compassionate, peer-supported safe haven for individuals managing panic and anxiety.',
-        anonymousAllowed: true,
-      },
-      {
-        groupName: 'Student & Academic Stress',
-        topic: 'Academic Pressure',
-        description: 'Discuss exam pressure, university expectations, and healthy work-life boundaries.',
-        anonymousAllowed: true,
-      },
-      {
-        groupName: 'Sleep Improvement & Insomnia',
-        topic: 'Sleep Improvement',
-        description: 'Techniques, bedtime routines, and support for restoring natural sleep cycles.',
-        anonymousAllowed: true,
-      },
-    ]);
-  }
 
   // =========================================================================
   // 16. CRISIS EVENTS (patient 1)
@@ -1152,13 +1246,15 @@ async function main() {
     where: eq(researcherPermissions.researcherId, researcherProf.id),
   });
   if (existingPerms.length === 0) {
-    await db.insert(researcherPermissions).values({
-      researcherId: researcherProf.id,
-      projectId: proj1Id,
-      dataAccessType: 'Anonymized Aggregate',
-      approvalStatus: 'Approved',
-      approvedDate: new Date('2025-02-01'),
-    });
+    await db.insert(researcherPermissions).values([
+      {
+        researcherId: researcherProf.id,
+        projectId: proj1Id,
+        dataAccessType: 'Anonymized Aggregate',
+        approvalStatus: 'Approved',
+        approvedDate: new Date('2025-02-01'),
+      },
+    ]);
   }
 
   // =========================================================================

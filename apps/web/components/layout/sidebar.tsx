@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { 
   Users, Activity, Calendar, FileText, Settings, ShieldAlert, BookOpen, ShieldCheck, HeartPulse,
-  LayoutDashboard, MessageSquare, Pill, UserCheck,
+  LayoutDashboard, MessageSquare, Pill, UserCheck, User,
   Bot, Smile, Sparkles, ClipboardList, BookMarked, FolderHeart,
-  FlaskConical, Database, BarChart3, Share2
+  FlaskConical, Database, BarChart3, Share2, Stethoscope
 } from "lucide-react";
 import { SidebarNavLink } from "./sidebar-nav-link";
 import { SidebarNavFolder, SidebarNavFolderChild } from "./sidebar-nav-folder";
@@ -34,7 +34,8 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
         mainNav: [
           { href: '/doctor', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
           { href: '/doctor/appointments', label: 'Appointments', icon: <Calendar className="w-4 h-4" /> },
-          { href: '/doctor/counseling', label: 'Counseling', icon: <MessageSquare className="w-4 h-4" /> },
+          { href: '/doctor/messages', label: 'Patient Chat', icon: <MessageSquare className="w-4 h-4" /> },
+          { href: '/doctor/counseling', label: 'Counseling', icon: <Bot className="w-4 h-4" /> },
           { href: '/doctor/patients', label: 'Patient Records', icon: <Users className="w-4 h-4" /> },
         ],
         sessionsNav: [
@@ -42,8 +43,9 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
           { href: '/doctor/sessions/prescriptions', label: 'Prescriptions', icon: <Pill className="w-4 h-4" /> },
         ],
         footerNav: [
-          { href: '/doctor/profile', label: 'Doctor Profile', icon: <UserCheck className="w-4 h-4" /> },
+          { href: '/doctor/profile', label: 'Psychologist Profile', icon: <UserCheck className="w-4 h-4" /> },
           { href: '/doctor/settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
+          { href: '/patient', label: 'Switch to Patient View', icon: <User className="w-4 h-4" /> },
         ],
       };
     case 'patient':
@@ -64,11 +66,11 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
             label: 'Therapy & Assessments',
             icon: <ClipboardList className="w-4 h-4" />,
             children: [
-              { href: '/patient/therapy', label: 'Therapy & Relaxation', icon: <Sparkles className="w-4 h-4" /> },
+              { href: '/patient/therapy', label: 'Therapy & Relaxation', icon: <HeartPulse className="w-4 h-4" /> },
               { href: '/patient/assessments', label: 'Clinical Assessments', icon: <FileText className="w-4 h-4" /> },
             ],
           },
-          { href: '/patient/appointments', label: 'Appointments', icon: <Calendar className="w-4 h-4" /> },
+          { href: '/patient/appointments', label: 'Appointments & Prescriptions', icon: <Calendar className="w-4 h-4" /> },
           { href: '/patient/community', label: 'Anonymous Community', icon: <Users className="w-4 h-4" /> },
         ],
         footerNav: [
@@ -125,11 +127,19 @@ export const getSidebarConfig = (role?: SystemRole | string): RoleSidebarConfig 
             label: 'Therapy & Assessments',
             icon: <ClipboardList className="w-4 h-4" />,
             children: [
-              { href: '/patient/therapy', label: 'Therapy & Relaxation', icon: <Sparkles className="w-4 h-4" /> },
+              { href: '/patient/therapy', label: 'Therapy & Relaxation', icon: <HeartPulse className="w-4 h-4" /> },
               { href: '/patient/assessments', label: 'Clinical Assessments', icon: <FileText className="w-4 h-4" /> },
             ],
           },
-          { href: '/patient/appointments', label: 'Appointments', icon: <Calendar className="w-4 h-4" /> },
+          {
+            label: 'Clinical Care',
+            icon: <Stethoscope className="w-4 h-4" />,
+            children: [
+              { href: '/patient/doctors', label: 'Psychologist Directory', icon: <UserCheck className="w-4 h-4" /> },
+              { href: '/patient/messages', label: 'Direct Psychologist Chat', icon: <MessageSquare className="w-4 h-4" /> },
+              { href: '/patient/appointments', label: 'Appointments & Prescriptions', icon: <Calendar className="w-4 h-4" /> },
+            ],
+          },
           { href: '/patient/community', label: 'Anonymous Community', icon: <Users className="w-4 h-4" /> },
         ],
         footerNav: [

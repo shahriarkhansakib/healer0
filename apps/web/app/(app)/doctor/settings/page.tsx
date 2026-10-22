@@ -55,7 +55,7 @@ export default function DoctorSettingsPage() {
   const updateSettingsMutation = useMutation({
     mutationFn: (data: any) => updateDoctorSettings(data),
     onSuccess: () => {
-      toast.success("Doctor preferences updated successfully");
+      toast.success("Psychologist preferences updated successfully");
       queryClient.invalidateQueries({ queryKey: ["doctor-profile"] });
     },
     onError: (err: any) => {
@@ -64,14 +64,14 @@ export default function DoctorSettingsPage() {
   });
 
   if (isLoading) {
-    return <div className="p-12 text-center text-slate-400">Loading doctor settings...</div>;
+    return <div className="p-12 text-center text-slate-400">Loading psychologist settings...</div>;
   }
 
   return (
     <div className="space-y-6 max-w-3xl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Doctor Workstation Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Psychologist Workstation Settings</h1>
         <p className="text-slate-500 text-sm mt-1">
           Configure booking acceptance automation, alerts, localized platform options, and researcher access.
         </p>

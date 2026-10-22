@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDoctorOverview } from "@/lib/api/doctor";
+import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Calendar, Pill, Users, Star, AlertTriangle } from "lucide-react";
+import { Calendar, Pill, Users, Star, AlertTriangle, MessageSquare } from "lucide-react";
 
 function StatCard({ label, value, icon, accent }: { label: string; value: string | number; icon: React.ReactNode; accent: string }) {
   return (
@@ -50,6 +52,13 @@ export default function DoctorDashboard() {
     queryFn: () => fetchDoctorOverview(),
   });
 
+  const { data: unreadData } = useQuery<{ unreadCount: number }>({
+    queryKey: ['messages', 'unread-count'],
+    queryFn: () => apiFetch<{ unreadCount: number }>('/messages/unread-count'),
+    refetchInterval: 5000,
+  });
+  const unreadCount = unreadData?.unreadCount ?? 0;
+
   const stats = data?.data;
 
   if (isLoading) {
@@ -66,9 +75,26 @@ export default function DoctorDashboard() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Doctor Dashboard</h1>
-        <p className="text-slate-500 mt-1">Welcome back. Here's your clinical overview for today.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Psychologist Dashboard</h1>
+          <p className="text-slate-500 mt-1">Welcome back. Here's your clinical overview for today.</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link
+            href="/doctor/messages"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer hover:shadow-md"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Chat with Patients</span>
+            {unreadCount > 0 && (
+              <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-teal-800 shadow-2xs animate-pulse">
+                {unreadCount} New
+              </span>
+            )}
+          </Link>
+        </div>
       </div>
 
       {/* Stat Cards */}
@@ -114,7 +140,7 @@ export default function DoctorDashboard() {
                     <p className="font-medium text-slate-800 text-sm truncate">{appt.patientName}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{appt.reason}</p>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0 ml-4">
+                  <div className="flex items-center gap-2.5 shrink-0 ml-4">
                     <span className="text-xs text-slate-500 font-medium">
                       {formatTime(appt.appointmentDate)}
                     </span>
@@ -124,6 +150,14 @@ export default function DoctorDashboard() {
                     )}>
                       {appt.status}
                     </span>
+                    <Link
+                      href={`/doctor/messages?patientId=${appt.patientId || ''}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-medium border border-teal-200 transition-colors"
+                      title={`Chat with ${appt.patientName || 'patient'}`}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-teal-600" />
+                      <span>Chat</span>
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -147,12 +181,21 @@ export default function DoctorDashboard() {
                     <p className="font-medium text-slate-800 text-sm">{patient.patientName}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{patient.condition}</p>
                   </div>
-                  <span className={cn(
-                    "text-xs px-2.5 py-0.5 rounded-full font-semibold shrink-0",
-                    riskColors[patient.riskLevel] || 'bg-slate-100 text-slate-600'
-                  )}>
-                    {patient.riskLevel}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={cn(
+                      "text-xs px-2.5 py-0.5 rounded-full font-semibold",
+                      riskColors[patient.riskLevel] || 'bg-slate-100 text-slate-600'
+                    )}>
+                      {patient.riskLevel}
+                    </span>
+                    <Link
+                      href={`/doctor/messages?patientId=${patient.patientId || patient.id || ''}`}
+                      className="inline-flex items-center gap-1 p-1.5 rounded-lg bg-slate-50 hover:bg-teal-50 text-slate-600 hover:text-teal-700 border border-slate-200 transition-colors"
+                      title={`Open chat with ${patient.patientName}`}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-teal-600" />
+                    </Link>
+                  </div>
                 </div>
               ))}
             </div>

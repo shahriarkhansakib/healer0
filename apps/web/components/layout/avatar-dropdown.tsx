@@ -40,7 +40,7 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
   const isDoctorView = pathname.startsWith('/doctor');
   const isResearcherView = pathname.startsWith('/researcher');
 
-  const currentRoleBadge = isResearcherView ? 'Researcher' : isDoctorView ? 'Doctor' : 'Patient';
+  const currentRoleBadge = isResearcherView ? 'Researcher' : isDoctorView ? 'Psychologist' : 'Patient';
 
   return (
     <div className="relative" ref={ref}>
@@ -118,7 +118,7 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
               >
                 <div className="flex items-center min-w-0">
                   <Stethoscope className="w-4 h-4 mr-2.5 text-teal-600 group-hover:scale-110 transition-transform shrink-0" />
-                  <span className="truncate font-medium">Switch to Doctor</span>
+                  <span className="truncate font-medium">Switch to Psychologist</span>
                 </div>
                 <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-teal-600 transition-colors ml-2 shrink-0" />
               </Link>

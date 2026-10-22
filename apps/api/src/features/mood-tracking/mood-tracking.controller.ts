@@ -4,11 +4,34 @@ import type { AuthVariables } from '../../infra/middleware/auth';
 import { MoodTrackingService } from './mood-tracking.service';
 import { logger } from '../../infra/lib/logger';
 
+const VALID_MOODS = [
+  'Happy',
+  'Sad',
+  'Normal',
+  'Stressed',
+  'Anxious',
+  'Angry',
+  'Calm',
+  'Content',
+  'Neutral',
+  'Down',
+] as const;
+
 const CreateMoodSchema = z.object({
-  moodType: z.enum(['Happy', 'Sad', 'Normal', 'Stressed', 'Anxious', 'Angry', 'Calm']),
-  stressLevel: z.number().int().min(1).max(10),
-  anxietyLevel: z.number().int().min(1).max(10),
-  sleepQuality: z.number().int().min(1).max(10),
+  moodType: z.preprocess((val) => {
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (trimmed.toLowerCase() === 'content') return 'Happy';
+      if (trimmed.toLowerCase() === 'neutral') return 'Normal';
+      if (trimmed.toLowerCase() === 'down') return 'Sad';
+      const matched = VALID_MOODS.find((m) => m.toLowerCase() === trimmed.toLowerCase());
+      return matched || trimmed;
+    }
+    return val;
+  }, z.enum(VALID_MOODS)),
+  stressLevel: z.coerce.number().int().min(1).max(10),
+  anxietyLevel: z.coerce.number().int().min(1).max(10),
+  sleepQuality: z.coerce.number().int().min(1).max(24),
   notes: z.string().max(1000).optional(),
 });
 

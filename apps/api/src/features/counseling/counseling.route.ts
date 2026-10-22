@@ -4,6 +4,7 @@ import {
   requireActiveAccount,
 } from '../../infra/middleware';
 import type { AuthVariables } from '../../infra/middleware/auth';
+import { db, doctorProfiles, eq } from '@healer/db';
 import { 
   getCounselingSessionsHandler, 
   updateCounselingStatusHandler, 
@@ -15,8 +16,8 @@ const counselingRouter = new Hono<{ Variables: AuthVariables }>();
 counselingRouter.use('*', requireAuth, requireActiveAccount);
 
 counselingRouter.get('/sessions', async (c) => {
-  const user = c.get('user');
-  if (user?.role === 'doctor') {
+  const role = c.req.query('role');
+  if (role === 'doctor') {
     return getCounselingSessionsHandler(c);
   }
   return CounselingController.listSessions(c);

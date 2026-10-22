@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Star, Sparkles, UserCheck, CheckCircle2 } from "lucide-react";
+import { Star, UserCheck, CheckCircle2 } from "lucide-react";
 
 export interface PendingReview {
   id: string;
@@ -88,7 +88,7 @@ export function DoctorReviewDialog({
     },
     onSuccess: () => {
       toast.success(
-        `Thank you! Your review for Dr. ${appointment?.doctorName || "Doctor"} has been recorded.`
+        `Thank you! Your review for ${appointment?.doctorName || "your psychologist"} has been recorded.`
       );
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["pending-reviews"] });
@@ -96,7 +96,7 @@ export function DoctorReviewDialog({
       handleClose();
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Failed to submit doctor review.");
+      toast.error(err.message || "Failed to submit psychologist review.");
     },
   });
 
@@ -130,7 +130,7 @@ export function DoctorReviewDialog({
             </div>
             <div>
               <DialogTitle className="text-lg font-bold text-foreground">
-                Rate Dr. {appointment.doctorName}
+                Rate {appointment.doctorName || "Psychologist"}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                 {appointment.doctorSpecialization || "Clinical Consultation"} •{" "}
@@ -185,7 +185,7 @@ export function DoctorReviewDialog({
           {/* Quick Compliment Badges */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <UserCheck className="w-3.5 h-3.5 text-primary" />
               What stood out during your session? (Optional)
             </label>
             <div className="flex flex-wrap gap-1.5 pt-1">
@@ -215,13 +215,13 @@ export function DoctorReviewDialog({
           {/* Written Feedback Comment Area */}
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground">
-              Doctor Feedback & Review
+              Psychologist Feedback & Review
             </label>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={3}
-              placeholder="Describe your experience with Dr. to help other patients..."
+              placeholder="Describe your experience to help other patients..."
               className="w-full rounded-md border border-input bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary resize-none"
             />
           </div>

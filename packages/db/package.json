@@ -10,6 +10,8 @@
     "push": "drizzle-kit push",
     "migrate": "tsx src/migrate.ts",
     "seed": "tsx src/seed.ts",
+    "seed:demo": "tsx src/seed-demo.ts",
+    "flush": "tsx src/flush-mock-users.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

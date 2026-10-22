@@ -9,23 +9,23 @@ import { TherapyController } from './therapy.controller';
 
 const therapyRouter = new Hono();
 
-therapyRouter.use('*', requireAuth, requireActiveAccount, requireProfile('patient'));
-
-// Programme catalogue — readable by all authenticated patients.
-therapyRouter.get('/programs', TherapyController.listPrograms);
-therapyRouter.get('/programs/:id', TherapyController.getProgram);
+therapyRouter.use('*', requireAuth, requireActiveAccount);
 
 // Programme creation is admin-only — patients consume, admins curate.
 therapyRouter.post('/programs', requireRole('admin'), TherapyController.createProgram);
 
+// Programme catalogue — readable by all authenticated patients.
+therapyRouter.get('/programs', requireProfile('patient'), TherapyController.listPrograms);
+therapyRouter.get('/programs/:id', requireProfile('patient'), TherapyController.getProgram);
+
 // Personal progress tracking.
-therapyRouter.get('/progress', TherapyController.listMyProgress);
-therapyRouter.post('/progress/reset-all', TherapyController.resetAllProgress);
-therapyRouter.delete('/progress/reset-all', TherapyController.resetAllProgress);
-therapyRouter.post('/progress/:resourceId/reset', TherapyController.resetProgramProgress);
-therapyRouter.delete('/progress/:resourceId/reset', TherapyController.resetProgramProgress);
-therapyRouter.delete('/progress/:resourceId', TherapyController.resetProgramProgress);
-therapyRouter.post('/progress/:resourceId', TherapyController.startProgress);
-therapyRouter.patch('/progress/:id', TherapyController.updateProgress);
+therapyRouter.get('/progress', requireProfile('patient'), TherapyController.listMyProgress);
+therapyRouter.post('/progress/reset-all', requireProfile('patient'), TherapyController.resetAllProgress);
+therapyRouter.delete('/progress/reset-all', requireProfile('patient'), TherapyController.resetAllProgress);
+therapyRouter.post('/progress/:resourceId/reset', requireProfile('patient'), TherapyController.resetProgramProgress);
+therapyRouter.delete('/progress/:resourceId/reset', requireProfile('patient'), TherapyController.resetProgramProgress);
+therapyRouter.delete('/progress/:resourceId', requireProfile('patient'), TherapyController.resetProgramProgress);
+therapyRouter.post('/progress/:resourceId', requireProfile('patient'), TherapyController.startProgress);
+therapyRouter.patch('/progress/:id', requireProfile('patient'), TherapyController.updateProgress);
 
 export { therapyRouter };
