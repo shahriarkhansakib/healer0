@@ -33,6 +33,7 @@ const CreateMoodSchema = z.object({
   anxietyLevel: z.coerce.number().int().min(1).max(10),
   sleepQuality: z.coerce.number().int().min(1).max(24),
   notes: z.string().max(1000).optional(),
+  recordedDate: z.string().optional(),
 });
 
 const WellnessRuleSchema = z.object({
@@ -93,6 +94,20 @@ export const MoodTrackingController = {
       return c.json(record, 200);
     } catch (err: unknown) {
       logger.error({ err }, 'MoodTrackingController.getOne failed');
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      return c.json({ error: 'Internal Server Error', message }, 500);
+    }
+  },
+
+  async delete(c: Context<{ Variables: AuthVariables }>) {
+    const user = c.get('user');
+    const id = requireParam(c, 'id');
+    try {
+      const deleted = await MoodTrackingService.delete(id, user.id);
+      if (!deleted) return c.json({ error: 'Not Found', message: 'Mood record not found.' }, 404);
+      return c.json({ success: true, message: 'Mood record deleted successfully.' }, 200);
+    } catch (err: unknown) {
+      logger.error({ err }, 'MoodTrackingController.delete failed');
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       return c.json({ error: 'Internal Server Error', message }, 500);
     }

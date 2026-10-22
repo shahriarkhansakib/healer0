@@ -4,7 +4,6 @@ import {
   requireActiveAccount,
 } from '../../infra/middleware';
 import type { AuthVariables } from '../../infra/middleware/auth';
-import { db, doctorProfiles, eq } from '@healer/db';
 import { 
   getCounselingSessionsHandler, 
   updateCounselingStatusHandler, 
@@ -27,6 +26,7 @@ counselingRouter.patch('/sessions/:id/status', updateCounselingStatusHandler);
 counselingRouter.post('/sessions', CounselingController.createSession);
 counselingRouter.get('/sessions/:id', CounselingController.getSession);
 counselingRouter.patch('/sessions/:id/end', CounselingController.endSession);
+counselingRouter.delete('/sessions/:id', CounselingController.deleteSession);
 counselingRouter.post('/sessions/:sessionId/messages', CounselingController.sendMessage);
 counselingRouter.get('/sessions/:sessionId/messages', CounselingController.getMessages);
 

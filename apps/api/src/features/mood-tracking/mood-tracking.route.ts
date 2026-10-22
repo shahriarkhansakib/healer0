@@ -21,5 +21,6 @@ moodTrackingRouter.get('/', requireProfile('patient'), MoodTrackingController.li
 moodTrackingRouter.get('/summary', requireProfile('patient'), MoodTrackingController.summary);
 moodTrackingRouter.get('/:id', requireProfile('patient'), MoodTrackingController.getOne);
 moodTrackingRouter.patch('/:id/complete', requireProfile('patient'), MoodTrackingController.completeActivity);
+moodTrackingRouter.delete('/:id', requireProfile('patient'), MoodTrackingController.delete);
 
 export { moodTrackingRouter };

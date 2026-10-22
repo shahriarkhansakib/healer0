@@ -251,7 +251,7 @@ export function JournalCalendarView() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-medium">
-                AI Sentiment Logged
+                Sentiment Logged
               </p>
               <p className="text-xl font-bold text-foreground">
                 {entries.filter((e) => e.aiSentiment).length} insights

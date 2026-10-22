@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { Smile, CheckCircle, Clock, AlertCircle, Target, Zap } from "lucide-react";
+import { Smile, CheckCircle, Clock, AlertCircle, Target, Zap, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ export default function MoodTrackingPage() {
   const [anxietyLevel, setAnxietyLevel] = useState(4);
   const [sleepQuality, setSleepQuality] = useState(7);
   const [notes, setNotes] = useState('');
+  const [customTime, setCustomTime] = useState('');
 
   // Fetch past mood records
   const { data: records, isLoading: loadingRecords } = useQuery<MoodRecord[]>({
@@ -71,6 +72,7 @@ export default function MoodTrackingPage() {
       anxietyLevel: number;
       sleepQuality: number;
       notes?: string;
+      recordedDate?: string;
     }) =>
       apiFetch<MoodRecord>('/mood-tracking', {
         method: 'POST',
@@ -82,6 +84,7 @@ export default function MoodTrackingPage() {
         toast.info(`Wellness recommendation generated: ${newRecord.wellnessGoal}`);
       }
       setNotes('');
+      setCustomTime('');
       queryClient.invalidateQueries({ queryKey: ['mood'] });
       queryClient.invalidateQueries({ queryKey: ['patient', 'mood-summary'] });
     },
@@ -105,14 +108,40 @@ export default function MoodTrackingPage() {
     },
   });
 
+  // Mutation: Delete mood check-in
+  const deleteMoodMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ success: boolean; message: string }>(`/mood-tracking/${id}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      toast.success("Check-in record deleted.");
+      queryClient.invalidateQueries({ queryKey: ['mood'] });
+      queryClient.invalidateQueries({ queryKey: ['patient', 'mood-summary'] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to delete record.");
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    let recordedDateIso: string | undefined = undefined;
+    if (customTime) {
+      const date = new Date();
+      const [hours, minutes] = customTime.split(':').map(Number);
+      date.setHours(hours, minutes, 0, 0);
+      recordedDateIso = date.toISOString();
+    }
+
     logMoodMutation.mutate({
       moodType,
       stressLevel: Number(stressLevel),
       anxietyLevel: Number(anxietyLevel),
       sleepQuality: Number(sleepQuality),
       notes: notes.trim() || undefined,
+      recordedDate: recordedDateIso,
     });
   };
 
@@ -121,7 +150,7 @@ export default function MoodTrackingPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Emotional & Mood Tracker</h1>
         <p className="text-sm text-muted-foreground">
-          Log daily indicators to trigger our deterministic clinical wellness rule engine.
+          Track daily emotional patterns, stress, and sleep vitals to receive personalized clinical wellness habits and insights.
         </p>
       </div>
 
@@ -177,11 +206,22 @@ export default function MoodTrackingPage() {
                   </div>
                 </div>
 
-                {/* Stress Slider / Numeric Input */}
+                {/* Stress Slider */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs font-medium">
                     <span>Stress Level</span>
-                    <span className="font-bold">{stressLevel} / 10</span>
+                    <span className="font-bold flex items-center gap-1.5">
+                      <span>{stressLevel} / 10</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-normal ${
+                        stressLevel <= 3
+                          ? 'bg-emerald-500/10 text-emerald-600'
+                          : stressLevel <= 6
+                            ? 'bg-amber-500/10 text-amber-600'
+                            : 'bg-rose-500/10 text-rose-600'
+                      }`}>
+                        {stressLevel <= 3 ? 'Low' : stressLevel <= 6 ? 'Moderate' : 'Elevated'}
+                      </span>
+                    </span>
                   </div>
                   <input
                     type="range"
@@ -197,7 +237,18 @@ export default function MoodTrackingPage() {
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs font-medium">
                     <span>Anxiety Level</span>
-                    <span className="font-bold">{anxietyLevel} / 10</span>
+                    <span className="font-bold flex items-center gap-1.5">
+                      <span>{anxietyLevel} / 10</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-normal ${
+                        anxietyLevel <= 3
+                          ? 'bg-emerald-500/10 text-emerald-600'
+                          : anxietyLevel <= 6
+                            ? 'bg-amber-500/10 text-amber-600'
+                            : 'bg-rose-500/10 text-rose-600'
+                      }`}>
+                        {anxietyLevel <= 3 ? 'Minimal' : anxietyLevel <= 6 ? 'Moderate' : 'High'}
+                      </span>
+                    </span>
                   </div>
                   <input
                     type="range"
@@ -212,8 +263,19 @@ export default function MoodTrackingPage() {
                 {/* Sleep Quality Slider */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs font-medium">
-                    <span>Sleep Quality</span>
-                    <span className="font-bold">{sleepQuality} / 10</span>
+                    <span>Sleep Quality (Hrs / Restfulness)</span>
+                    <span className="font-bold flex items-center gap-1.5">
+                      <span>{sleepQuality} / 10</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-normal ${
+                        sleepQuality >= 7
+                          ? 'bg-emerald-500/10 text-emerald-600'
+                          : sleepQuality >= 5
+                            ? 'bg-amber-500/10 text-amber-600'
+                            : 'bg-rose-500/10 text-rose-600'
+                      }`}>
+                        {sleepQuality >= 7 ? 'Optimal' : sleepQuality >= 5 ? 'Fair' : 'Deficit'}
+                      </span>
+                    </span>
                   </div>
                   <input
                     type="range"
@@ -223,6 +285,33 @@ export default function MoodTrackingPage() {
                     onChange={(e) => setSleepQuality(Number(e.target.value))}
                     className="w-full accent-primary"
                   />
+                </div>
+
+                {/* Optional Custom Time */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-foreground flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-muted-foreground" /> Check-in Time (Optional)
+                    </label>
+                    {customTime && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomTime('')}
+                        className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                      >
+                        Reset to Now
+                      </button>
+                    )}
+                  </div>
+                  <Input
+                    type="time"
+                    value={customTime}
+                    onChange={(e) => setCustomTime(e.target.value)}
+                    className="text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Leave blank to automatically save at current time.
+                  </p>
                 </div>
 
                 {/* Optional Notes */}
@@ -237,7 +326,7 @@ export default function MoodTrackingPage() {
                 </div>
 
                 <Button type="submit" className="w-full" disabled={logMoodMutation.isPending}>
-                  {logMoodMutation.isPending ? 'Analyzing...' : 'Submit Daily Check-in'}
+                  {logMoodMutation.isPending ? 'Saving...' : 'Submit Daily Check-in'}
                 </Button>
               </form>
             </CardContent>
@@ -253,18 +342,21 @@ export default function MoodTrackingPage() {
               <p className="text-xs text-muted-foreground">Loading history...</p>
             ) : records && records.length > 0 ? (
               records.map((rec) => (
-                <Card key={rec.id} className="p-5 overflow-hidden">
+                <Card key={rec.id} className="p-5 overflow-hidden group">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b">
                     <div className="flex items-center gap-3">
                       <div className="p-2.5 rounded-xl bg-primary/10 text-primary font-bold text-sm">
                         {rec.moodType}
                       </div>
                       <div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(rec.recordedDate).toLocaleString([], {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
+                        <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Clock className="w-3 h-3" />
+                          <span>
+                            {new Date(rec.recordedDate).toLocaleString([], {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </span>
                         </div>
                         {rec.notes && (
                           <p className="text-xs text-foreground italic mt-0.5">"{rec.notes}"</p>
@@ -275,6 +367,21 @@ export default function MoodTrackingPage() {
                       <span>Stress: <strong className="text-amber-600">{rec.stressLevel}</strong></span>
                       <span>Anxiety: <strong className="text-rose-600">{rec.anxietyLevel}</strong></span>
                       <span>Sleep: <strong className="text-emerald-600">{rec.sleepQuality}</strong></span>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm("Delete this mood check-in?")) {
+                            deleteMoodMutation.mutate(rec.id);
+                          }
+                        }}
+                        disabled={deleteMoodMutation.isPending}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 h-auto text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all rounded ml-1"
+                        title="Delete check-in"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </div>
 

@@ -18,7 +18,16 @@
     "R2_ACCOUNT_ID",
     "R2_ACCESS_KEY_ID",
     "R2_SECRET_ACCESS_KEY",
-    "NEXT_PUBLIC_R2_PUBLIC_URL"
+    "NEXT_PUBLIC_R2_PUBLIC_URL",
+    "TOKENHARBOR_API_KEY",
+    "TOKENHARBOR_MODEL",
+    "TOKENHARBOR_BASE_URL",
+    "GROQ_API_KEY",
+    "GROQ_API_KEY_2",
+    "GROQ_API_KEY_3",
+    "GROQ_API_KEY_4",
+    "GROQ_API_KEY_5",
+    "GROQ_API_KEYS"
   ],
   "tasks": {
     "build": {
