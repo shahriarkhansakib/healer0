@@ -33,7 +33,7 @@ export default function CounselingPage() {
 
   const filteredSessions = sessions.filter((s: any) => {
     const matchesStatus = filterStatus === "all" || s.status === filterStatus;
-    const patientName = s.patient?.user?.name?.toLowerCase() || "";
+    const patientName = (s.patientName || s.patient?.user?.name || "").toLowerCase();
     const sessionType = s.sessionType?.toLowerCase() || "";
     const matchesSearch = patientName.includes(searchTerm.toLowerCase()) || sessionType.includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
@@ -93,8 +93,8 @@ export default function CounselingPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredSessions.map((session: any) => {
-            const patientName = session.patient?.user?.name || "Patient";
-            const patientEmail = session.patient?.user?.email || "";
+            const patientName = session.patientName || session.patient?.user?.name || "Patient";
+            const patientEmail = session.patientEmail || session.patient?.user?.email || "";
 
             return (
               <div

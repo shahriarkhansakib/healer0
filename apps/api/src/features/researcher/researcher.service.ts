@@ -47,16 +47,18 @@ export const ResearcherService = {
       where: eq(researcherSettings.researcherId, profile.id),
     });
 
+    const isEnabled = Boolean(profile.isActive);
+
     return {
       profile,
       settings: settings || {
         notificationEnabled: true,
         language: 'en',
         privacyMode: true,
-        isEnabled: profile.isActive ?? true,
+        isEnabled,
       },
       user,
-      isEnabled: profile.isActive ?? true,
+      isEnabled,
     };
   },
 

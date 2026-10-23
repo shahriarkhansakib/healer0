@@ -31,7 +31,7 @@ export const researcherProfiles = pgTable('researcher_profiles', {
   researchField: text('research_field').notNull().default('Mental Health & Clinical Studies'),
   designation: text('designation').default('Principal Investigator'),
   verificationStatus: text('verification_status').default('Verified'),
-  isActive: boolean('is_active').default(true).notNull(),
+  isActive: boolean('is_active').default(false).notNull(),
   publications: jsonb('publications'),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull().$onUpdate(() => new Date()),

@@ -7,6 +7,7 @@ import {
   patientProfiles,
   doctorReviews,
   prescriptions,
+  sessionNotes,
   doctorSettings,
   eq,
   asc,
@@ -617,7 +618,23 @@ export const AppointmentsService = {
 
     await reconcileAppointments([appointment]);
 
-    return appointment;
+    // Fetch associated sessionNotes and prescriptions for this appointment
+    const [notes, rxList] = await Promise.all([
+      db.query.sessionNotes.findMany({
+        where: eq(sessionNotes.appointmentId, id),
+        orderBy: [desc(sessionNotes.createdAt)],
+      }),
+      db.query.prescriptions.findMany({
+        where: eq(prescriptions.appointmentId, id),
+        orderBy: [desc(prescriptions.createdAt)],
+      }),
+    ]);
+
+    return {
+      ...appointment,
+      sessionNotes: notes,
+      prescriptions: rxList,
+    };
   },
 
   async acceptAppointment(id: string, doctorUserId: string) {

@@ -24,6 +24,7 @@ export default function PatientRecordsPage() {
     onSuccess: () => {
       toast.success("Patient risk status updated");
       queryClient.invalidateQueries({ queryKey: ["doctor-patients"] });
+      queryClient.invalidateQueries({ queryKey: ["doctor-overview"] });
       setActivePatient(null);
     },
     onError: (err: any) => {

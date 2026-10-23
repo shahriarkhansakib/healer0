@@ -138,7 +138,7 @@ authRouter.post('/setup-profiles', async (c) => {
       })
       .onConflictDoNothing();
 
-    // Researcher profile is provisioned for users who opt in to research features.
+    // Researcher profile is provisioned with default disabled status
     await db
       .insert(researcherProfiles)
       .values({
@@ -151,6 +151,7 @@ authRouter.post('/setup-profiles', async (c) => {
           typeof body.researchField === 'string'
             ? body.researchField
             : 'Mental Health & Clinical Studies',
+        isActive: false,
       })
       .onConflictDoNothing();
 
@@ -200,6 +201,7 @@ authRouter.post('/setup-profiles', async (c) => {
         moodTrackingEnabled: true,
         anonymousMode: false,
         notificationEnabled: true,
+        researcherModeEnabled: false,
       })
       .onConflictDoNothing();
 

@@ -98,21 +98,39 @@ export function DoctorSlotBookingDialog({
     enabled: isOpen,
   });
 
+  // Helper to determine the best initial booking date (starts on tomorrow if today's duty hours passed)
+  const getInitialBookingDate = () => {
+    const today = startOfDay(new Date());
+    const now = new Date();
+    // Clinician duty usually concludes at 17:00; if it's already 16:30 or later, default to tomorrow
+    if (now.getHours() >= 17 || (now.getHours() === 16 && now.getMinutes() >= 30)) {
+      return addDays(today, 1);
+    }
+    return today;
+  };
+
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<Date>(() => startOfDay(new Date()));
+  const [selectedDate, setSelectedDate] = useState<Date>(() => getInitialBookingDate());
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [consultationType, setConsultationType] = useState<'Video' | 'Chat' | 'Physical'>('Video');
   const [consultationReason, setConsultationReason] = useState<string>('');
   const [showPastSlots, setShowPastSlots] = useState<boolean>(false);
 
-  // Synchronize preSelectedDoctorId or pick first doctor
+  // Synchronize preSelectedDoctorId or pick first doctor, and reset booking states when opening
   useEffect(() => {
-    if (preSelectedDoctorId) {
-      setSelectedDoctorId(preSelectedDoctorId);
-    } else if (doctors && doctors.length > 0 && !selectedDoctorId) {
-      setSelectedDoctorId(doctors[0].doctorId);
+    if (isOpen) {
+      if (preSelectedDoctorId) {
+        setSelectedDoctorId(preSelectedDoctorId);
+      } else if (doctors && doctors.length > 0) {
+        if (!selectedDoctorId || !doctors.some((d) => d.doctorId === selectedDoctorId || d.profileId === selectedDoctorId)) {
+          setSelectedDoctorId(doctors[0].doctorId);
+        }
+      }
+      setSelectedDate(getInitialBookingDate());
+      setSelectedSlot(null);
+      setShowPastSlots(false);
     }
-  }, [preSelectedDoctorId, doctors, selectedDoctorId]);
+  }, [isOpen, preSelectedDoctorId, doctors]);
 
   // Reset selected slot when doctor or date changes
   useEffect(() => {
@@ -139,7 +157,7 @@ export function DoctorSlotBookingDialog({
   }, [selectedDate]);
 
   // Fetch real-time available slots for selected doctor + date
-  const { data: availability, isLoading: loadingSlots } = useQuery<DoctorAvailabilityResult>({
+  const { data: availability, isLoading: loadingSlots, isError: slotsError, refetch: refetchSlots } = useQuery<DoctorAvailabilityResult>({
     queryKey: ['appointments', 'slots', selectedDoctorId, selectedDateStr],
     queryFn: () =>
       apiFetch<DoctorAvailabilityResult>(
@@ -331,11 +349,12 @@ export function DoctorSlotBookingDialog({
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin w-full min-w-0">
               {availableDates.map((date) => {
                 const isSelected = isSameDay(date, selectedDate);
+                const isDateToday = isSameDay(date, new Date());
                 const dayName = format(date, 'EEE');
                 const dayNumber = format(date, 'd');
                 const monthName = format(date, 'MMM');
                 const fullDayName = format(date, 'EEEE');
-                const isDoctorOff = currentDoctor?.offDay?.toLowerCase().includes(fullDayName.toLowerCase());
+                const isDoctorOff = Boolean(currentDoctor?.offDay?.toLowerCase().includes(fullDayName.toLowerCase()));
 
                 return (
                   <button
@@ -343,7 +362,7 @@ export function DoctorSlotBookingDialog({
                     key={date.toISOString()}
                     onClick={() => setSelectedDate(date)}
                     className={cn(
-                      "min-w-[62px] py-2 px-1.5 rounded-2xl border flex flex-col items-center justify-center transition-all duration-150 shrink-0 text-xs",
+                      "min-w-[64px] py-2 px-1.5 rounded-2xl border flex flex-col items-center justify-center transition-all duration-150 shrink-0 text-xs cursor-pointer",
                       isSelected
                         ? "bg-primary text-primary-foreground border-primary shadow-sm font-semibold ring-2 ring-primary/30"
                         : isDoctorOff
@@ -357,9 +376,11 @@ export function DoctorSlotBookingDialog({
                     <span className="text-sm font-bold tracking-tight my-0.5">
                       {dayNumber}
                     </span>
-                    <span className={cn("text-[9px]", isSelected ? "text-primary-foreground/80" : "text-muted-foreground/70")}>
+                    <span className={cn("text-[9px] font-medium", isSelected ? "text-primary-foreground/80" : "text-muted-foreground/70")}>
                       {isDoctorOff ? (
-                        <span className="text-muted-foreground font-semibold">Off</span>
+                        <span className="text-amber-600 dark:text-amber-400 font-semibold">Off</span>
+                      ) : isDateToday ? (
+                        <span className={isSelected ? "text-primary-foreground font-bold" : "text-primary font-bold"}>Today</span>
                       ) : (
                         monthName
                       )}
@@ -385,7 +406,7 @@ export function DoctorSlotBookingDialog({
                     <button
                       type="button"
                       onClick={() => setShowPastSlots(!showPastSlots)}
-                      className="text-[10px] text-muted-foreground underline hover:text-foreground transition-colors ml-1"
+                      className="text-[10px] text-muted-foreground underline hover:text-foreground transition-colors ml-1 cursor-pointer"
                     >
                       {showPastSlots ? 'Hide passed' : `+${pastSlotsCount} earlier`}
                     </button>
@@ -400,35 +421,46 @@ export function DoctorSlotBookingDialog({
                   <div key={i} className="h-10 bg-muted/40 rounded-xl animate-pulse" />
                 ))}
               </div>
+            ) : slotsError ? (
+              <div className="p-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-between gap-3 text-xs">
+                <span>Unable to load consultation slots for this date.</span>
+                <Button type="button" size="sm" variant="outline" onClick={() => refetchSlots()} className="text-xs cursor-pointer">
+                  Retry
+                </Button>
+              </div>
             ) : availability?.isOffDay ? (
-              <div className="p-4 rounded-2xl bg-muted/40 border border-border text-foreground flex items-center justify-between gap-3">
+              <div className="p-4 rounded-2xl bg-muted/40 border border-border text-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <CalendarOff className="w-5 h-5 text-muted-foreground shrink-0" />
+                  <CalendarOff className="w-5 h-5 text-amber-500 shrink-0" />
                   <div className="text-xs">
                     <p className="font-semibold">{currentDoctor?.name || 'Psychologist'} is off duty on {availability.dayOfWeek}s.</p>
                     <p className="text-muted-foreground text-[11px] mt-0.5">
-                      Please select another date above to view available time slots.
+                      Please select another date from the calendar ribbon above to view available time slots.
                     </p>
                   </div>
                 </div>
-                <Button type="button" size="sm" variant="outline" onClick={handleSelectTomorrow} className="text-xs shrink-0">
+                <Button type="button" size="sm" variant="outline" onClick={handleSelectTomorrow} className="text-xs shrink-0 cursor-pointer">
                   View Tomorrow
                 </Button>
               </div>
             ) : totalOpenSlots === 0 && !showPastSlots ? (
-              <div className="p-5 text-center border border-border rounded-2xl bg-card space-y-2">
+              <div className="p-5 text-center border border-border rounded-2xl bg-card space-y-2.5">
                 <p className="font-semibold text-xs text-foreground">
-                  {isToday ? "All consultation slots for today have passed or booked." : "No slots available on this date."}
+                  {isToday
+                    ? "All consultation slots for today have concluded or been booked."
+                    : "No consultation slots available on this date."}
                 </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Select an alternate date from the calendar or view tomorrow's openings.
+                <p className="text-[11px] text-muted-foreground max-w-md mx-auto leading-relaxed">
+                  {isToday
+                    ? "Clinician duty hours for today have ended. Select tomorrow or an upcoming day to reserve your session."
+                    : "Please select an alternate date from the 14-day calendar ribbon above."}
                 </p>
-                <div className="flex items-center justify-center gap-2 pt-1">
-                  <Button type="button" size="sm" variant="outline" onClick={handleSelectTomorrow} className="text-xs">
-                    Jump to Tomorrow
+                <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+                  <Button type="button" size="sm" onClick={handleSelectTomorrow} className="text-xs cursor-pointer">
+                    View Tomorrow&apos;s Open Slots
                   </Button>
                   {pastSlotsCount > 0 && (
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setShowPastSlots(true)} className="text-xs text-muted-foreground">
+                    <Button type="button" size="sm" variant="outline" onClick={() => setShowPastSlots(true)} className="text-xs text-muted-foreground cursor-pointer">
                       Show {pastSlotsCount} Concluded Slots
                     </Button>
                   )}
@@ -619,9 +651,9 @@ export function DoctorSlotBookingDialog({
               type="submit"
               size="sm"
               disabled={!selectedSlot || bookMutation.isPending}
-              className="gap-1.5 shadow-xs"
+              className="gap-1.5 shadow-xs cursor-pointer"
             >
-              {bookMutation.isPending ? 'Reserving...' : 'Confirm Consultation Booking'}
+              {bookMutation.isPending ? 'Reserving...' : selectedSlot ? 'Confirm Consultation Booking' : 'Select a Slot Above'}
             </Button>
           </div>
         </form>

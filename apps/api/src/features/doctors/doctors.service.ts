@@ -1,7 +1,8 @@
 import { 
   db, users, doctorProfiles, doctorSettings, doctorQualifications, 
-  doctorReviews, appointments, patientRecords, prescriptions, counselingSessions, eq, desc, count, inArray, or 
+  doctorReviews, appointments, patientRecords, prescriptions, counselingSessions, patientProfiles, eq, desc, count, inArray, or 
 } from '@healer/db';
+import { getDoctorPatientRecordsService } from '../patients/patients.service';
 
 export async function getDoctorProfileByUserId(userId: string) {
   const doctor = await db.query.doctorProfiles.findFirst({
@@ -22,6 +23,20 @@ export async function getDoctorProfileByUserId(userId: string) {
     orderBy: [desc(doctorQualifications.year)],
   });
 
+  const resolvedSettings = settings || {
+    id: '',
+    doctorId: doctor.id,
+    autoAcceptBooking: true,
+    notificationEnabled: true,
+    language: 'en',
+    dutyStartTime: '08:00',
+    dutyEndTime: '17:00',
+    offDay: 'Sunday',
+    bio: '',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
   return {
     id: doctor.id,
     userId: doctor.userId,
@@ -31,15 +46,11 @@ export async function getDoctorProfileByUserId(userId: string) {
     specialization: doctor.specialization,
     licenseNumber: doctor.licenseNumber,
     hospitalAffiliation: doctor.hospitalAffiliation,
-    settings: settings || {
-      autoAcceptBooking: true,
-      notificationEnabled: true,
-      language: 'en',
-      dutyStartTime: '08:00',
-      dutyEndTime: '17:00',
-      offDay: 'Sunday',
-      bio: '',
-    },
+    dutyStartTime: resolvedSettings.dutyStartTime || '08:00',
+    dutyEndTime: resolvedSettings.dutyEndTime || '17:00',
+    offDay: resolvedSettings.offDay || 'Sunday',
+    bio: resolvedSettings.bio || '',
+    settings: resolvedSettings,
     qualifications,
   };
 }
@@ -50,20 +61,24 @@ export async function getOverviewStats(userId: string) {
   });
   if (!doctor) return null;
 
+  const doctorIds = [doctor.id];
+  if (doctor.userId && !doctorIds.includes(doctor.userId)) {
+    doctorIds.push(doctor.userId);
+  }
+
   const allAppointments = await db.query.appointments.findMany({
-    where: eq(appointments.doctorId, doctor.id),
+    where: inArray(appointments.doctorId, doctorIds),
   });
 
-  const allPatients = await db.query.patientRecords.findMany({
-    where: eq(patientRecords.doctorId, doctor.id),
-  });
+  // Reconcile patient records across explicit records, booked appointments, and counseling sessions
+  const allPatients = await getDoctorPatientRecordsService(userId);
 
   const allPrescriptions = await db.query.prescriptions.findMany({
-    where: eq(prescriptions.doctorId, doctor.id),
+    where: inArray(prescriptions.doctorId, doctorIds),
   });
 
   const reviews = await db.query.doctorReviews.findMany({
-    where: eq(doctorReviews.doctorId, doctor.id),
+    where: inArray(doctorReviews.doctorId, doctorIds),
   });
 
   const avgRating = reviews.length > 0 
@@ -71,7 +86,25 @@ export async function getOverviewStats(userId: string) {
     : null;
 
   const todayStr = new Date().toDateString();
-  const todayAppointments = allAppointments.filter(a => new Date(a.appointmentDate).toDateString() === todayStr);
+  const rawTodayAppts = allAppointments.filter(a => new Date(a.appointmentDate).toDateString() === todayStr);
+
+  const todayAppointments = await Promise.all(
+    rawTodayAppts.map(async (appt) => {
+      if (appt.patientName) return appt;
+      if (!appt.patientId) return appt;
+      const pProf = await db.query.patientProfiles.findFirst({
+        where: or(eq(patientProfiles.id, appt.patientId), eq(patientProfiles.userId, appt.patientId)),
+      });
+      if (pProf) {
+        const u = await db.query.users.findFirst({
+          where: eq(users.id, pProf.userId),
+          columns: { name: true },
+        });
+        if (u?.name) return { ...appt, patientName: u.name };
+      }
+      return appt;
+    })
+  );
 
   const criticalPatients = allPatients.filter(p => p.riskLevel === 'Critical' || p.riskLevel === 'High');
 
@@ -85,7 +118,14 @@ export async function getOverviewStats(userId: string) {
   };
 }
 
-export async function updateDoctorProfileService(userId: string, data: { specialization?: string; hospitalAffiliation?: string; bio?: string }) {
+export async function updateDoctorProfileService(userId: string, data: { 
+  specialization?: string; 
+  hospitalAffiliation?: string; 
+  bio?: string;
+  dutyStartTime?: string;
+  dutyEndTime?: string;
+  offDay?: string;
+}) {
   const doctor = await db.query.doctorProfiles.findFirst({
     where: eq(doctorProfiles.userId, userId),
   });
@@ -100,19 +140,25 @@ export async function updateDoctorProfileService(userId: string, data: { special
       .where(eq(doctorProfiles.id, doctor.id));
   }
 
-  if (data.bio !== undefined) {
+  const settingsUpdates: Record<string, any> = {};
+  if (data.bio !== undefined) settingsUpdates.bio = data.bio;
+  if (data.dutyStartTime !== undefined) settingsUpdates.dutyStartTime = data.dutyStartTime;
+  if (data.dutyEndTime !== undefined) settingsUpdates.dutyEndTime = data.dutyEndTime;
+  if (data.offDay !== undefined) settingsUpdates.offDay = data.offDay;
+
+  if (Object.keys(settingsUpdates).length > 0) {
     const existingSettings = await db.query.doctorSettings.findFirst({
       where: eq(doctorSettings.doctorId, doctor.id),
     });
 
     if (existingSettings) {
       await db.update(doctorSettings)
-        .set({ bio: data.bio })
+        .set(settingsUpdates)
         .where(eq(doctorSettings.id, existingSettings.id));
     } else {
       await db.insert(doctorSettings).values({
         doctorId: doctor.id,
-        bio: data.bio,
+        ...settingsUpdates,
       });
     }
   }

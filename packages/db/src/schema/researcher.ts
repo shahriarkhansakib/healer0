@@ -189,7 +189,7 @@ export const researcherSettings = pgTable('researcher_settings', {
   notificationEnabled: boolean('notification_enabled').default(true).notNull(),
   language: text('language').default('en').notNull(),
   privacyMode: boolean('privacy_mode').default(true).notNull(), // Enforce HIPAA/GDPR double-blind anonymization
-  isEnabled: boolean('is_enabled').default(true).notNull(), // Main switch for Researcher Dashboard activation
+  isEnabled: boolean('is_enabled').default(false).notNull(), // Main switch for Researcher Dashboard activation
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull().$onUpdate(() => new Date()),
 });
 

@@ -3,6 +3,8 @@ import {
   doctorProfiles,
   counselingSessions,
   counselingMessages,
+  users,
+  patientProfiles,
   eq,
   desc,
   and,
@@ -23,9 +25,73 @@ export async function getCounselingSessionsService(userId: string) {
     if (doctor.userId && !ids.includes(doctor.userId)) ids.push(doctor.userId);
   }
 
-  return db.query.counselingSessions.findMany({
+  const sessions = await db.query.counselingSessions.findMany({
     where: inArray(counselingSessions.doctorId, ids),
     orderBy: [desc(counselingSessions.startTime)],
+  });
+
+  if (sessions.length === 0) return [];
+
+  // Collect target patient and user IDs to resolve names & emails
+  const targetIds = new Set<string>();
+  for (const s of sessions) {
+    if (s.userId) targetIds.add(s.userId);
+    if (s.patientId) targetIds.add(s.patientId);
+  }
+
+  const idsArr = Array.from(targetIds);
+  const directUsers = idsArr.length > 0
+    ? await db.query.users.findMany({
+        where: inArray(users.id, idsArr),
+        columns: { id: true, name: true, email: true },
+      })
+    : [];
+
+  const userMap = new Map<string, { id: string; name: string; email: string }>(
+    directUsers.map((u) => [u.id, u])
+  );
+
+  // Check patientProfiles in case patientId refers to patientProfiles table
+  const profiles = idsArr.length > 0
+    ? await db.query.patientProfiles.findMany({
+        where: inArray(patientProfiles.id, idsArr),
+        columns: { id: true, userId: true },
+      })
+    : [];
+
+  const profileUserIds = profiles.map((p) => p.userId).filter(Boolean);
+  const profileUsers = profileUserIds.length > 0
+    ? await db.query.users.findMany({
+        where: inArray(users.id, profileUserIds),
+        columns: { id: true, name: true, email: true },
+      })
+    : [];
+
+  for (const u of profileUsers) userMap.set(u.id, u);
+  const profileToUser = new Map(profiles.map((p) => [p.id, p.userId]));
+
+  return sessions.map((s) => {
+    let u = s.userId ? userMap.get(s.userId) : null;
+    if (!u && s.patientId) {
+      const uId = profileToUser.get(s.patientId) || s.patientId;
+      u = userMap.get(uId);
+    }
+
+    const patientName = s.patientName || u?.name || 'Patient';
+    const patientEmail = u?.email || '';
+
+    return {
+      ...s,
+      patientName,
+      patientEmail,
+      patient: {
+        id: s.patientId || s.userId || '',
+        user: {
+          name: patientName,
+          email: patientEmail,
+        },
+      },
+    };
   });
 }
 

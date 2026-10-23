@@ -37,10 +37,10 @@ export default function DoctorProfilePage() {
   useEffect(() => {
     if (profile) {
       setSpecialization(profile.specialization || "");
-      setBio(profile.bio || "");
-      setDutyStartTime(profile.dutyStartTime || "08:00");
-      setDutyEndTime(profile.dutyEndTime || "17:00");
-      setOffDay(profile.offDay || "Sunday");
+      setBio(profile.bio || profile.settings?.bio || "");
+      setDutyStartTime(profile.dutyStartTime || profile.settings?.dutyStartTime || "08:00");
+      setDutyEndTime(profile.dutyEndTime || profile.settings?.dutyEndTime || "17:00");
+      setOffDay(profile.offDay || profile.settings?.offDay || "Sunday");
     }
   }, [profile]);
 

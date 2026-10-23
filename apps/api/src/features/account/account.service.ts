@@ -111,6 +111,7 @@ export const AccountService = {
         moodTrackingEnabled: true,
         anonymousMode: false,
         notificationEnabled: true,
+        researcherModeEnabled: false,
       })
       .returning();
 

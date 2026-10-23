@@ -54,6 +54,17 @@ export async function createSessionNoteService(userId: string, data: {
         });
         if (u) patientName = u.name;
       }
+    } else {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, patientId),
+      });
+      if (user) {
+        const [createdProf] = await db.insert(patientProfiles).values({
+          userId: user.id,
+        }).returning();
+        patientId = createdProf.id;
+        if (!patientName) patientName = user.name;
+      }
     }
   }
 
