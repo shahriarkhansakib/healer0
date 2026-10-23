@@ -9,9 +9,13 @@
     "generate": "drizzle-kit generate",
     "push": "drizzle-kit push",
     "migrate": "tsx src/migrate.ts",
-    "seed": "tsx src/seed.ts",
-    "seed:demo": "tsx src/seed-demo.ts",
-    "flush": "tsx src/flush-mock-users.ts",
+    "seed": "tsx src/seeds/index.ts",
+    "seed:admin": "tsx src/seeds/admin/index.ts",
+    "seed:users": "tsx src/seeds/users/index.ts",
+    "seed:demo": "tsx src/seeds/demo/index.ts",
+    "seed:reconcile": "tsx src/seeds/reconciliation/index.ts",
+
+
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
