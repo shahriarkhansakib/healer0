@@ -9,6 +9,7 @@
     "generate": "drizzle-kit generate",
     "push": "drizzle-kit push",
     "migrate": "tsx src/migrate.ts",
+    "reset": "tsx src/reset.ts",
     "seed": "tsx src/seeds/index.ts",
     "seed:admin": "tsx src/seeds/admin/index.ts",
     "seed:users": "tsx src/seeds/users/index.ts",
