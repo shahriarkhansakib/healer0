@@ -21,6 +21,8 @@ import { communityRouter } from './features/community/community.route';
 import { privacyRouter } from './features/privacy/privacy.route';
 import { accountRouter } from './features/account/account.route';
 import { researcherRouter } from './features/researcher/researcher.route';
+import { adminRouter } from './features/admin/admin.route';
+import { superAdminRouter } from './features/super-admin/super-admin.route';
 
 const app = new Hono().basePath('/api');
 
@@ -62,5 +64,7 @@ app.route('/emergency', emergencyRouter);
 app.route('/community', communityRouter);
 app.route('/privacy', privacyRouter);
 app.route('/account', accountRouter);
+app.route('/admin', adminRouter);
+app.route('/super-admin', superAdminRouter);
 
 export default app;
