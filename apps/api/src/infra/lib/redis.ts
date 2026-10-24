@@ -4,7 +4,7 @@ import { Redis as UpstashRedis } from '@upstash/redis';
 /**
  * Unified Redis adapter.
  *
- * Dev/staging: ioredis → Docker Redis container.
+ * Dev/staging: ioredis → Docker Redis container (mapped to port 6303 in healer0).
  * Prod: @upstash/redis → HTTP-based serverless-safe client.
  *
  * The adapter pattern here means feature code never imports ioredis or
@@ -55,41 +55,95 @@ function buildAdapter(): RedisAdapter {
   }
 
   // Dev: ioredis → local Docker Redis.
-  const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
+  // Port 6303 matches docker-compose.yml (6303:6379)
+  const redisUrl = process.env.REDIS_URL ?? 'redis://127.0.0.1:6303';
+  
   const client = new Redis(redisUrl, {
-    lazyConnect: true,
-    maxRetriesPerRequest: 1,
-    enableOfflineQueue: false,
-    retryStrategy: () => null,
+    maxRetriesPerRequest: 2,
+    retryStrategy(times) {
+      if (times > 5) return null; // cease continuous retry flood if daemon is stopped
+      return Math.min(times * 500, 2000);
+    },
+    enableOfflineQueue: true,
   });
+
+  // Attach error handler to prevent Node.js [ioredis] Unhandled error event crash
   client.on('error', () => {
-    // Suppress unhandled error events when Redis container is not running
+    // Handled to suppress unhandled AggregateError [ECONNREFUSED]
   });
+
+  // Ephemeral in-memory fallback store in case Redis connection is ever unavailable
+  const memoryStore = new Map<string, { val: string; exp?: number }>();
+  const memoryCounters = new Map<string, number>();
 
   return {
     async get(key) {
-      try { return await client.get(key); } catch { return null; }
+      try {
+        return await client.get(key);
+      } catch {
+        const item = memoryStore.get(key);
+        if (!item) return null;
+        if (item.exp && item.exp < Date.now()) {
+          memoryStore.delete(key);
+          return null;
+        }
+        return item.val;
+      }
     },
     async set(key, value, ttlSeconds) {
       try {
         if (ttlSeconds) return await client.set(key, value, 'EX', ttlSeconds);
         return await client.set(key, value);
-      } catch { return null; }
+      } catch {
+        memoryStore.set(key, {
+          val: value,
+          exp: ttlSeconds ? Date.now() + ttlSeconds * 1000 : undefined,
+        });
+        return 'OK';
+      }
     },
     async del(key) {
-      try { return await client.del(key); } catch { return 0; }
+      try {
+        return await client.del(key);
+      } catch {
+        memoryStore.delete(key);
+        memoryCounters.delete(key);
+        return 1;
+      }
     },
     async incr(key) {
-      try { return await client.incr(key); } catch { return 1; }
+      try {
+        return await client.incr(key);
+      } catch {
+        const count = (memoryCounters.get(key) ?? 0) + 1;
+        memoryCounters.set(key, count);
+        return count;
+      }
     },
     async expire(key, seconds) {
-      try { return await client.expire(key, seconds); } catch { return 0; }
+      try {
+        return await client.expire(key, seconds);
+      } catch {
+        const item = memoryStore.get(key);
+        if (item) {
+          item.exp = Date.now() + seconds * 1000;
+        }
+        return 1;
+      }
     },
     async smembers(key) {
-      try { return await client.smembers(key); } catch { return []; }
+      try {
+        return await client.smembers(key);
+      } catch {
+        return [];
+      }
     },
     async ping() {
-      try { return await client.ping(); } catch { return 'PONG'; }
+      try {
+        return await client.ping();
+      } catch {
+        return 'PONG';
+      }
     },
   };
 }

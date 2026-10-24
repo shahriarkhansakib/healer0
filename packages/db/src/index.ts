@@ -10,6 +10,8 @@ export * from './schema/community';
 export * from './schema/privacy';
 export * from './schema/consultations';
 export * from './schema/doctor';
+export * from './schema/messages';
+export * from './schema/researcher';
 export * from 'drizzle-orm';
 
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -26,6 +28,8 @@ import * as communitySchema from './schema/community';
 import * as privacySchema from './schema/privacy';
 import * as consultationsSchema from './schema/consultations';
 import * as doctorSchema from './schema/doctor';
+import * as messagesSchema from './schema/messages';
+import * as researcherSchema from './schema/researcher';
 import * as dotenv from 'dotenv';
 import path from 'path';
 
@@ -34,7 +38,20 @@ dotenv.config({ path: path.resolve(__dirname, '../../../apps/web/.env.local') })
 
 const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5455/healer_db';
 
-const client = postgres(connectionString);
+const globalForDb = globalThis as unknown as {
+  _postgresClient?: ReturnType<typeof postgres>;
+};
+
+export const client = globalForDb._postgresClient ?? postgres(connectionString, {
+  max: 15,
+  idle_timeout: 20,
+  connect_timeout: 10,
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForDb._postgresClient = client;
+}
+
 export const db = drizzle(client, {
   schema: {
     ...authSchema,
@@ -49,5 +66,7 @@ export const db = drizzle(client, {
     ...privacySchema,
     ...consultationsSchema,
     ...doctorSchema,
+    ...messagesSchema,
+    ...researcherSchema,
   },
 });

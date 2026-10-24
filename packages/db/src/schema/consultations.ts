@@ -10,11 +10,15 @@ export const appointments = pgTable('appointments', {
   reason: text('reason'),
   consultationReason: text('consultation_reason'),
   sessionDurationMinutes: integer('session_duration_minutes').default(50).notNull(),
-  status: text('status').default('scheduled').notNull(), // 'scheduled', 'in-progress', 'completed', 'canceled'
-  appointmentStatus: text('appointment_status').default('Scheduled').notNull(), // 'Scheduled', 'Completed', 'Cancelled'
+  status: text('status').default('scheduled').notNull(), // 'pending', 'scheduled', 'in-progress', 'completed', 'canceled', 'declined'
+  appointmentStatus: text('appointment_status').default('Scheduled').notNull(), // 'Pending', 'Scheduled', 'Completed', 'Cancelled', 'Declined'
   doctorNotes: text('doctor_notes'),
   startAt: timestamp('start_at', { mode: 'date' }),
   endAt: timestamp('end_at', { mode: 'date' }),
+  cancellationReason: text('cancellation_reason'),
+  cancelledBy: text('cancelled_by'), // 'patient' | 'doctor' | 'system'
+  rescheduleCount: integer('reschedule_count').default(0).notNull(),
+  declineReason: text('decline_reason'),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull().$onUpdate(() => new Date()),
 });

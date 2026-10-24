@@ -37,17 +37,17 @@ export default function DoctorProfilePage() {
   useEffect(() => {
     if (profile) {
       setSpecialization(profile.specialization || "");
-      setBio(profile.bio || "");
-      setDutyStartTime(profile.dutyStartTime || "08:00");
-      setDutyEndTime(profile.dutyEndTime || "17:00");
-      setOffDay(profile.offDay || "Sunday");
+      setBio(profile.bio || profile.settings?.bio || "");
+      setDutyStartTime(profile.dutyStartTime || profile.settings?.dutyStartTime || "08:00");
+      setDutyEndTime(profile.dutyEndTime || profile.settings?.dutyEndTime || "17:00");
+      setOffDay(profile.offDay || profile.settings?.offDay || "Sunday");
     }
   }, [profile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: any) => updateDoctorProfile(data),
     onSuccess: () => {
-      toast.success("Doctor profile updated successfully");
+      toast.success("Psychologist profile updated successfully");
       queryClient.invalidateQueries({ queryKey: ["doctor-profile"] });
     },
     onError: (err: any) => {
@@ -69,7 +69,7 @@ export default function DoctorProfilePage() {
   });
 
   if (isLoading) {
-    return <div className="p-12 text-center text-slate-400">Loading doctor profile...</div>;
+    return <div className="p-12 text-center text-slate-400">Loading psychologist profile...</div>;
   }
 
   return (
@@ -77,7 +77,7 @@ export default function DoctorProfilePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Doctor Profile & Duty Schedule</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Psychologist Profile & Duty Schedule</h1>
           <p className="text-slate-500 text-sm mt-1">
             Manage clinical credentials, specialization details, duty hours, and review feedback.
           </p>

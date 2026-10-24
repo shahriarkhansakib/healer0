@@ -22,6 +22,7 @@ export const userPreferences = pgTable('user_preferences', {
   moodTrackingEnabled: boolean('mood_tracking_enabled').default(true).notNull(),
   anonymousMode: boolean('anonymous_mode').default(false).notNull(),
   notificationEnabled: boolean('notification_enabled').default(true).notNull(),
+  researcherModeEnabled: boolean('researcher_mode_enabled').default(false).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull().$onUpdate(() => new Date()),
 });

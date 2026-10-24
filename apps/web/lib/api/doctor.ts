@@ -55,8 +55,14 @@ export function fetchDoctorReviews() {
 
 // Appointments
 export function fetchAppointments(status?: string) {
-  const query = status ? `?status=${status}` : '';
-  return apiFetch<{ data: any[] }>(`/appointments${query}`);
+  const params = new URLSearchParams();
+  if (status && status !== 'all') params.set('status', status);
+  params.set('role', 'doctor');
+  return apiFetch<{ data: any[] }>(`/appointments?${params.toString()}`);
+}
+
+export function fetchAppointmentById(id: string) {
+  return apiFetch<any>(`/appointments/${id}`);
 }
 
 export function updateAppointmentStatus(id: string, status: string) {
@@ -66,9 +72,29 @@ export function updateAppointmentStatus(id: string, status: string) {
   });
 }
 
+export function acceptAppointment(id: string) {
+  return apiFetch<{ data: any }>(`/appointments/${id}/accept`, {
+    method: 'PATCH',
+  });
+}
+
+export function declineAppointment(id: string, reason?: string) {
+  return apiFetch<{ data: any }>(`/appointments/${id}/decline`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function cancelDoctorAppointment(id: string, reason?: string) {
+  return apiFetch<{ data: any }>(`/appointments/${id}/cancel`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  });
+}
+
 // Counseling
 export function fetchCounselingSessions() {
-  return apiFetch<{ data: any[] }>('/counseling/sessions');
+  return apiFetch<{ data: any[] }>('/counseling/sessions?role=doctor');
 }
 
 export function updateCounselingStatus(id: string, status: string, notes?: string) {

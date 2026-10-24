@@ -12,7 +12,6 @@ import {
   CheckCheck,
   Reply,
   X,
-  Sparkles,
   RefreshCw,
   AlertTriangle,
   Smile,
@@ -37,6 +36,13 @@ import {
   PanelRightClose,
   PanelRightOpen,
   MessageCircle,
+  Eye,
+  EyeOff,
+  Key,
+  Copy,
+  Share2,
+  Settings,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +76,9 @@ interface CommunityGroup {
   avatarEmoji: string | null;
   anonymousAllowed: boolean;
   requiresApproval: boolean;
+  isHidden: boolean;
+  isInviteOnly: boolean;
+  inviteCode?: string | null;
   creatorId: string | null;
   isMember: boolean;
   isPending: boolean;
@@ -190,6 +199,30 @@ export default function CommunityPage() {
   const [newGroupDescription, setNewGroupDescription] = useState("");
   const [newGroupEmoji, setNewGroupEmoji] = useState("🌿");
   const [newGroupRequiresApproval, setNewGroupRequiresApproval] = useState(false);
+  const [newGroupIsHidden, setNewGroupIsHidden] = useState(false);
+  const [newGroupIsInviteOnly, setNewGroupIsInviteOnly] = useState(false);
+
+  // Join by Invite Code Modal
+  const [isJoinByCodeOpen, setIsJoinByCodeOpen] = useState(false);
+  const [inviteCodeInput, setInviteCodeInput] = useState("");
+  const [inviteCustomName, setInviteCustomName] = useState("");
+  const [inviteCustomColor, setInviteCustomColor] = useState("sky");
+
+  // Admin Group Settings Modal
+  const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupTopic, setEditGroupTopic] = useState("Anxiety Recovery");
+  const [editGroupDescription, setEditGroupDescription] = useState("");
+  const [editGroupEmoji, setEditGroupEmoji] = useState("🌿");
+  const [editRequiresApproval, setEditRequiresApproval] = useState(false);
+  const [editIsHidden, setEditIsHidden] = useState(false);
+  const [editIsInviteOnly, setEditIsInviteOnly] = useState(false);
+
+  // Room Info & Privacy Dialog
+  const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
+
+  // Regenerate Invite Code confirmation dialog
+  const [isRegenerateCodeOpen, setIsRegenerateCodeOpen] = useState(false);
 
   // Profile Customization Modal
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -198,6 +231,18 @@ export default function CommunityPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Check URL query parameters for ?join=CODE or ?invite=CODE on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("join") || params.get("invite");
+      if (code) {
+        setInviteCodeInput(code.toUpperCase());
+        setIsJoinByCodeOpen(true);
+      }
+    }
+  }, []);
 
   // 1. Fetch Chat Groups
   const { data: groups, isLoading: loadingGroups } = useQuery<CommunityGroup[]>({
@@ -208,6 +253,21 @@ export default function CommunityPage() {
 
   const activeGroup = groups?.find((g) => g.id === selectedGroupId) || (groups && groups.length > 0 ? groups[0] : null);
   const activeGroupId = activeGroup?.id;
+
+  // 1b. Fetch Group Preview by Invite Code
+  const cleanInviteCode = inviteCodeInput.trim().toUpperCase();
+  const { data: invitePreviewGroup, isFetching: loadingInvitePreview } = useQuery<CommunityGroup | null>({
+    queryKey: ["community", "by-invite", cleanInviteCode],
+    queryFn: async () => {
+      try {
+        return await apiFetch<CommunityGroup>(`/community/groups/by-invite/${encodeURIComponent(cleanInviteCode)}`);
+      } catch {
+        return null;
+      }
+    },
+    enabled: isJoinByCodeOpen && cleanInviteCode.length >= 4,
+    retry: false,
+  });
 
   // 2. Fetch Messages for Active Group in Chat view (if active member)
   const { data: messages, isLoading: loadingMessages } = useQuery<CommunityMessage[]>({
@@ -264,6 +324,8 @@ export default function CommunityPage() {
       description: string;
       avatarEmoji: string;
       requiresApproval: boolean;
+      isHidden: boolean;
+      isInviteOnly: boolean;
     }) =>
       apiFetch<CommunityGroup>("/community/groups", {
         method: "POST",
@@ -275,6 +337,8 @@ export default function CommunityPage() {
       setNewGroupName("");
       setNewGroupDescription("");
       setNewGroupRequiresApproval(false);
+      setNewGroupIsHidden(false);
+      setNewGroupIsInviteOnly(false);
       queryClient.setQueryData<CommunityGroup[]>(["community", "groups"], (old) => {
         if (!old) return [newGroup];
         return [newGroup, ...old.filter((g) => g.id !== newGroup.id)];
@@ -288,22 +352,111 @@ export default function CommunityPage() {
     },
   });
 
+  // 4b. Update Group Settings Mutation
+  const updateGroupSettingsMutation = useMutation({
+    mutationFn: (payload: {
+      groupName?: string;
+      topic?: string;
+      description?: string;
+      avatarEmoji?: string;
+      requiresApproval?: boolean;
+      isHidden?: boolean;
+      isInviteOnly?: boolean;
+    }) =>
+      apiFetch<{ success: boolean; message: string; group: CommunityGroup }>(
+        `/community/groups/${activeGroupId}/settings`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        }
+      ),
+    onSuccess: (res) => {
+      toast.success(res.message || "Group settings updated!");
+      setIsGroupSettingsOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["community", "groups"] });
+      queryClient.invalidateQueries({ queryKey: ["community", "messages", activeGroupId] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to update room settings.");
+    },
+  });
+
+  // 4c. Regenerate Invite Code Mutation
+  const regenerateInviteCodeMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<{ success: boolean; message: string; inviteCode: string }>(
+        `/community/groups/${activeGroupId}/regenerate-invite-code`,
+        {
+          method: "POST",
+        }
+      ),
+    onSuccess: (res) => {
+      toast.success("New invite code generated!");
+      setIsRegenerateCodeOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["community", "groups"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to regenerate invite code.");
+    },
+  });
+
   // 5. Join or Request to Join Group Mutation
   const joinGroupMutation = useMutation({
-    mutationFn: (groupId: string) =>
-      apiFetch<{ memberStatus: string }>(`/community/groups/${groupId}/join`, { method: "POST" }),
-    onSuccess: (res, groupId) => {
+    mutationFn: ({ groupId, inviteCode }: { groupId: string; inviteCode?: string }) =>
+      apiFetch<{ memberStatus: string }>(`/community/groups/${groupId}/join`, {
+        method: "POST",
+        body: JSON.stringify({ inviteCode }),
+      }),
+    onSuccess: (res, vars) => {
       queryClient.invalidateQueries({ queryKey: ["community", "groups"] });
       if (res.memberStatus === "Pending") {
         toast.info("Join request sent! An admin will review your membership before access is granted.");
       } else {
         toast.success("Joined community chat room!");
-        setSelectedGroupId(groupId);
+        setSelectedGroupId(vars.groupId);
         setViewMode("chat");
       }
     },
     onError: (err: Error) => {
       toast.error(err.message || "Failed to join group.");
+    },
+  });
+
+  // 5b. Join Group via Invite Code Mutation
+  const joinGroupByCodeMutation = useMutation({
+    mutationFn: ({
+      inviteCode,
+      anonymousName,
+      avatarColor,
+    }: {
+      inviteCode: string;
+      anonymousName?: string;
+      avatarColor?: string;
+    }) =>
+      apiFetch<{ memberStatus: string; groupId?: string }>(`/community/groups/join-by-code`, {
+        method: "POST",
+        body: JSON.stringify({
+          inviteCode: inviteCode.trim().toUpperCase(),
+          anonymousName: anonymousName?.trim() || undefined,
+          avatarColor,
+        }),
+      }),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["community", "groups"] });
+      setIsJoinByCodeOpen(false);
+      setInviteCodeInput("");
+      if (res.memberStatus === "Pending") {
+        toast.info("Invite accepted! Join request sent to group admins for approval.");
+      } else {
+        toast.success("Successfully joined the private group!");
+        if (res.groupId) {
+          setSelectedGroupId(res.groupId);
+        }
+        setViewMode("chat");
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to join with invite code.");
     },
   });
 
@@ -442,12 +595,13 @@ export default function CommunityPage() {
 
   const handleOpenGroup = (group: CommunityGroup) => {
     setSelectedGroupId(group.id);
-    if (group.isMember) {
+    if (group.isMember || group.isPending) {
       setViewMode("chat");
-    } else if (group.isPending) {
-      setViewMode("chat");
+    } else if (group.isInviteOnly) {
+      setInviteCodeInput(group.inviteCode || "");
+      setIsJoinByCodeOpen(true);
     } else {
-      joinGroupMutation.mutate(group.id);
+      joinGroupMutation.mutate({ groupId: group.id });
     }
     const mainEl = document.querySelector("main");
     if (mainEl) {
@@ -504,7 +658,51 @@ export default function CommunityPage() {
       description: newGroupDescription.trim(),
       avatarEmoji: newGroupEmoji,
       requiresApproval: newGroupRequiresApproval,
+      isHidden: newGroupIsHidden,
+      isInviteOnly: newGroupIsInviteOnly,
     });
+  };
+
+  const handleOpenGroupSettings = () => {
+    if (!activeGroup) return;
+    setEditGroupName(activeGroup.groupName);
+    setEditGroupTopic(activeGroup.topic);
+    setEditGroupDescription(activeGroup.description || "");
+    setEditGroupEmoji(activeGroup.avatarEmoji || "🌿");
+    setEditRequiresApproval(activeGroup.requiresApproval);
+    setEditIsHidden(activeGroup.isHidden);
+    setEditIsInviteOnly(activeGroup.isInviteOnly);
+    setIsGroupSettingsOpen(true);
+  };
+
+  const handleSaveGroupSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeGroupId || !editGroupName.trim() || !editGroupTopic.trim()) return;
+
+    updateGroupSettingsMutation.mutate({
+      groupName: editGroupName.trim(),
+      topic: editGroupTopic.trim(),
+      description: editGroupDescription.trim(),
+      avatarEmoji: editGroupEmoji,
+      requiresApproval: editRequiresApproval,
+      isHidden: editIsHidden,
+      isInviteOnly: editIsInviteOnly,
+    });
+  };
+
+  const handleCopyInviteCode = (code: string) => {
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(code);
+      toast.success(`Invite code "${code}" copied to clipboard!`);
+    }
+  };
+
+  const handleCopyInviteLink = (code: string) => {
+    if (typeof window !== "undefined") {
+      const url = `${window.location.origin}/patient/community?join=${code}`;
+      navigator.clipboard.writeText(url);
+      toast.success("Private invite link copied to clipboard!");
+    }
   };
 
   // Group directory logic:
@@ -569,7 +767,19 @@ export default function CommunityPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => {
+                  setInviteCodeInput("");
+                  setIsJoinByCodeOpen(true);
+                }}
+                className="h-11 px-4 rounded-xl font-semibold shadow-xs flex items-center gap-2 border-indigo-500/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10"
+              >
+                <Key className="w-4 h-4" />
+                <span>Join with Invite Code</span>
+              </Button>
               <Button
                 variant="outline"
                 size="lg"
@@ -737,6 +947,16 @@ export default function CommunityPage() {
                           {group.avatarEmoji || "💬"}
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          {group.isHidden && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center gap-1">
+                              <EyeOff className="w-2.5 h-2.5" /> Hidden
+                            </span>
+                          )}
+                          {group.isInviteOnly && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center gap-1">
+                              <Key className="w-2.5 h-2.5" /> Invite Only
+                            </span>
+                          )}
                           {group.requiresApproval && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1">
                               <Lock className="w-2.5 h-2.5" /> Approval Req
@@ -816,6 +1036,19 @@ export default function CommunityPage() {
                         >
                           <Clock className="w-3 h-3" />
                           <span>Request Pending</span>
+                        </Button>
+                      ) : group.isInviteOnly ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-3 text-xs rounded-lg gap-1.5 text-indigo-600 dark:text-indigo-400 border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenGroup(group);
+                          }}
+                        >
+                          <Key className="w-3 h-3" />
+                          <span>Join with Invite</span>
                         </Button>
                       ) : group.requiresApproval ? (
                         <Button
@@ -972,50 +1205,16 @@ export default function CommunityPage() {
                 <ArrowLeft className="w-3.5 h-3.5 mr-1" /> All Groups
               </Button>
 
-              {/* Anonymous Persona Customizer Pill */}
-              {activeGroup?.isMember && (
-                <button
-                  type="button"
-                  onClick={handleOpenProfileModal}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-slate-900/80 hover:bg-white/10 transition-all text-xs text-slate-300 hover:text-white shadow-xs"
-                  title="Click to customize your anonymous pseudonym & avatar"
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${
-                      activeGroup.myAvatarColor && COLOR_CLASSES[activeGroup.myAvatarColor]
-                        ? COLOR_CLASSES[activeGroup.myAvatarColor].badge
-                        : "bg-emerald-500"
-                    }`}
-                  >
-                    {(activeGroup.myAnonymousName || "Me").charAt(0).toUpperCase()}
-                  </div>
-                  <span className="hidden sm:inline text-slate-400">Alias:</span>
-                  <strong className="text-white font-medium truncate max-w-[110px]">
-                    {activeGroup.myAnonymousName || "Anonymous Member"}
-                  </strong>
-                  <Sparkles className="w-3 h-3 text-amber-400" />
-                </button>
-              )}
-
-              {/* Admin Pending Approvals Counter */}
-              {activeGroup?.isGroupAdmin && activeGroup.pendingRequestsCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setIsPendingRequestsDialogOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 transition-colors text-xs font-semibold animate-pulse"
-                  title="Review pending member requests"
-                >
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{activeGroup.pendingRequestsCount} Pending</span>
-                </button>
-              )}
-
               {/* Toggle Room Details Drawer */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowRightPanel((prev) => !prev)}
-                className="h-8 px-2.5 rounded-full border border-white/10 bg-slate-900/60 hover:bg-white/10 text-slate-300 hover:text-white text-xs gap-1.5"
+                className={`h-8 px-3 rounded-full border text-xs gap-1.5 transition-all shadow-xs ${
+                  showRightPanel
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                    : "bg-slate-900/80 hover:bg-white/10 border-white/10 text-slate-300 hover:text-white"
+                }`}
                 title={showRightPanel ? "Hide room details" : "Show room details"}
               >
                 {showRightPanel ? (
@@ -1023,7 +1222,10 @@ export default function CommunityPage() {
                 ) : (
                   <PanelRightOpen className="w-3.5 h-3.5" />
                 )}
-                <span className="hidden xl:inline">Details</span>
+                <span>Details</span>
+                {activeGroup?.isGroupAdmin && activeGroup.pendingRequestsCount > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                )}
               </Button>
             </div>
           </header>
@@ -1125,81 +1327,25 @@ export default function CommunityPage() {
             <section className="flex-1 flex flex-col min-w-0 min-h-0 bg-slate-950/20 backdrop-blur-xs relative">
               {activeGroup ? (
                 <>
-                  {/* Floating Action Pills Bar (Matching Call/Video pills in reference!) */}
+                  {/* Chat Stage Header Bar */}
                   <div className="py-2.5 px-4 flex items-center justify-between border-b border-white/10 bg-slate-950/40 backdrop-blur-md flex-shrink-0">
                     {/* Room Identity Left */}
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-lg flex-shrink-0 shadow-inner">
+                    <div
+                      onClick={() => setShowRightPanel((prev) => !prev)}
+                      className="flex items-center gap-2.5 min-w-0 cursor-pointer select-none group"
+                      title="Click to toggle room details"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-lg flex-shrink-0 shadow-inner group-hover:scale-105 transition-transform">
                         {activeGroup.avatarEmoji || "💬"}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-sm font-bold text-white truncate">{activeGroup.groupName}</h2>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 font-medium">
-                            {activeGroup.topic}
-                          </span>
-                        </div>
+                        <h2 className="text-sm font-bold text-white truncate group-hover:text-emerald-300 transition-colors">
+                          {activeGroup.groupName}
+                        </h2>
+                        <p className="text-[11px] text-slate-400 truncate">
+                          {members?.length || activeGroup.memberCount} members • {activeGroup.topic}
+                        </p>
                       </div>
-                    </div>
-
-                    {/* Centered Floating Capsule Pills */}
-                    <div className="flex items-center gap-2">
-                      {/* Capsule 1: Members Roster */}
-                      <button
-                        type="button"
-                        onClick={() => setIsMembersDialogOpen(true)}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-slate-200 hover:text-white transition-all text-xs font-medium shadow-sm hover:border-emerald-500/30"
-                        title="View active room members"
-                      >
-                        <Users className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Members</span>
-                        <span className="px-1.5 py-0.2 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
-                          {members?.length || activeGroup.memberCount}
-                        </span>
-                      </button>
-
-                      {/* Capsule 2: My Persona Customizer */}
-                      {activeGroup.isMember && (
-                        <button
-                          type="button"
-                          onClick={handleOpenProfileModal}
-                          className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-slate-200 hover:text-white transition-all text-xs font-medium shadow-sm hover:border-indigo-500/30"
-                          title="Customize your anonymous persona"
-                        >
-                          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                          <span>Persona</span>
-                        </button>
-                      )}
-
-                      {/* Capsule 3: Approvals (Admin) */}
-                      {activeGroup.isGroupAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => setIsPendingRequestsDialogOpen(true)}
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-slate-200 hover:text-white transition-all text-xs font-medium shadow-sm"
-                          title="Manage member requests"
-                        >
-                          <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Approvals</span>
-                          {activeGroup.pendingRequestsCount > 0 && (
-                            <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-extrabold">
-                              {activeGroup.pendingRequestsCount}
-                            </span>
-                          )}
-                        </button>
-                      )}
-
-                      {/* Capsule 4: Leave Group */}
-                      {activeGroup.isMember && (
-                        <button
-                          type="button"
-                          onClick={() => setIsLeaveGroupDialogOpen(true)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/60 hover:bg-rose-500/20 border border-white/10 text-slate-400 hover:text-rose-300 transition-colors text-xs"
-                          title="Leave this group"
-                        >
-                          <LogOut className="w-3.5 h-3.5" />
-                        </button>
-                      )}
                     </div>
                   </div>
 
@@ -1265,11 +1411,22 @@ export default function CommunityPage() {
                       </div>
                       <Button
                         size="sm"
-                        onClick={() => joinGroupMutation.mutate(activeGroup.id)}
+                        onClick={() => {
+                          if (activeGroup.isInviteOnly) {
+                            setInviteCodeInput(activeGroup.inviteCode || "");
+                            setIsJoinByCodeOpen(true);
+                          } else {
+                            joinGroupMutation.mutate({ groupId: activeGroup.id });
+                          }
+                        }}
                         disabled={joinGroupMutation.isPending}
                         className="text-xs px-6 h-9 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-lg shadow-emerald-500/20"
                       >
-                        {activeGroup.requiresApproval ? "Request to Join Group" : "Join & Enter Chat"}
+                        {activeGroup.isInviteOnly
+                          ? "Enter Invite Code to Join"
+                          : activeGroup.requiresApproval
+                          ? "Request to Join Group"
+                          : "Join & Enter Chat"}
                       </Button>
                     </div>
                   ) : (
@@ -1566,11 +1723,155 @@ export default function CommunityPage() {
                       <h4 className="font-bold text-sm text-white">{activeGroup.groupName}</h4>
                       <p className="text-[11px] text-emerald-400 font-medium mt-0.5">{activeGroup.topic}</p>
                     </div>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/80 border border-white/10 text-[10px] text-slate-400">
-                      <Lock className="w-3 h-3 text-emerald-400" />
-                      <span>Anonymous & Protected</span>
+                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/80 border border-white/10 text-[10px] text-slate-400">
+                        <Lock className="w-3 h-3 text-emerald-400" />
+                        <span>Anonymous</span>
+                      </div>
+                      {activeGroup.isHidden && (
+                        <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-[10px] text-purple-300">
+                          <EyeOff className="w-3 h-3 text-purple-400" />
+                          <span>Hidden Room</span>
+                        </div>
+                      )}
+                      {activeGroup.isInviteOnly && (
+                        <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-[10px] text-indigo-300">
+                          <Key className="w-3 h-3 text-indigo-400" />
+                          <span>Invite Only</span>
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Action Capsules Cluster (Members, Persona, Approvals, Settings, Leave) */}
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block px-0.5">
+                      Room Controls & Actions
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Action 1: Members */}
+                      <button
+                        type="button"
+                        onClick={() => setIsMembersDialogOpen(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-slate-200 hover:text-white transition-all text-xs font-medium shadow-sm hover:border-emerald-500/30"
+                        title="View active room members"
+                      >
+                        <Users className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Members</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
+                          {members?.length || activeGroup.memberCount}
+                        </span>
+                      </button>
+
+                      {/* Action 2: Persona Customizer */}
+                      {activeGroup.isMember && (
+                        <button
+                          type="button"
+                          onClick={handleOpenProfileModal}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-slate-200 hover:text-white transition-all text-xs font-medium shadow-sm hover:border-indigo-500/30"
+                          title="Customize your anonymous persona"
+                        >
+                          <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Persona</span>
+                        </button>
+                      )}
+
+                      {/* Action 3: Approvals (Admin) */}
+                      {activeGroup.isGroupAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => setIsPendingRequestsDialogOpen(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-slate-200 hover:text-white transition-all text-xs font-medium shadow-sm"
+                          title="Review pending member requests"
+                        >
+                          <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Approvals</span>
+                          {activeGroup.pendingRequestsCount > 0 && (
+                            <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-extrabold animate-pulse">
+                              {activeGroup.pendingRequestsCount}
+                            </span>
+                          )}
+                        </button>
+                      )}
+
+                      {/* Action 4: Room Privacy & Settings (Admin) */}
+                      {activeGroup.isGroupAdmin && (
+                        <button
+                          type="button"
+                          onClick={handleOpenGroupSettings}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-slate-200 hover:text-white transition-all text-xs font-medium shadow-sm hover:border-slate-400/40"
+                          title="Configure room visibility & settings"
+                        >
+                          <Settings className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Settings</span>
+                        </button>
+                      )}
+
+                      {/* Action 5: Leave Room */}
+                      {activeGroup.isMember && (
+                        <button
+                          type="button"
+                          onClick={() => setIsLeaveGroupDialogOpen(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-rose-500/20 border border-white/10 text-slate-400 hover:text-rose-300 transition-all text-xs font-medium shadow-sm hover:border-rose-500/30"
+                          title="Leave this group"
+                        >
+                          <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                          <span>Leave</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Private Invite Link & Access Code Card */}
+                  {activeGroup.inviteCode && (
+                    <div className="p-3.5 rounded-2xl bg-slate-900/70 border border-white/10 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                          <Key className="w-3 h-3 text-amber-400" /> Invite Access Code
+                        </span>
+                        {activeGroup.isGroupAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => setIsRegenerateCodeOpen(true)}
+                            className="text-[10px] text-slate-400 hover:text-amber-300 transition-colors"
+                            title="Regenerate invite code"
+                          >
+                            Reset Code
+                          </button>
+                        )}
+                      </div>
+                      <div className="p-2 rounded-xl bg-slate-950/80 border border-white/10 flex items-center justify-between gap-2">
+                        <code className="font-mono text-xs font-bold text-amber-300 tracking-wider">
+                          {activeGroup.inviteCode}
+                        </code>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyInviteCode(activeGroup.inviteCode!)}
+                            className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                            title="Copy invite code"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyInviteLink(activeGroup.inviteCode!)}
+                            className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                            title="Copy invite link"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                        {activeGroup.isHidden
+                          ? "This room is hidden from the directory. Peers can only discover and join using this invite code."
+                          : activeGroup.isInviteOnly
+                          ? "This room is invite-only. Peers need this code to enter."
+                          : "Share this invite code or link with peers to invite them to this room."}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Connected Peers Stack */}
                   <div className="space-y-2">
@@ -1771,7 +2072,7 @@ export default function CommunityPage() {
                 type="checkbox"
                 checked={newGroupRequiresApproval}
                 onChange={(e) => setNewGroupRequiresApproval(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded-sm border-input text-primary focus:ring-primary"
+                className="mt-0.5 h-4 w-4 rounded-sm border-input text-primary focus:ring-primary cursor-pointer"
               />
               <label htmlFor="requiresApproval" className="text-xs cursor-pointer select-none space-y-0.5">
                 <span className="font-semibold text-foreground flex items-center gap-1.5">
@@ -1779,6 +2080,56 @@ export default function CommunityPage() {
                 </span>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   Only approved peers can view chat messages and participate. You will receive member join requests to review.
+                </p>
+              </label>
+            </div>
+
+            {/* Hidden Group Checkbox */}
+            <div className="p-3 rounded-xl border bg-muted/30 flex items-start gap-3 cursor-pointer">
+              <input
+                id="isHidden"
+                type="checkbox"
+                checked={newGroupIsHidden}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setNewGroupIsHidden(checked);
+                  if (checked) {
+                    setNewGroupIsInviteOnly(true);
+                  }
+                }}
+                className="mt-0.5 h-4 w-4 rounded-sm border-input text-primary focus:ring-primary cursor-pointer"
+              />
+              <label htmlFor="isHidden" className="text-xs cursor-pointer select-none space-y-0.5">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <EyeOff className="w-3.5 h-3.5 text-purple-500" /> Hidden Group (Unlisted)
+                </span>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Completely hide this room from the community directory and search. Only peers who receive an invite link or code can discover and join.
+                </p>
+              </label>
+            </div>
+
+            {/* Invite-Only Checkbox */}
+            <div className="p-3 rounded-xl border bg-muted/30 flex items-start gap-3 cursor-pointer">
+              <input
+                id="isInviteOnly"
+                type="checkbox"
+                checked={newGroupIsInviteOnly}
+                onChange={(e) => {
+                  if (newGroupIsHidden && !e.target.checked) {
+                    toast.info("Hidden groups must remain invite-only.");
+                    return;
+                  }
+                  setNewGroupIsInviteOnly(e.target.checked);
+                }}
+                className="mt-0.5 h-4 w-4 rounded-sm border-input text-primary focus:ring-primary cursor-pointer"
+              />
+              <label htmlFor="isInviteOnly" className="text-xs cursor-pointer select-none space-y-0.5">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-indigo-500" /> Require Invite Code to Join
+                </span>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Peers can only join if they possess a valid invite code or private invitation link.
                 </p>
               </label>
             </div>
@@ -2315,6 +2666,730 @@ export default function CommunityPage() {
               {updateMemberRoleMutation.isPending ? "Updating..." : "Remove Admin Privileges"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* =========================================================================
+          MODAL 9: JOIN GROUP VIA INVITE CODE / LINK DIALOG
+          ========================================================================= */}
+      <Dialog open={isJoinByCodeOpen} onOpenChange={setIsJoinByCodeOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Key className="w-4 h-4 text-indigo-500" />
+              <span>Join Private Group</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Enter an invite code or private link to preview and join hidden or invite-only recovery groups.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Group Invite Code</label>
+              <div className="relative">
+                <Input
+                  value={inviteCodeInput}
+                  onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())}
+                  placeholder="e.g. 7A4D9B12"
+                  className="font-mono uppercase tracking-wider text-xs pr-8"
+                  maxLength={16}
+                />
+                {inviteCodeInput && (
+                  <button
+                    type="button"
+                    onClick={() => setInviteCodeInput("")}
+                    className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground text-xs"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Invite codes are 8-character identifiers provided by group creators or administrators.
+              </p>
+            </div>
+
+            {/* Live Group Preview */}
+            {cleanInviteCode.length >= 4 && (
+              <div className="space-y-2">
+                {loadingInvitePreview ? (
+                  <div className="p-4 rounded-xl border border-dashed border-border bg-muted/20 text-center text-xs text-muted-foreground animate-pulse">
+                    Looking up group details...
+                  </div>
+                ) : invitePreviewGroup ? (
+                  <div className="p-3.5 rounded-xl border bg-muted/30 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-card border flex items-center justify-center text-xl flex-shrink-0 shadow-xs">
+                          {invitePreviewGroup.avatarEmoji || "🌿"}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-foreground truncate">
+                            #{invitePreviewGroup.groupName}
+                          </h4>
+                          <span className="inline-block text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full mt-0.5">
+                            {invitePreviewGroup.topic}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          <span>{invitePreviewGroup.memberCount} members</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {invitePreviewGroup.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                        {invitePreviewGroup.description}
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/60">
+                      {invitePreviewGroup.isHidden && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-purple-500/10 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md">
+                          <EyeOff className="w-3 h-3" /> Hidden Group
+                        </span>
+                      )}
+                      {invitePreviewGroup.isInviteOnly && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md">
+                          <Key className="w-3 h-3" /> Invite Only
+                        </span>
+                      )}
+                      {invitePreviewGroup.requiresApproval ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-md">
+                          <Lock className="w-3 h-3" /> Admin Approval Required
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md">
+                          <Check className="w-3 h-3" /> Instant Join
+                        </span>
+                      )}
+                    </div>
+
+                    {invitePreviewGroup.isMember ? (
+                      <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 text-xs flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <CheckCheck className="w-4 h-4 text-emerald-600" /> You are already a member of this group.
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs bg-card"
+                          onClick={() => {
+                            setSelectedGroupId(invitePreviewGroup.id);
+                            setViewMode("chat");
+                            setIsJoinByCodeOpen(false);
+                          }}
+                        >
+                          Open Chat
+                        </Button>
+                      </div>
+                    ) : invitePreviewGroup.isPending ? (
+                      <div className="p-2.5 rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>Your join request has been submitted and is waiting for approval by group admins.</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 pt-2 border-t border-border/60">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                            <span>Your Anonymous Pseudonym (Optional)</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const random = RANDOM_PSEUDONYMS[Math.floor(Math.random() * RANDOM_PSEUDONYMS.length)];
+                                setInviteCustomName(random);
+                              }}
+                              className="text-[11px] text-primary hover:underline flex items-center gap-1"
+                            >
+                              <RefreshCw className="w-2.5 h-2.5" /> Roll Random
+                            </button>
+                          </label>
+                          <Input
+                            value={inviteCustomName}
+                            onChange={(e) => setInviteCustomName(e.target.value)}
+                            placeholder="e.g. HopefulVoyager"
+                            className="text-xs"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-foreground">Avatar Accent</label>
+                          <div className="flex items-center gap-2">
+                            {Object.keys(COLOR_CLASSES).map((colorKey) => {
+                              const c = COLOR_CLASSES[colorKey];
+                              const isSelected = inviteCustomColor === colorKey;
+                              return (
+                                <button
+                                  key={colorKey}
+                                  type="button"
+                                  onClick={() => setInviteCustomColor(colorKey)}
+                                  className={`w-6 h-6 rounded-full ${c.badge} border-2 transition-all ${
+                                    isSelected ? "scale-110 border-foreground shadow-xs" : "border-transparent opacity-80"
+                                  }`}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : cleanInviteCode.length >= 6 ? (
+                  <div className="p-3.5 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive text-xs space-y-1">
+                    <p className="font-semibold flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Invalid or Expired Invite Code
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      No group was found matching &ldquo;{cleanInviteCode}&rdquo;. Please verify the code or ask the group administrator for a fresh invite link.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsJoinByCodeOpen(false);
+                  setInviteCodeInput("");
+                }}
+              >
+                Cancel
+              </Button>
+              {(!invitePreviewGroup || !invitePreviewGroup.isMember) && (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={
+                    joinGroupByCodeMutation.isPending ||
+                    !cleanInviteCode ||
+                    !invitePreviewGroup ||
+                    invitePreviewGroup.isPending
+                  }
+                  onClick={() => {
+                    joinGroupByCodeMutation.mutate({
+                      inviteCode: cleanInviteCode,
+                      anonymousName: inviteCustomName.trim() || undefined,
+                      avatarColor: inviteCustomColor,
+                    });
+                  }}
+                  className="gap-1.5"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>
+                    {joinGroupByCodeMutation.isPending
+                      ? "Joining..."
+                      : invitePreviewGroup?.requiresApproval
+                      ? "Submit Join Request"
+                      : "Accept Invite & Join"}
+                  </span>
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* =========================================================================
+          MODAL 10: GROUP SETTINGS & PRIVACY DIALOG (ADMIN)
+          ========================================================================= */}
+      <Dialog open={isGroupSettingsOpen} onOpenChange={setIsGroupSettingsOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Settings className="w-4 h-4 text-primary" />
+              <span>Group Settings & Privacy</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Manage details, directory visibility, and invite access for #{activeGroup?.groupName}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveGroupSettings} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Group Name *</label>
+              <Input
+                value={editGroupName}
+                onChange={(e) => setEditGroupName(e.target.value)}
+                placeholder="e.g. Anxiety & Mindfulness Circle"
+                className="text-xs"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Topic Category *</label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {SUGGESTED_TOPICS.map((topic) => (
+                  <button
+                    key={topic}
+                    type="button"
+                    onClick={() => setEditGroupTopic(topic)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                      editGroupTopic === topic
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    {topic}
+                  </button>
+                ))}
+              </div>
+              <Input
+                value={editGroupTopic}
+                onChange={(e) => setEditGroupTopic(e.target.value)}
+                placeholder="Or type custom topic..."
+                className="text-xs"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Room Icon</label>
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl border bg-muted flex items-center justify-center text-xl flex-shrink-0">
+                  {editGroupEmoji}
+                </div>
+                <div className="flex items-center gap-1.5 overflow-x-auto p-1">
+                  {EMOJI_OPTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setEditGroupEmoji(emoji)}
+                      className={`w-7 h-7 rounded-lg text-sm flex items-center justify-center transition-all ${
+                        editGroupEmoji === emoji ? "bg-primary/20 scale-110 border border-primary" : "hover:bg-muted"
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Group Description</label>
+              <textarea
+                value={editGroupDescription}
+                onChange={(e) => setEditGroupDescription(e.target.value)}
+                placeholder="Briefly describe what members can share or discuss in this group..."
+                rows={3}
+                className="w-full rounded-md border border-input bg-card p-2.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            {/* Privacy & Access Controls */}
+            <div className="space-y-2 pt-2 border-t">
+              <h4 className="text-xs font-semibold text-foreground">Privacy & Membership Rules</h4>
+
+              {/* Require Admin Approval */}
+              <div className="p-3 rounded-xl border bg-muted/30 flex items-start gap-3 cursor-pointer">
+                <input
+                  id="editRequiresApproval"
+                  type="checkbox"
+                  checked={editRequiresApproval}
+                  onChange={(e) => setEditRequiresApproval(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded-sm border-input text-primary focus:ring-primary cursor-pointer"
+                />
+                <label htmlFor="editRequiresApproval" className="text-xs cursor-pointer select-none space-y-0.5">
+                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-amber-500" /> Require Admin Approval to Join
+                  </span>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    New peers must be reviewed and approved by an admin before they can view chat history or post messages.
+                  </p>
+                </label>
+              </div>
+
+              {/* Hidden Group Checkbox */}
+              <div className="p-3 rounded-xl border bg-muted/30 flex items-start gap-3 cursor-pointer">
+                <input
+                  id="editIsHidden"
+                  type="checkbox"
+                  checked={editIsHidden}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setEditIsHidden(checked);
+                    if (checked) {
+                      setEditIsInviteOnly(true);
+                    }
+                  }}
+                  className="mt-0.5 h-4 w-4 rounded-sm border-input text-primary focus:ring-primary cursor-pointer"
+                />
+                <label htmlFor="editIsHidden" className="text-xs cursor-pointer select-none space-y-0.5">
+                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                    <EyeOff className="w-3.5 h-3.5 text-purple-500" /> Hidden Group (Unlisted)
+                  </span>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Completely omit this group from the public directory and search. Only existing members and invited people can view or join.
+                  </p>
+                </label>
+              </div>
+
+              {/* Invite-Only Checkbox */}
+              <div className="p-3 rounded-xl border bg-muted/30 flex items-start gap-3 cursor-pointer">
+                <input
+                  id="editIsInviteOnly"
+                  type="checkbox"
+                  checked={editIsInviteOnly}
+                  onChange={(e) => {
+                    if (editIsHidden && !e.target.checked) {
+                      toast.info("Hidden groups must remain invite-only.");
+                      return;
+                    }
+                    setEditIsInviteOnly(e.target.checked);
+                  }}
+                  className="mt-0.5 h-4 w-4 rounded-sm border-input text-primary focus:ring-primary cursor-pointer"
+                />
+                <label htmlFor="editIsInviteOnly" className="text-xs cursor-pointer select-none space-y-0.5">
+                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Key className="w-3.5 h-3.5 text-indigo-500" /> Require Invite Code to Join
+                  </span>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Only users who enter a valid invite code or use an invite link can request access to join.
+                  </p>
+                </label>
+              </div>
+            </div>
+
+            {/* Invite Code & Link Management */}
+            {activeGroup?.inviteCode && (
+              <div className="p-3 rounded-xl border bg-muted/30 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Key className="w-3.5 h-3.5 text-primary" /> Active Invite Code
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                    onClick={() => setIsRegenerateCodeOpen(true)}
+                  >
+                    <RefreshCw className="w-3 h-3" /> Regenerate Code
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-card border rounded-lg px-3 py-1.5 font-mono text-xs font-bold tracking-wider text-foreground">
+                    {activeGroup.inviteCode}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs gap-1"
+                    onClick={() => handleCopyInviteCode(activeGroup.inviteCode!)}
+                  >
+                    <Copy className="w-3.5 h-3.5" /> Copy Code
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs gap-1"
+                    onClick={() => handleCopyInviteLink(activeGroup.inviteCode!)}
+                  >
+                    <Share2 className="w-3.5 h-3.5" /> Share Link
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsGroupSettingsOpen(false)}
+                disabled={updateGroupSettingsMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={updateGroupSettingsMutation.isPending || !editGroupName.trim()}
+              >
+                {updateGroupSettingsMutation.isPending ? "Saving..." : "Save Settings"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* =========================================================================
+          MODAL 11: REGENERATE INVITE CODE CONFIRMATION DIALOG (ADMIN)
+          ========================================================================= */}
+      <Dialog open={isRegenerateCodeOpen} onOpenChange={setIsRegenerateCodeOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+              <RefreshCw className="w-4 h-4 text-amber-500" />
+              <span>Regenerate Invite Code?</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Create a new private invite code for #{activeGroup?.groupName}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs text-muted-foreground">
+            <div className="p-3 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-900 dark:text-amber-200 space-y-1">
+              <p className="font-semibold flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Important Warning
+              </p>
+              <p className="text-[11px] leading-relaxed">
+                Regenerating the code will immediately invalidate all previously shared invite links and codes. Existing members will remain in the group, but anyone using previous invite links will no longer be able to join.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsRegenerateCodeOpen(false)}
+              disabled={regenerateInviteCodeMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={regenerateInviteCodeMutation.isPending || !activeGroupId}
+              onClick={() => {
+                regenerateInviteCodeMutation.mutate();
+              }}
+              className="gap-1.5"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${regenerateInviteCodeMutation.isPending ? "animate-spin" : ""}`} />
+              <span>{regenerateInviteCodeMutation.isPending ? "Generating..." : "Generate New Code"}</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* =========================================================================
+          MODAL 12: ROOM INFORMATION & PRIVACY DIALOG
+          ========================================================================= */}
+      <Dialog open={isInfoDialogOpen} onOpenChange={setIsInfoDialogOpen}>
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Info className="w-4 h-4 text-sky-400" />
+              <span>Room Information</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Topic categorization, privacy settings, and access rules for #{activeGroup?.groupName}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {activeGroup && (
+            <div className="space-y-3.5 pt-1 text-xs">
+              {/* Header Card */}
+              <div className="p-3 rounded-2xl bg-muted/40 border flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-card border flex items-center justify-center text-2xl flex-shrink-0 shadow-xs">
+                  {activeGroup.avatarEmoji || "💬"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-sm text-foreground truncate">
+                    {activeGroup.groupName}
+                  </h4>
+                  <div className="flex items-center gap-2 mt-0.5 text-muted-foreground text-[11px]">
+                    <span className="flex items-center gap-1">
+                      <Users className="w-3 h-3 text-emerald-500" />
+                      {members?.length || activeGroup.memberCount} active members
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-amber-500" />
+                      Anonymous chat
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Topic Category */}
+              <div className="p-3 rounded-xl border bg-muted/20 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Topic Category
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold text-xs border border-emerald-500/25">
+                    {activeGroup.topic}
+                  </span>
+                </div>
+              </div>
+
+              {/* Privacy: Hidden vs Public */}
+              <div className="p-3 rounded-xl border bg-muted/20 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Visibility
+                </span>
+                <div className="space-y-1">
+                  {activeGroup.isHidden ? (
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-semibold text-xs border border-purple-500/25">
+                        <EyeOff className="w-3.5 h-3.5 text-purple-500" />
+                        Hidden Group (Unlisted)
+                      </span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        This group is omitted from the community directory and search. Only existing members and users with an invite code or link can discover and join.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-500/15 text-sky-700 dark:text-sky-300 font-semibold text-xs border border-sky-500/25">
+                        <Eye className="w-3.5 h-3.5 text-sky-500" />
+                        Public Directory Group
+                      </span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        This group is publicly listed in the community directory and can be found by anyone browsing recovery topics.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Access: Invite-Only vs Open */}
+              <div className="p-3 rounded-xl border bg-muted/20 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Join Access
+                </span>
+                <div className="space-y-1.5">
+                  {activeGroup.isInviteOnly ? (
+                    <div className="space-y-2">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-semibold text-xs border border-indigo-500/25">
+                        <Key className="w-3.5 h-3.5 text-indigo-500" />
+                        Invite Only Access
+                      </span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        A unique 8-character invite code or private invitation link is required to join this group.
+                      </p>
+
+                      {/* Display invite code if user is a member */}
+                      {activeGroup.inviteCode && (
+                        <div className="p-2.5 rounded-lg bg-card border flex items-center justify-between gap-2 mt-1">
+                          <code className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400 tracking-wider">
+                            {activeGroup.inviteCode}
+                          </code>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-[11px] gap-1"
+                              onClick={() => handleCopyInviteCode(activeGroup.inviteCode!)}
+                            >
+                              <Copy className="w-3 h-3" /> Copy Code
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-[11px] gap-1"
+                              onClick={() => handleCopyInviteLink(activeGroup.inviteCode!)}
+                            >
+                              <Share2 className="w-3 h-3" /> Share Link
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold text-xs border border-emerald-500/25">
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        Open Access
+                      </span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Any authenticated peer can join this group directly without an invite code.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Membership Approval Policy */}
+              <div className="p-3 rounded-xl border bg-muted/20 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Membership Approval
+                </span>
+                <div className="space-y-1">
+                  {activeGroup.requiresApproval ? (
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 font-semibold text-xs border border-amber-500/25">
+                        <Lock className="w-3.5 h-3.5 text-amber-500" />
+                        Admin Approval Required
+                      </span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        New peers must be reviewed and approved by a group admin before they can read or send messages in this room.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold text-xs border border-emerald-500/25">
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        Instant Join
+                      </span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Peers receive immediate participation access upon joining.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Group Description */}
+              {activeGroup.description && (
+                <div className="p-3 rounded-xl border bg-muted/20 space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Group Objective
+                  </span>
+                  <p className="text-xs text-foreground/80 leading-relaxed italic">
+                    &ldquo;{activeGroup.description}&rdquo;
+                  </p>
+                </div>
+              )}
+
+              {/* Actions Footer */}
+              <div className="flex items-center justify-between pt-3 border-t">
+                {activeGroup.isGroupAdmin ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs gap-1.5"
+                    onClick={() => {
+                      setIsInfoDialogOpen(false);
+                      handleOpenGroupSettings();
+                    }}
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Edit Group Settings</span>
+                  </Button>
+                ) : (
+                  <div />
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setIsInfoDialogOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

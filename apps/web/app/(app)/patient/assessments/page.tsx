@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
@@ -18,7 +18,6 @@ import {
   ChevronRight,
   Info,
   PhoneCall,
-  Sparkles,
   Languages,
   Layers,
   Compass,
@@ -29,9 +28,15 @@ import {
   Filter,
   Check,
   HeartHandshake,
+  ScrollText,
+  Stethoscope,
+  ShieldCheck,
+  Target,
+  Brain,
+  ArrowUpRight,
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +45,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { getRecommendedTherapyForAssessment } from "@/lib/therapy-recommender";
 import {
   getQuestionBanglaText,
   getOptionBanglaLabel,
@@ -231,12 +237,13 @@ export default function AssessmentsPage() {
   // Orbital Navigation & Spotlight States
   const [selectedDomainIndex, setSelectedDomainIndex] = useState<number>(0);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
-  const [displayMode, setDisplayMode] = useState<"orbital" | "grid">("orbital");
+  const [displayMode, setDisplayMode] = useState<"orbital" | "grid">("grid");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
 
   // Active Assessment Taking States
   const [activeAssessmentId, setActiveAssessmentId] = useState<string | null>(null);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
+  const [runnerMode, setRunnerMode] = useState<"scroll" | "stepper">("scroll");
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [lastResult, setLastResult] = useState<AssessmentResult | null>(null);
   const [isBanglaMode, setIsBanglaMode] = useState<boolean>(false);
@@ -250,6 +257,39 @@ export default function AssessmentsPage() {
     | null
   >(null);
   const [inspectingResult, setInspectingResult] = useState<AssessmentResult | null>(null);
+
+  const stepAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const stepperPillsRef = useRef<HTMLDivElement | null>(null);
+
+  // Clean up any pending step advance timers on unmount
+  useEffect(() => {
+    return () => {
+      if (stepAdvanceTimeoutRef.current) {
+        clearTimeout(stepAdvanceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // When question advances in step view, smoothly center the active question pill and reveal rear numbers
+  useEffect(() => {
+    if (runnerMode === "stepper" && activeAssessmentId) {
+      const scrollPillIntoView = () => {
+        const activePill = document.getElementById(`stepper-pill-${currentQuestionIdx}`);
+        const container = stepperPillsRef.current;
+        if (activePill && container) {
+          const targetScrollLeft =
+            activePill.offsetLeft - container.clientWidth / 2 + activePill.clientWidth / 2;
+          container.scrollTo({
+            left: Math.max(0, targetScrollLeft),
+            behavior: "smooth",
+          });
+        }
+      };
+
+      const rafId = requestAnimationFrame(scrollPillIntoView);
+      return () => cancelAnimationFrame(rafId);
+    }
+  }, [currentQuestionIdx, runnerMode, activeAssessmentId]);
 
   // 1. Fetch available assessments
   const { data: assessments, isLoading: loadingAssessments } = useQuery<Assessment[]>({
@@ -288,17 +328,51 @@ export default function AssessmentsPage() {
   });
 
   const handleStart = (id: string) => {
+    if (stepAdvanceTimeoutRef.current) {
+      clearTimeout(stepAdvanceTimeoutRef.current);
+    }
     setActiveAssessmentId(id);
     setCurrentQuestionIdx(0);
     setSelectedAnswers({});
     setLastResult(null);
   };
 
-  const handleAnswerSelect = (questionId: string, optionId: string) => {
+  const handleAnswerSelect = (questionId: string, optionId: string, currentIdx?: number) => {
     setSelectedAnswers((prev) => ({
       ...prev,
       [questionId]: optionId,
     }));
+
+    // In stepper mode, gently auto-advance to next question and center the number navigator
+    if (runnerMode === "stepper") {
+      if (stepAdvanceTimeoutRef.current) {
+        clearTimeout(stepAdvanceTimeoutRef.current);
+      }
+      const questionsCount = activeAssessment?.questions?.length || 0;
+      if (currentQuestionIdx < questionsCount - 1) {
+        stepAdvanceTimeoutRef.current = setTimeout(() => {
+          setCurrentQuestionIdx((prev) => Math.min(prev + 1, questionsCount - 1));
+        }, 240);
+      }
+    } else if (runnerMode === "scroll" && currentIdx !== undefined && activeAssessment?.questions && currentIdx < activeAssessment.questions.length - 1) {
+      setTimeout(() => {
+        const nextElem = document.getElementById(`question-card-${currentIdx + 1}`);
+        if (nextElem) {
+          nextElem.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 220);
+    }
+  };
+
+  const scrollToFirstUnanswered = () => {
+    if (!activeAssessment?.questions) return;
+    const firstUnansweredIdx = activeAssessment.questions.findIndex((q) => !selectedAnswers[q.id]);
+    if (firstUnansweredIdx !== -1) {
+      const elem = document.getElementById(`question-card-${firstUnansweredIdx}`);
+      if (elem) {
+        elem.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
   };
 
   const handleSubmit = (e?: React.FormEvent) => {
@@ -308,6 +382,7 @@ export default function AssessmentsPage() {
     const unanswered = activeAssessment.questions.filter((q) => !selectedAnswers[q.id]);
     if (unanswered.length > 0) {
       toast.error(`Please answer all questions before submitting (${unanswered.length} remaining).`);
+      scrollToFirstUnanswered();
       return;
     }
 
@@ -409,10 +484,11 @@ export default function AssessmentsPage() {
       {/* =========================================================================
           TOP HERO & HUB NAVIGATION (MATCHING THERAPY & RELAXATION AESTHETIC)
           ========================================================================= */}
-      <div className="relative overflow-hidden rounded-3xl bg-linear-to-r from-primary/10 via-primary/5 to-background border p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xs">
+      {!activeAssessmentId && !lastResult && (
+        <div className="relative overflow-hidden rounded-3xl bg-linear-to-r from-primary/10 via-primary/5 to-background border p-6 md:p-8 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6 shadow-xs">
         <div className="space-y-2 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary border border-primary/20">
-            <Sparkles className="w-3.5 h-3.5" />
+            <ClipboardList className="w-3.5 h-3.5" />
             <span>Clinical Psychometric Assessment Battery</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
@@ -423,8 +499,8 @@ export default function AssessmentsPage() {
           </p>
         </div>
 
-        {/* View Mode Switcher */}
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-card border shadow-2xs self-stretch sm:self-auto">
+        {/* Hub Tabs & View Mode Switcher */}
+        <div className="flex items-center gap-1.5 p-1.5 rounded-full bg-[#111c1d]/90 border border-white/[0.08] shadow-inner backdrop-blur-md shrink-0 max-w-full overflow-x-auto scrollbar-none">
           <button
             type="button"
             onClick={() => {
@@ -432,14 +508,23 @@ export default function AssessmentsPage() {
               setActiveAssessmentId(null);
               setLastResult(null);
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
               activeTab === "assessments"
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:bg-muted"
+                ? "bg-teal-600 text-white shadow-xs"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.06]"
             }`}
           >
-            <ClipboardList className="w-3.5 h-3.5" />
-            <span>Assessments ({assessments?.length || 17})</span>
+            <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+            <span>Assessments</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold leading-none ${
+                activeTab === "assessments"
+                  ? "bg-white/20 text-white"
+                  : "bg-white/[0.08] text-zinc-400"
+              }`}
+            >
+              {assessments?.length || 24}
+            </span>
           </button>
 
           <button
@@ -449,14 +534,25 @@ export default function AssessmentsPage() {
               setActiveAssessmentId(null);
               setLastResult(null);
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
               activeTab === "results"
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:bg-muted"
+                ? "bg-teal-600 text-white shadow-xs"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.06]"
             }`}
           >
-            <Award className="w-3.5 h-3.5" />
-            <span>My Results {pastResults && pastResults.length > 0 ? `(${pastResults.length})` : ""}</span>
+            <Award className="w-3.5 h-3.5 shrink-0" />
+            <span>My Results</span>
+            {pastResults && pastResults.length > 0 && (
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold leading-none ${
+                  activeTab === "results"
+                    ? "bg-white/20 text-white"
+                    : "bg-white/[0.08] text-zinc-400"
+                }`}
+              >
+                {pastResults.length}
+              </span>
+            )}
           </button>
 
           <button
@@ -466,17 +562,37 @@ export default function AssessmentsPage() {
               setActiveAssessmentId(null);
               setLastResult(null);
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
               activeTab === "safety"
-                ? "bg-primary text-primary-foreground shadow-xs"
-                : "text-muted-foreground hover:bg-muted"
+                ? "bg-teal-600 text-white shadow-xs"
+                : "text-zinc-400 hover:text-white hover:bg-white/[0.06]"
             }`}
           >
-            <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
+            <ShieldAlert className="w-3.5 h-3.5 text-rose-500 shrink-0" />
             <span>Crisis & Safety</span>
           </button>
+
+          {activeTab === "assessments" && (
+            <>
+              <div className="h-4 w-px bg-white/10 mx-1 shrink-0" />
+              <button
+                type="button"
+                onClick={() => setDisplayMode((prev) => (prev === "grid" ? "orbital" : "grid"))}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer shrink-0 border ${
+                  displayMode === "orbital"
+                    ? "bg-teal-500/20 text-teal-300 border-teal-500/50 shadow-xs"
+                    : "border-white/10 text-zinc-400 hover:text-zinc-100 hover:border-white/20 hover:bg-white/[0.04]"
+                }`}
+                title={displayMode === "grid" ? "Switch to Orbital Spotlight view" : "Switch to Default Grid view"}
+              >
+                <Layers className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                <span>{displayMode === "grid" ? "Orbital View" : "Grid View"}</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
+      )}
 
       {/* =========================================================================
           TAB 1: CLINICAL ASSESSMENTS (ORBITAL ARC HERO + SPOTLIGHT CARD)
@@ -484,9 +600,108 @@ export default function AssessmentsPage() {
       {activeTab === "assessments" && !activeAssessmentId && !lastResult && (
         <div className="space-y-8">
           {/* =========================================================================
-              CALM THERAPEUTIC TEAL / GLASSMORPHIC ORBITAL ARC HERO
+              DEFAULT INTERFACE: CATEGORY PILLS & 3-COLUMN CLINICAL ASSESSMENTS GRID
               ========================================================================= */}
-          <div className="relative rounded-3xl border border-teal-500/25 bg-linear-to-b from-teal-950/20 via-card to-card dark:from-teal-950/40 dark:via-background dark:to-background p-6 sm:p-8 overflow-hidden backdrop-blur-xl shadow-xl space-y-6">
+          {displayMode === "grid" && (
+            <div className="space-y-6 animate-in fade-in-50 duration-200">
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                {categories.map((cat) => {
+                  const isSelected = selectedCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                        isSelected
+                          ? "bg-teal-600 text-white font-semibold shadow-xs"
+                          : "bg-[#131f20] hover:bg-[#1a2d2f] text-zinc-400 hover:text-zinc-100 border border-teal-950/40"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Assessment Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {loadingAssessments ? (
+                  <div className="text-sm text-muted-foreground col-span-3 py-12 text-center">
+                    Loading clinical screening tests...
+                  </div>
+                ) : filteredAssessments && filteredAssessments.length > 0 ? (
+                  filteredAssessments.map((a) => {
+                    const meta = ASSESSMENT_META[a.code || ""] || { emoji: "📋", gradient: "teal" };
+                    const pastResult = pastResults?.find((r) => r.assessmentId === a.id);
+
+                    return (
+                      <div
+                        key={a.id}
+                        className="rounded-3xl bg-[#121c1d] border border-[#1c2d2f] p-6 flex flex-col justify-between hover:border-teal-500/40 transition-all duration-200 shadow-sm group"
+                      >
+                        {/* Top: Emoji & Category Badge */}
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                          <span className="text-3xl select-none transition-transform group-hover:scale-105">
+                            {meta.emoji}
+                          </span>
+                          <span className="text-xs font-medium text-teal-400 bg-teal-950/60 border border-teal-800/40 px-2.5 py-0.5 rounded-full select-none">
+                            {a.category}
+                          </span>
+                        </div>
+
+                        {/* Middle: Title & Description */}
+                        <div className="space-y-1.5 mb-4">
+                          <h3 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug group-hover:text-teal-400 transition-colors">
+                            {a.title}
+                          </h3>
+                          <p className="text-xs text-zinc-400/90 leading-relaxed line-clamp-3 min-h-[44px]">
+                            {a.description}
+                          </p>
+                        </div>
+
+                        {/* Bottom: Questions Count, Time Estimate & Take Assessment Button */}
+                        <div className="pt-1">
+                          <div className="flex items-center justify-between text-xs text-zinc-400 mb-4">
+                            <span className="flex items-center gap-1.5">
+                              <ClipboardList className="w-3.5 h-3.5 text-zinc-400" />
+                              <span>{a.totalQuestions} Questions</span>
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-zinc-400" />
+                              <span>~{Math.max(2, Math.round(a.totalQuestions * 0.5))} mins</span>
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleStart(a.id)}
+                            className="w-full py-2.5 px-4 rounded-xl sm:rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-150 shadow-sm cursor-pointer"
+                          >
+                            <span>{pastResult ? "Retake Assessment" : "Take Assessment"}</span>
+                            <ArrowRight className="w-4 h-4 ml-0.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-3 p-8 text-center text-muted-foreground text-sm rounded-3xl bg-[#121c1d] border border-[#1c2d2f]">
+                    No assessments found for this category.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* =========================================================================
+              ALTERNATIVE ORBITAL SPOTLIGHT MODE (Available on toggle)
+              ========================================================================= */}
+          {displayMode === "orbital" && (
+            <div className="space-y-8 animate-in fade-in-50 duration-200">
+              {/* CALM THERAPEUTIC TEAL / GLASSMORPHIC ORBITAL ARC HERO */}
+              <div className="relative rounded-3xl border border-teal-500/25 bg-linear-to-b from-teal-950/20 via-card to-card dark:from-teal-950/40 dark:via-background dark:to-background p-6 sm:p-8 overflow-hidden backdrop-blur-xl shadow-xl space-y-6">
             {/* Soft Ambient Teal Backlight Glow */}
             <div className="absolute -top-28 left-1/2 -translate-x-1/2 w-[520px] h-64 bg-teal-500/15 blur-3xl pointer-events-none rounded-full" />
 
@@ -701,7 +916,7 @@ export default function AssessmentsPage() {
           {/* =========================================================================
               SPOTLIGHT CARD WITH MINI-SWITCHER (USER CHOICE #3)
               ========================================================================= */}
-          {displayMode === "orbital" && currentSpotlightAssessment && (
+          {currentSpotlightAssessment && (
             <div className="space-y-6 animate-in fade-in-50 duration-300">
               {/* Mini-Switcher for domains with multiple assessments */}
               {domainAssessments.length > 1 && (
@@ -839,93 +1054,6 @@ export default function AssessmentsPage() {
               })()}
             </div>
           )}
-
-          {/* =========================================================================
-              BROWSE ALL GRID MODE
-              ========================================================================= */}
-          {displayMode === "grid" && (
-            <div className="space-y-6">
-              {/* Category Filter Pills */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
-                      selectedCategory === cat
-                        ? "bg-teal-600 text-white shadow-sm font-semibold"
-                        : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-
-              {/* Assessment Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {loadingAssessments ? (
-                  <p className="text-sm text-muted-foreground col-span-3 py-8 text-center">
-                    Loading clinical screening tests...
-                  </p>
-                ) : filteredAssessments && filteredAssessments.length > 0 ? (
-                  filteredAssessments.map((a) => {
-                    const meta = ASSESSMENT_META[a.code || ""] || { emoji: "📋", gradient: "teal" };
-                    const pastResult = pastResults?.find((r) => r.assessmentId === a.id);
-
-                    return (
-                      <Card
-                        key={a.id}
-                        className="flex flex-col justify-between hover:border-teal-500/50 transition-all shadow-sm rounded-3xl overflow-hidden group"
-                      >
-                        <CardHeader className="space-y-3 pb-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-3xl transition-transform group-hover:scale-110">
-                              {meta.emoji}
-                            </span>
-                            <span className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 px-2.5 py-0.5 rounded-full bg-teal-500/10 border border-teal-500/20">
-                              {a.category}
-                            </span>
-                          </div>
-                          <div>
-                            <CardTitle className="text-base font-bold leading-snug group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-                              {a.title}
-                            </CardTitle>
-                            <CardDescription className="text-xs leading-relaxed line-clamp-2 mt-1">
-                              {a.description}
-                            </CardDescription>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground mb-4 pt-2 border-t">
-                            <span className="flex items-center gap-1">
-                              <ClipboardList className="w-3.5 h-3.5 text-teal-500" />
-                              {a.totalQuestions} Questions
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5 text-teal-500" />
-                              ~{Math.max(2, Math.round(a.totalQuestions * 0.5))} mins
-                            </span>
-                          </div>
-                          <Button
-                            size="sm"
-                            className="w-full rounded-full bg-teal-600 hover:bg-teal-700 text-white font-semibold cursor-pointer"
-                            onClick={() => handleStart(a.id)}
-                          >
-                            <span>{pastResult ? "Retake Assessment" : "Take Assessment"}</span>
-                            <ArrowRight className="w-4 h-4 ml-1.5" />
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                ) : (
-                  <Card className="col-span-3 p-8 text-center text-muted-foreground text-sm rounded-3xl">
-                    No assessments found for this category.
-                  </Card>
-                )}
-              </div>
             </div>
           )}
         </div>
@@ -1140,9 +1268,9 @@ export default function AssessmentsPage() {
           ACTIVE ASSESSMENT QUESTION STEPPER VIEW
           ========================================================================= */}
       {activeAssessment && !lastResult && (
-        <div className="relative rounded-[2.8rem] bg-gradient-to-b from-[#041209] via-[#07190e] to-[#030d06] text-white p-6 sm:p-8 md:p-12 overflow-hidden shadow-2xl border border-[#143d26]/70 min-h-[580px] flex flex-col justify-between animate-in fade-in duration-300">
+        <div className="relative rounded-[2.8rem] bg-gradient-to-b from-[#041209] via-[#07190e] to-[#030d06] text-white p-6 sm:p-8 md:p-12 shadow-2xl border border-[#143d26]/70 min-h-[580px] space-y-8 animate-in fade-in duration-300">
           {/* Ambient terraced hill contours & mist overlay */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[2.8rem]">
             <div className="absolute -top-36 left-1/4 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl" />
             <div className="absolute top-1/2 -right-24 w-80 h-80 rounded-full bg-lime-500/10 blur-3xl" />
             <div className="absolute -bottom-36 -left-36 w-96 h-96 rounded-full bg-emerald-600/15 blur-3xl" />
@@ -1170,8 +1298,8 @@ export default function AssessmentsPage() {
             </svg>
           </div>
 
-          {/* Top Bar: Clean Exit & Progress */}
-          <div className="relative z-10 flex items-center justify-between pb-4">
+          {/* Top Bar: Clean Exit, View Mode & Language */}
+          <div className="relative z-10 flex items-center justify-between pb-2 gap-3 flex-wrap">
             <button
               type="button"
               onClick={() => setActiveModal("exitConfirm")}
@@ -1181,6 +1309,21 @@ export default function AssessmentsPage() {
             </button>
 
             <div className="flex items-center gap-2">
+              {/* Runner Mode Switcher: Continuous Scroll vs Step-by-Step */}
+              <button
+                type="button"
+                onClick={() => setRunnerMode((prev) => (prev === "scroll" ? "stepper" : "scroll"))}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border cursor-pointer ${
+                  runnerMode === "scroll"
+                    ? "bg-lime-400/20 text-lime-300 border-lime-400/60 shadow-xs font-semibold"
+                    : "bg-white/[0.06] hover:bg-white/[0.12] text-white/80 border-white/10 hover:border-white/20"
+                }`}
+                title={runnerMode === "scroll" ? "Switch to Step-by-Step view" : "Switch to Continuous Scroll view"}
+              >
+                <ScrollText className="w-3.5 h-3.5 text-lime-400" />
+                <span>{runnerMode === "scroll" ? "Scroll View" : "Step View"}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
@@ -1204,7 +1347,7 @@ export default function AssessmentsPage() {
               </button>
 
               <span className="text-xs font-mono px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-emerald-200/80">
-                Item {currentQuestionIdx + 1} of {totalCount}
+                {answeredCount} of {totalCount} Answered
               </span>
             </div>
           </div>
@@ -1266,153 +1409,61 @@ export default function AssessmentsPage() {
             )}
           </div>
 
-          {/* Central Floating Glowing MCQ Card */}
-          <div className="relative z-10 max-w-3xl mx-auto w-full my-4">
-            <div className="relative rounded-[2rem] bg-white/[0.06] backdrop-blur-xl border border-white/[0.12] p-6 sm:p-8 space-y-6 shadow-2xl">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono tracking-wider text-lime-300 font-semibold uppercase flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse" />
-                    Question {currentQuestionIdx + 1} of {totalCount}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = !isBanglaMode;
-                      setIsBanglaMode(next);
-                      if (next) {
-                        toast.info("বাংলা অনুবাদ সক্রিয় করা হয়েছে (Bangla translation enabled)");
-                      } else {
-                        toast.info("Switched to English original");
-                      }
-                    }}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer ${
-                      isBanglaMode
-                        ? "bg-lime-400 text-black shadow-[0_0_16px_rgba(163,230,53,0.45)] font-semibold border border-lime-300 ring-1 ring-lime-400/50"
-                        : "bg-white/[0.08] hover:bg-white/[0.15] text-emerald-200 border border-white/10 hover:border-lime-400/40"
-                    }`}
-                  >
-                    <Languages className={`w-3.5 h-3.5 ${isBanglaMode ? "text-black" : "text-lime-400"}`} />
-                    <span>{isBanglaMode ? "বাংলা (অনূদিত)" : "বাংলা অনুবাদ (Translate)"}</span>
-                  </button>
-                </div>
-
-                {loadingActive ? (
-                  <div className="py-6 text-center text-sm text-emerald-200/60">
-                    Loading clinical questions...
-                  </div>
-                ) : currentQuestion ? (
-                  <div className="space-y-2">
-                    <h2 className="text-lg sm:text-xl md:text-2xl font-normal text-white/95 leading-relaxed font-sans">
-                      {isBanglaMode
-                        ? getQuestionBanglaText(currentQuestion.questionText, currentQuestion.questionCode)
-                        : currentQuestion.questionText}
-                    </h2>
-
-                    {isBanglaMode && (
-                      <div className="flex items-start gap-2 pt-1 text-xs text-emerald-200/60">
-                        <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/10 text-emerald-300 font-semibold shrink-0">
-                          English
-                        </span>
-                        <span className="italic line-clamp-2">{currentQuestion.questionText}</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-emerald-200/60">No questions available.</p>
-                )}
-              </div>
-
-              {/* Options Row */}
-              {currentQuestion && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    {getQuestionOptions(currentQuestion).map((opt) => {
-                      const isSelected = selectedAnswers[currentQuestion.id] === opt.id;
-                      const banglaOptLabel = getOptionBanglaLabel(opt.label);
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => handleAnswerSelect(currentQuestion.id, opt.id)}
-                          className={`px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 flex items-center justify-center cursor-pointer ${
-                            isSelected
-                              ? "bg-lime-400/20 border-2 border-lime-400 text-lime-300 shadow-[0_0_18px_rgba(163,230,53,0.35)] ring-1 ring-lime-400/40 font-semibold scale-[1.02]"
-                              : "bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-lime-400/30 text-white/90"
-                          }`}
-                        >
-                          <span className="text-center font-medium">
-                            {isBanglaMode ? banglaOptLabel : opt.label}
-                          </span>
-                        </button>
-                      );
-                    })}
+          {/* =========================================================================
+              ACTIVE RUNNER: CONTINUOUS SCROLL SYSTEM vs STEPPER VIEW
+              ========================================================================= */}
+          {runnerMode === "scroll" ? (
+            <div className="relative z-10 space-y-6 max-w-3xl mx-auto w-full my-2">
+              {/* Sticky Quick-Navigation & Progress Bar */}
+              <div className="sticky top-4 z-30 backdrop-blur-xl bg-[#041209]/95 border border-white/[0.12] rounded-2xl p-3 sm:p-4 shadow-2xl space-y-2.5">
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white">Progress</span>
+                    <span className="text-lime-300 font-mono font-bold">
+                      {answeredCount} of {totalCount} Answered ({progressPercent}%)
+                    </span>
                   </div>
 
-                  {/* Navigation Controls */}
-                  <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
-                    <button
-                      type="button"
-                      disabled={currentQuestionIdx === 0}
-                      onClick={() => setCurrentQuestionIdx((p) => Math.max(p - 1, 0))}
-                      title="Previous Question"
-                      className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
-                        currentQuestionIdx > 0
-                          ? "bg-white/[0.06] hover:bg-white/[0.14] border-white/15 text-white hover:text-lime-300"
-                          : "opacity-30 cursor-not-allowed bg-white/[0.02] border-white/5 text-white/40"
-                      }`}
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                    </button>
-
-                    {currentQuestionIdx < totalCount - 1 ? (
+                  <div className="flex items-center gap-2">
+                    {answeredCount < totalCount && (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!selectedAnswers[currentQuestion.id]) {
-                            toast.error("Please choose a response option to continue.");
-                            return;
-                          }
-                          setCurrentQuestionIdx((p) => p + 1);
-                        }}
-                        title="Next Question"
-                        className="w-12 h-12 rounded-full bg-lime-400 hover:bg-lime-300 text-black flex items-center justify-center shadow-[0_0_24px_rgba(163,230,53,0.55)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
+                        onClick={scrollToFirstUnanswered}
+                        className="text-[11px] font-medium text-lime-400 hover:text-lime-300 underline underline-offset-2 transition-colors cursor-pointer"
                       >
-                        <ChevronRight className="w-6 h-6 stroke-[2.5]" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleSubmit()}
-                        disabled={submitMutation.isPending}
-                        className="px-5 py-3 rounded-full bg-lime-400 hover:bg-lime-300 text-black font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_0_24px_rgba(163,230,53,0.6)] transition-all transform hover:scale-105 cursor-pointer disabled:opacity-50"
-                      >
-                        <Check className="w-4 h-4 stroke-[3]" />
-                        <span>{submitMutation.isPending ? "Scoring..." : "Submit"}</span>
+                        Next Unanswered →
                       </button>
                     )}
                   </div>
                 </div>
-              )}
 
-              {/* Card Footer: Question Navigator Pills */}
-              <div className="pt-4 border-t border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none max-w-full sm:max-w-md">
+                {/* Progress Bar Line */}
+                <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-lime-400 h-full rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(163,230,53,0.7)]"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+
+                {/* Quick Jump Number Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none max-w-full">
                   {questionsList.map((q, idx) => {
-                    const isCurrent = currentQuestionIdx === idx;
                     const isAnswered = !!selectedAnswers[q.id];
                     return (
                       <button
                         key={q.id}
                         type="button"
-                        onClick={() => setCurrentQuestionIdx(idx)}
+                        onClick={() => {
+                          const elem = document.getElementById(`question-card-${idx}`);
+                          if (elem) {
+                            elem.scrollIntoView({ behavior: "smooth", block: "center" });
+                          }
+                        }}
+                        title={`Jump to Question ${idx + 1}${isAnswered ? " (Answered)" : " (Unanswered)"}`}
                         className={`w-7 h-7 rounded-full text-xs font-semibold transition-all shrink-0 flex items-center justify-center cursor-pointer ${
-                          isCurrent
-                            ? "bg-lime-400 text-black shadow-[0_0_12px_rgba(163,230,53,0.6)] font-bold scale-110"
-                            : isAnswered
-                            ? "bg-lime-400/20 text-lime-300 border border-lime-400/40 hover:bg-lime-400/30"
-                            : "bg-white/[0.06] text-white/50 hover:bg-white/[0.12] hover:text-white"
+                          isAnswered
+                            ? "bg-lime-400/25 text-lime-300 border border-lime-400/60 shadow-xs hover:bg-lime-400 hover:text-black"
+                            : "bg-white/[0.06] text-white/50 border border-white/5 hover:bg-white/[0.12] hover:text-white"
                         }`}
                       >
                         {idx + 1}
@@ -1420,13 +1471,355 @@ export default function AssessmentsPage() {
                     );
                   })}
                 </div>
+              </div>
 
-                <span className="text-[11px] text-emerald-200/60 font-mono self-end sm:self-auto">
-                  {answeredCount} of {totalCount} Answered ({progressPercent}%)
-                </span>
+              {/* Questions Cards Stream */}
+              <div className="space-y-6">
+                {loadingActive ? (
+                  <div className="py-12 text-center text-sm text-emerald-200/60">
+                    Loading clinical questions...
+                  </div>
+                ) : questionsList.length > 0 ? (
+                  questionsList.map((q, idx) => {
+                    const isAnswered = !!selectedAnswers[q.id];
+                    const selectedOptId = selectedAnswers[q.id];
+                    const options = getQuestionOptions(q);
+
+                    return (
+                      <div
+                        key={q.id}
+                        id={`question-card-${idx}`}
+                        className={`relative rounded-[2rem] bg-white/[0.06] backdrop-blur-xl border p-6 sm:p-8 space-y-5 shadow-xl transition-all duration-300 scroll-mt-36 ${
+                          isAnswered
+                            ? "border-lime-400/35 bg-white/[0.08]"
+                            : "border-white/[0.12] hover:border-white/20"
+                        }`}
+                      >
+                        {/* Card Header: Question Number & Answered Indicator */}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-mono tracking-wider text-lime-300 font-semibold uppercase flex items-center gap-1.5">
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isAnswered ? "bg-lime-400" : "bg-white/40 animate-pulse"
+                              }`}
+                            />
+                            Question {idx + 1} of {totalCount}
+                          </span>
+
+                          <div className="flex items-center gap-2">
+                            {isAnswered ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-lime-400/20 text-lime-300 border border-lime-400/40">
+                                <Check className="w-3 h-3 stroke-[2.5]" /> Answered
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-emerald-200/50 font-mono">
+                                Required
+                              </span>
+                            )}
+
+                            {isAnswered && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAnswers((prev) => {
+                                    const next = { ...prev };
+                                    delete next[q.id];
+                                    return next;
+                                  });
+                                }}
+                                title="Clear response"
+                                className="p-1 rounded-full text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Question Text */}
+                        <div className="space-y-1.5">
+                          <h3 className="text-base sm:text-lg md:text-xl font-normal text-white/95 leading-relaxed font-sans">
+                            {isBanglaMode
+                              ? getQuestionBanglaText(q.questionText, q.questionCode)
+                              : q.questionText}
+                          </h3>
+
+                          {isBanglaMode && (
+                            <div className="flex items-start gap-2 pt-1 text-xs text-emerald-200/60">
+                              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/10 text-emerald-300 font-semibold shrink-0">
+                                English
+                              </span>
+                              <span className="italic line-clamp-2">{q.questionText}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Options Row */}
+                        <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                          {options.map((opt) => {
+                            const isSelected = selectedOptId === opt.id;
+                            const banglaOptLabel = getOptionBanglaLabel(opt.label);
+
+                            return (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => handleAnswerSelect(q.id, opt.id, idx)}
+                                className={`px-4 sm:px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 flex items-center justify-center cursor-pointer ${
+                                  isSelected
+                                    ? "bg-lime-400/20 border-2 border-lime-400 text-lime-300 shadow-[0_0_18px_rgba(163,230,53,0.35)] ring-1 ring-lime-400/40 font-semibold scale-[1.02]"
+                                    : "bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-lime-400/30 text-white/90"
+                                }`}
+                              >
+                                <span className="text-center font-medium">
+                                  {isBanglaMode ? banglaOptLabel : opt.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-emerald-200/60 text-center py-8">No questions available.</p>
+                )}
+              </div>
+
+              {/* Bottom Completion & Submission Card */}
+              <div
+                id="assessment-submit-section"
+                className="rounded-[2rem] bg-white/[0.07] backdrop-blur-xl border border-white/[0.14] p-6 sm:p-8 space-y-5 text-center shadow-2xl"
+              >
+                <div className="space-y-2 max-w-md mx-auto">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-lime-400/15 text-lime-300 border border-lime-400/30">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    <span>
+                      {answeredCount === totalCount
+                        ? "All Questions Completed"
+                        : `${totalCount - answeredCount} Question${
+                            totalCount - answeredCount === 1 ? "" : "s"
+                          } Remaining`}
+                    </span>
+                  </div>
+                  <h4 className="text-xl sm:text-2xl font-bold text-white">
+                    {answeredCount === totalCount
+                      ? "Ready to Submit Your Assessment"
+                      : "Complete All Questions to Finish"}
+                  </h4>
+                  <p className="text-xs sm:text-sm text-emerald-200/70">
+                    {answeredCount === totalCount
+                      ? "Your responses will be instantly evaluated with clinical score bands and evidence-based recommendations."
+                      : "Clinical psychometric validity requires every item in this screening battery to be answered."}
+                  </p>
+                </div>
+
+                {/* Progress bar in submit card */}
+                <div className="max-w-md mx-auto space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-emerald-200/70 font-mono">
+                    <span>Completion</span>
+                    <span>{answeredCount} / {totalCount} ({progressPercent}%)</span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-lime-400 h-full rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(163,230,53,0.7)]"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  {answeredCount < totalCount && (
+                    <button
+                      type="button"
+                      onClick={scrollToFirstUnanswered}
+                      className="px-5 py-3 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 text-white font-medium text-xs transition-all cursor-pointer"
+                    >
+                      Jump to First Unanswered
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleSubmit()}
+                    disabled={submitMutation.isPending}
+                    className="px-8 py-3.5 rounded-full bg-lime-400 hover:bg-lime-300 text-black font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_28px_rgba(163,230,53,0.65)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50"
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>
+                      {submitMutation.isPending ? "Evaluating & Scoring..." : "Submit Assessment"}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            /* STEPPER VIEW (PRESERVED UNDER TOGGLE) */
+            <div className="relative z-10 max-w-3xl mx-auto w-full my-4">
+              <div className="relative rounded-[2rem] bg-white/[0.06] backdrop-blur-xl border border-white/[0.12] p-6 sm:p-8 space-y-6 shadow-2xl">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-mono tracking-wider text-lime-300 font-semibold uppercase flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse" />
+                      Question {currentQuestionIdx + 1} of {totalCount}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !isBanglaMode;
+                        setIsBanglaMode(next);
+                        if (next) {
+                          toast.info("বাংলা অনুবাদ সক্রিয় করা হয়েছে (Bangla translation enabled)");
+                        } else {
+                          toast.info("Switched to English original");
+                        }
+                      }}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer ${
+                        isBanglaMode
+                          ? "bg-lime-400 text-black shadow-[0_0_16px_rgba(163,230,53,0.45)] font-semibold border border-lime-300 ring-1 ring-lime-400/50"
+                          : "bg-white/[0.08] hover:bg-white/[0.15] text-emerald-200 border border-white/10 hover:border-lime-400/40"
+                      }`}
+                    >
+                      <Languages className={`w-3.5 h-3.5 ${isBanglaMode ? "text-black" : "text-lime-400"}`} />
+                      <span>{isBanglaMode ? "বাংলা (অনূদিত)" : "বাংলা অনুবাদ (Translate)"}</span>
+                    </button>
+                  </div>
+
+                  {loadingActive ? (
+                    <div className="py-6 text-center text-sm text-emerald-200/60">
+                      Loading clinical questions...
+                    </div>
+                  ) : currentQuestion ? (
+                    <div className="space-y-2">
+                      <h2 className="text-lg sm:text-xl md:text-2xl font-normal text-white/95 leading-relaxed font-sans">
+                        {isBanglaMode
+                          ? getQuestionBanglaText(currentQuestion.questionText, currentQuestion.questionCode)
+                          : currentQuestion.questionText}
+                      </h2>
+
+                      {isBanglaMode && (
+                        <div className="flex items-start gap-2 pt-1 text-xs text-emerald-200/60">
+                          <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/10 text-emerald-300 font-semibold shrink-0">
+                            English
+                          </span>
+                          <span className="italic line-clamp-2">{currentQuestion.questionText}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-emerald-200/60">No questions available.</p>
+                  )}
+                </div>
+
+                {/* Options Row */}
+                {currentQuestion && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      {getQuestionOptions(currentQuestion).map((opt) => {
+                        const isSelected = selectedAnswers[currentQuestion.id] === opt.id;
+                        const banglaOptLabel = getOptionBanglaLabel(opt.label);
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => handleAnswerSelect(currentQuestion.id, opt.id)}
+                            className={`px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 flex items-center justify-center cursor-pointer ${
+                              isSelected
+                                ? "bg-lime-400/20 border-2 border-lime-400 text-lime-300 shadow-[0_0_18px_rgba(163,230,53,0.35)] ring-1 ring-lime-400/40 font-semibold scale-[1.02]"
+                                : "bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-lime-400/30 text-white/90"
+                            }`}
+                          >
+                            <span className="text-center font-medium">
+                              {isBanglaMode ? banglaOptLabel : opt.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Navigation Controls */}
+                    <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
+                      <button
+                        type="button"
+                        disabled={currentQuestionIdx === 0}
+                        onClick={() => setCurrentQuestionIdx((p) => Math.max(p - 1, 0))}
+                        title="Previous Question"
+                        className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+                          currentQuestionIdx > 0
+                            ? "bg-white/[0.06] hover:bg-white/[0.14] border-white/15 text-white hover:text-lime-300"
+                            : "opacity-30 cursor-not-allowed bg-white/[0.02] border-white/5 text-white/40"
+                        }`}
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+
+                      {currentQuestionIdx < totalCount - 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!selectedAnswers[currentQuestion.id]) {
+                              toast.error("Please choose a response option to continue.");
+                              return;
+                            }
+                            setCurrentQuestionIdx((p) => p + 1);
+                          }}
+                          title="Next Question"
+                          className="w-12 h-12 rounded-full bg-lime-400 hover:bg-lime-300 text-black flex items-center justify-center shadow-[0_0_24px_rgba(163,230,53,0.55)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
+                        >
+                          <ChevronRight className="w-6 h-6 stroke-[2.5]" />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleSubmit()}
+                          disabled={submitMutation.isPending}
+                          className="px-5 py-3 rounded-full bg-lime-400 hover:bg-lime-300 text-black font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_0_24px_rgba(163,230,53,0.6)] transition-all transform hover:scale-105 cursor-pointer disabled:opacity-50"
+                        >
+                          <Check className="w-4 h-4 stroke-[3]" />
+                          <span>{submitMutation.isPending ? "Scoring..." : "Submit"}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Card Footer: Question Navigator Pills */}
+                <div className="pt-4 border-t border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div
+                    ref={stepperPillsRef}
+                    className="relative flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none max-w-full sm:max-w-md scroll-smooth"
+                  >
+                    {questionsList.map((q, idx) => {
+                      const isCurrent = currentQuestionIdx === idx;
+                      const isAnswered = !!selectedAnswers[q.id];
+                      return (
+                        <button
+                          key={q.id}
+                          id={`stepper-pill-${idx}`}
+                          type="button"
+                          onClick={() => setCurrentQuestionIdx(idx)}
+                          className={`w-7 h-7 rounded-full text-xs font-semibold transition-all shrink-0 flex items-center justify-center cursor-pointer ${
+                            isCurrent
+                              ? "bg-lime-400 text-black shadow-[0_0_12px_rgba(163,230,53,0.6)] font-bold scale-110"
+                              : isAnswered
+                              ? "bg-lime-400/20 text-lime-300 border border-lime-400/40 hover:bg-lime-400/30"
+                              : "bg-white/[0.06] text-white/50 hover:bg-white/[0.12] hover:text-white"
+                          }`}
+                        >
+                          {idx + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <span className="text-[11px] text-emerald-200/60 font-mono self-end sm:self-auto">
+                    {answeredCount} of {totalCount} Answered ({progressPercent}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Exit Confirmation Modal */}
           <Dialog open={activeModal === "exitConfirm"} onOpenChange={() => setActiveModal(null)}>
@@ -1497,183 +1890,448 @@ export default function AssessmentsPage() {
             </div>
           )}
 
-          {/* Row 1: Hero Overview Card */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <div className="lg:col-span-7 rounded-[2.2rem] bg-gradient-to-br from-[#1d633d] via-[#155131] to-[#0c351e] text-white p-7 md:p-8 relative overflow-hidden shadow-sm flex flex-col justify-between border border-[#237446]/40 min-h-[300px]">
-              <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-emerald-400/15 blur-3xl pointer-events-none" />
-              <div className="absolute top-1/2 right-12 w-64 h-64 rounded-full bg-emerald-300/10 blur-2xl pointer-events-none" />
+          {/* Clinically Matched Therapy Program & Diagnostic Telemetry Presentation */}
+          {(() => {
+            const matchedTherapy = getRecommendedTherapyForAssessment(lastResult);
+            const scorePercentage =
+              lastResult.percentage ??
+              Math.round((lastResult.score / (lastResult.maxScore || 40)) * 100);
 
-              <div className="relative z-10 flex items-start justify-between">
-                <div>
-                  <h2 className="text-4xl md:text-5xl font-medium tracking-tight font-sans text-white">
-                    Overview
-                  </h2>
-                  <p className="text-xs text-emerald-100/80 mt-1 font-medium">
-                    {lastResult.assessmentTitle || "Clinical Screener"}
+            const getSeverityColor = (sev: string) => {
+              const lower = (sev || "").toLowerCase();
+              if (lower.includes("severe") || lower.includes("high") || lower.includes("crisis")) {
+                return {
+                  badge: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
+                  text: "text-rose-600 dark:text-rose-400",
+                  bar: "bg-rose-500",
+                };
+              }
+              if (lower.includes("moderately severe")) {
+                return {
+                  badge: "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30",
+                  text: "text-orange-600 dark:text-orange-400",
+                  bar: "bg-orange-500",
+                };
+              }
+              if (lower.includes("moderate") || lower.includes("medium")) {
+                return {
+                  badge: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
+                  text: "text-amber-600 dark:text-amber-400",
+                  bar: "bg-amber-500",
+                };
+              }
+              if (lower.includes("mild")) {
+                return {
+                  badge: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-500/30",
+                  text: "text-yellow-600 dark:text-yellow-400",
+                  bar: "bg-yellow-500",
+                };
+              }
+              return {
+                badge: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+                text: "text-emerald-600 dark:text-emerald-400",
+                bar: "bg-emerald-500",
+              };
+            };
+
+            const sevColors = getSeverityColor(lastResult.severityLevel);
+
+            const severityTiers = [
+              { label: "Minimal", range: "0-20%", color: "bg-emerald-500", key: "minimal" },
+              { label: "Mild", range: "21-40%", color: "bg-yellow-500", key: "mild" },
+              { label: "Moderate", range: "41-60%", color: "bg-amber-500", key: "moderate" },
+              { label: "Mod. Severe", range: "61-80%", color: "bg-orange-500", key: "moderately severe" },
+              { label: "Severe", range: "81-100%", color: "bg-rose-500", key: "severe" },
+            ];
+
+            return (
+              <div className="space-y-6">
+                {/* Result Header & Controls Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-border/70">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Clinical Assessment Complete
+                      </span>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        {new Date(lastResult.completedDate || Date.now()).toLocaleDateString([], {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                      {lastResult.assessmentTitle || "Clinical Screener Result"}
+                    </h2>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setActiveAssessmentId(null);
+                        setLastResult(null);
+                      }}
+                      className="rounded-full text-xs"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+                      All Assessments
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (lastResult.assessmentId) handleStart(lastResult.assessmentId);
+                      }}
+                      className="rounded-full text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                      Retake
+                    </Button>
+                  </div>
+                </div>
+
+                {/* ROW 1: Hero Diagnostic Telemetry & Matched Therapy Bento Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                  {/* Left Card: Quantitative Diagnostic Telemetry (6 cols) */}
+                  <div className="lg:col-span-6 rounded-3xl bg-card border border-border/80 p-6 md:p-7 shadow-xs flex flex-col justify-between space-y-6 relative overflow-hidden">
+                    <div className="space-y-5">
+                      {/* Card Header */}
+                      <div className="flex items-center justify-between gap-2 pb-3 border-b border-border/50">
+                        <div className="flex items-center gap-2">
+                          <span className="p-2 rounded-xl bg-primary/10 text-primary">
+                            <Activity className="w-4 h-4" />
+                          </span>
+                          <span className="text-xs font-bold text-foreground">
+                            Diagnostic Telemetry & Score Profile
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${sevColors.badge}`}
+                          >
+                            {lastResult.severityLevel === "Profile"
+                              ? "Reflective Profile"
+                              : `${lastResult.severityLevel} Level`}
+                          </span>
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                              lastResult.requiresFollowUp
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                            }`}
+                          >
+                            {lastResult.requiresFollowUp ? "Triage Indicated" : "Autonomic Stable"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Score Metrics Grid */}
+                      <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-muted/30 border border-border/70">
+                        <div className="space-y-0.5">
+                          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                            Recorded Score
+                          </span>
+                          <p className="text-3xl font-extrabold text-foreground tracking-tight">
+                            {lastResult.score}{" "}
+                            <span className="text-base font-normal text-muted-foreground">
+                              / {lastResult.maxScore || 40}
+                            </span>
+                          </p>
+                        </div>
+                        <div className="space-y-0.5 text-right">
+                          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                            Calculated Ratio
+                          </span>
+                          <p className="text-3xl font-extrabold text-primary tracking-tight">
+                            {scorePercentage}%
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 5-Tier Severity Spectrum Visualization */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-muted-foreground">
+                            Clinical Severity Spectrum
+                          </span>
+                          <span className="font-mono text-foreground font-bold">
+                            Tier: {lastResult.severityLevel}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {severityTiers.map((tier) => {
+                            const isCurrent =
+                              lastResult.severityLevel
+                                .toLowerCase()
+                                .includes(tier.key) ||
+                              (tier.key === "minimal" &&
+                                lastResult.severityLevel.toLowerCase().includes("normal"));
+                            return (
+                              <div key={tier.key} className="space-y-1 text-center">
+                                <div
+                                  className={`h-2.5 rounded-full transition-all ${
+                                    isCurrent
+                                      ? `${tier.color} shadow-xs ring-2 ring-primary/40`
+                                      : "bg-muted-foreground/20 opacity-40"
+                                  }`}
+                                />
+                                <span
+                                  className={`text-[9px] block leading-tight ${
+                                    isCurrent
+                                      ? "font-bold text-foreground"
+                                      : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {tier.label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Construct Pattern & Narrative Impression */}
+                      <div className="space-y-3 pt-1">
+                        <div className="p-3.5 rounded-2xl bg-card border border-border/80 space-y-1 shadow-2xs">
+                          <div className="flex items-center gap-1.5 text-primary">
+                            <Brain className="w-3.5 h-3.5" />
+                            <span className="font-bold text-[11px]">
+                              Identified Construct Pattern
+                            </span>
+                          </div>
+                          <p className="text-xs text-foreground font-medium leading-relaxed">
+                            {lastResult.identifiedProblem || "Clinical Screening Profile Completed"}
+                          </p>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-card border border-border/80 space-y-1 shadow-2xs">
+                          <div className="flex items-center gap-1.5 text-teal-600 dark:text-teal-400">
+                            <Activity className="w-3.5 h-3.5" />
+                            <span className="font-bold text-[11px]">
+                              Clinical Impression & Guidance
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            {lastResult.clinicalSummary ||
+                              lastResult.suggestedFollowUp ||
+                              "Your responses indicate consistent emotional equilibrium and healthy coping mechanisms."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Triage Banner */}
+                    <div
+                      className={`p-3 rounded-2xl text-xs flex items-center gap-2.5 border ${
+                        lastResult.requiresFollowUp
+                          ? "bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-200"
+                          : "bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-200"
+                      }`}
+                    >
+                      <ShieldCheck className="w-4 h-4 shrink-0" />
+                      <p className="text-[11px] leading-relaxed">
+                        {lastResult.requiresFollowUp
+                          ? "Clinical follow-up indicated • Symptoms suggest value in reviewing these results with an attending clinician."
+                          : "Autonomic stability observed • No acute psychological distress indicated at this time."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Card: Clinically Matched Therapy Program (6 cols) */}
+                  <div className="lg:col-span-6 rounded-3xl bg-gradient-to-br from-card via-card to-primary/[0.04] border-2 border-primary/30 p-6 md:p-7 shadow-sm flex flex-col justify-between space-y-6 relative overflow-hidden">
+                    <div className="space-y-5">
+                      {/* Card Header */}
+                      <div className="flex items-center justify-between gap-2 pb-3 border-b border-border/50">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-primary/15 text-primary border border-primary/25">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                          Clinically Matched Therapy Program
+                        </span>
+                        <span className="text-[10px] font-mono uppercase tracking-wide px-2.5 py-0.5 rounded-full bg-muted font-bold text-muted-foreground border">
+                          {matchedTherapy.modality}
+                        </span>
+                      </div>
+
+                      {/* Program Identity */}
+                      <div className="flex items-start gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/25 text-3xl flex items-center justify-center shrink-0 shadow-xs">
+                          {matchedTherapy.emoji}
+                        </div>
+                        <div className="space-y-1 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-lg sm:text-xl font-bold text-foreground tracking-tight">
+                              {matchedTherapy.programTitle}
+                            </h3>
+                            <span className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 rounded-full bg-muted border border-border/60">
+                              {matchedTherapy.difficultyLevel} Level
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            {matchedTherapy.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Program Curriculum Metrics */}
+                      <div className="grid grid-cols-3 gap-2.5 p-3 rounded-2xl bg-muted/40 border border-border/70 text-center">
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-semibold text-muted-foreground block">
+                            Duration
+                          </span>
+                          <span className="text-xs font-bold text-foreground">
+                            {matchedTherapy.durationWeeks} Weeks
+                          </span>
+                        </div>
+                        <div className="space-y-0.5 border-x border-border/60">
+                          <span className="text-[10px] font-semibold text-muted-foreground block">
+                            Curriculum
+                          </span>
+                          <span className="text-xs font-bold text-foreground">
+                            {matchedTherapy.sessionCount} Sessions
+                          </span>
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-semibold text-muted-foreground block">
+                            Daily Target
+                          </span>
+                          <span className="text-xs font-bold text-foreground">
+                            {matchedTherapy.dailyMinutes} mins/day
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Clinical Match Rationale Callout */}
+                      <div className="p-3.5 rounded-2xl bg-primary/5 border border-primary/20 space-y-1">
+                        <span className="text-[11px] font-bold text-primary flex items-center gap-1.5">
+                          <Target className="w-3.5 h-3.5" /> Clinical Matching Indication
+                        </span>
+                        <p className="text-xs text-foreground/90 leading-relaxed">
+                          {matchedTherapy.matchReason}
+                        </p>
+                      </div>
+
+                      {/* Therapeutic Goals */}
+                      <div className="space-y-1.5">
+                        <span className="text-[11px] font-semibold text-muted-foreground block">
+                          Core Curriculum Targets:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {matchedTherapy.therapeuticGoals.map((goal, i) => (
+                            <span
+                              key={i}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-background text-foreground border border-border/80 shadow-2xs"
+                            >
+                              <CheckCircle2 className="w-3 h-3 text-primary shrink-0" />
+                              {goal}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 1-Click Action to Launch Matched Therapy */}
+                    <div className="pt-2">
+                      <Button
+                        asChild
+                        className="w-full h-11 rounded-2xl font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                      >
+                        <Link
+                          href={`/patient/therapy?program=${encodeURIComponent(
+                            matchedTherapy.programTitle
+                          )}`}
+                        >
+                          Begin {matchedTherapy.programTitle}
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 2: Actionable Care Pathways & Integrated Patient Workflow */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {/* Card 1: Clinical Consultation */}
+                  <div className="p-5 rounded-2xl bg-card border border-border/80 shadow-xs flex flex-col justify-between space-y-4 hover:border-primary/40 transition-colors">
+                    <div className="space-y-2">
+                      <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                        <Stethoscope className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-foreground">
+                        Clinical Consultation
+                      </h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {lastResult.requiresFollowUp
+                          ? "Your responses indicate symptoms that warrant professional review. Schedule a one-on-one session with an attending specialist."
+                          : "Your screening profile is archived in your electronic health record. Consult your physician anytime to review."}
+                      </p>
+                    </div>
+                    <Button asChild variant="outline" size="sm" className="w-full rounded-xl text-xs font-semibold">
+                      <Link href="/patient/appointments">
+                        <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                        {lastResult.requiresFollowUp ? "Book Consultation" : "View Appointments"}
+                      </Link>
+                    </Button>
+                  </div>
+
+                  {/* Card 2: Question Response Breakdown */}
+                  <div className="p-5 rounded-2xl bg-card border border-border/80 shadow-xs flex flex-col justify-between space-y-4 hover:border-primary/40 transition-colors">
+                    <div className="space-y-2">
+                      <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                        <ClipboardList className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-foreground">
+                        Item-Level Response Audit
+                      </h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Inspect every question, your selected answers, and scoring breakdown with complete English and Bengali translation options.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveModal("breakdown")}
+                      className="w-full rounded-xl text-xs font-semibold cursor-pointer"
+                    >
+                      <BookOpen className="w-3.5 h-3.5 mr-1.5" />
+                      View Answers ({activeAssessment?.questions?.length || questionsList.length || 10})
+                    </Button>
+                  </div>
+
+                  {/* Card 3: Reflective Thought Journal */}
+                  <div className="p-5 rounded-2xl bg-card border border-border/80 shadow-xs flex flex-col justify-between space-y-4 hover:border-primary/40 transition-colors">
+                    <div className="space-y-2">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                        <Brain className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-foreground">
+                        Reflective Self-Care & Journal
+                      </h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Track daily emotional fluctuations and cognitive patterns in your private, clinical thought journal to support therapy.
+                      </p>
+                    </div>
+                    <Button asChild variant="outline" size="sm" className="w-full rounded-xl text-xs font-semibold">
+                      <Link href="/patient/journal">
+                        <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" />
+                        Open Thought Journal
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* ROW 3: Research-Informed Clinical Self-Reflection Disclaimer */}
+                <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 text-[11px] text-muted-foreground flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    <strong className="text-foreground">Clinical Self-Reflection Guidance:</strong> This assessment battery is an original, research-informed self-reflection protocol designed for psychological education and progress tracking, not a validated diagnostic test. It cannot diagnose or rule out medical conditions. A licensed healthcare specialist can evaluate personal clinical symptoms.
                   </p>
                 </div>
-
-                <span className="text-[11px] font-semibold tracking-wide uppercase px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-emerald-100 border border-white/10">
-                  {lastResult.severityLevel === "Profile"
-                    ? "Reflective Profile"
-                    : lastResult.assessmentCategory?.toLowerCase().includes("reasoning") ||
-                      lastResult.assessmentTitle?.toLowerCase().includes("iq")
-                    ? `${lastResult.score}/${lastResult.maxScore || 10} Correct`
-                    : `${lastResult.severityLevel} Level`}
-                </span>
               </div>
-
-              <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-6 pt-8">
-                <div className="flex items-center gap-7">
-                  <div className="space-y-1">
-                    <span className="text-xs font-medium text-emerald-200/90 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-300" />
-                      {lastResult.assessmentCategory?.toLowerCase().includes("reasoning") ||
-                      lastResult.assessmentTitle?.toLowerCase().includes("iq")
-                        ? "Accuracy"
-                        : "Score Ratio"}
-                    </span>
-                    <p className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-                      {lastResult.percentage ?? Math.round((lastResult.score / (lastResult.maxScore || 40)) * 100)}%
-                    </p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <span className="text-xs font-medium text-emerald-200/90 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                      {lastResult.assessmentCategory?.toLowerCase().includes("reasoning") ||
-                      lastResult.assessmentTitle?.toLowerCase().includes("iq")
-                        ? "Solved Puzzles"
-                        : "Score Index"}
-                    </span>
-                    <p className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-                      {lastResult.score}{" "}
-                      <span className="text-lg font-medium text-emerald-200/80">
-                        / {lastResult.maxScore || 40}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="relative w-44 h-36 shrink-0 self-center sm:self-end">
-                  <div className="absolute top-1 left-2 z-20 flex items-center gap-1.5 bg-white/95 text-emerald-950 px-2.5 py-1 rounded-full text-[11px] font-bold shadow-md">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Health
-                  </div>
-
-                  <div className="absolute bottom-6 right-0 z-20 flex items-center gap-1.5 bg-white/95 text-emerald-950 px-2.5 py-1 rounded-full text-[11px] font-bold shadow-md">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                    {lastResult.requiresFollowUp ? "Triage" : "Stable"}
-                  </div>
-
-                  <svg viewBox="0 0 160 140" fill="none" className="w-full h-full drop-shadow-md">
-                    <path d="M 60 130 V 45 C 60 25 80 15 105 15 H 115" stroke="#e4efe7" strokeWidth="5" strokeLinecap="round" />
-                    <rect x="100" y="10" width="30" height="12" rx="4" fill="#d1e6d8" />
-                    <path d="M 103 22 L 80 115 H 145 L 127 22 Z" fill="url(#lightGradient)" opacity="0.4" />
-                    <rect x="50" y="115" width="85" height="22" rx="6" fill="#f0f5f1" />
-                    <rect x="55" y="118" width="75" height="4" rx="2" fill="#88b598" />
-                    <path d="M 92 115 Q 92 80 90 60" stroke="#36a366" strokeWidth="4" strokeLinecap="round" />
-                    <path d="M 92 90 Q 75 75 70 85 Q 82 95 92 92" fill="#58c985" />
-                    <path d="M 92 80 Q 110 65 118 75 Q 106 88 92 82" fill="#44b873" />
-                    <path d="M 90 60 Q 75 40 85 45 Q 90 55 90 60" fill="#69db96" />
-                    <path d="M 90 60 Q 105 40 100 48 Q 94 58 90 60" fill="#50c580" />
-                    <defs>
-                      <linearGradient id="lightGradient" x1="115" y1="22" x2="115" y2="115" gradientUnits="userSpaceOnUse">
-                        <stop stopColor="#ffffff" stopOpacity="0.8" />
-                        <stop offset="1" stopColor="#43b672" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Clinical Summary Impression */}
-            <div className="lg:col-span-5 rounded-[2.2rem] bg-[#f4f7f4] dark:bg-[#15221b] border border-[#e2e8e2] dark:border-white/10 p-6 md:p-7 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="p-2 rounded-xl bg-primary/10 text-primary">
-                      <Activity className="w-4 h-4" />
-                    </span>
-                    <h3 className="font-bold text-sm text-foreground">Clinical Impression</h3>
-                  </div>
-                  <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-muted text-muted-foreground font-semibold">
-                    Evaluated
-                  </span>
-                </div>
-
-                <div className="space-y-3 pt-2 text-xs">
-                  <div className="p-3.5 rounded-2xl bg-white dark:bg-card border space-y-1 shadow-2xs">
-                    <span className="font-bold text-foreground block text-[11px] text-primary">
-                      Identified Construct Pattern
-                    </span>
-                    <p className="text-foreground font-medium leading-relaxed">
-                      {lastResult.identifiedProblem || "Screening Profile Completed"}
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl bg-white dark:bg-card border space-y-1 shadow-2xs">
-                    <span className="font-bold text-foreground block text-[11px] text-teal-600 dark:text-teal-400">
-                      Recommendation & Next Steps
-                    </span>
-                    <p className="text-muted-foreground leading-relaxed">
-                      {lastResult.suggestedFollowUp || "Maintain healthy wellness routines."}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 flex items-center justify-between border-t gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => setActiveModal("breakdown")}
-                  className="rounded-full bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-4 cursor-pointer"
-                >
-                  View Full Answers ({activeAssessment?.questions?.length || 10})
-                </Button>
-
-                {lastResult.requiresFollowUp && (
-                  <Button asChild size="sm" variant="outline" className="rounded-full text-xs">
-                    <Link href="/patient/appointments">Book Consultation</Link>
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Research-Informed Self-Reflection Guidance Disclaimer */}
-          <div className="p-4 rounded-2xl bg-muted/40 border text-[11px] text-muted-foreground flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <p className="leading-relaxed">
-              <strong className="text-foreground">Clinical Self-Reflection Guidance:</strong> This is an original, research-informed self-reflection activity, not a validated diagnostic test. It cannot diagnose or rule out conditions, assess safety, or measure IQ. A qualified healthcare professional can help you evaluate personal symptoms or concerns.
-            </p>
-          </div>
-
-          {/* Controls: Back to Tests & Retake */}
-          <div className="flex items-center justify-between pt-2">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setActiveAssessmentId(null);
-                setLastResult(null);
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-            >
-              ← Back to All Assessments
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (lastResult.assessmentId) handleStart(lastResult.assessmentId);
-              }}
-              className="rounded-full text-xs cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Retake Assessment
-            </Button>
-          </div>
+            );
+          })()}
 
           {/* Response Breakdown Modal */}
           <Dialog open={activeModal === "breakdown"} onOpenChange={() => setActiveModal(null)}>
@@ -1757,77 +2415,206 @@ export default function AssessmentsPage() {
       )}
 
       {/* Detail Dialog for Inspecting Past Result */}
-      {inspectingResult && (
-        <Dialog open={activeModal === "resultDetail"} onOpenChange={() => setActiveModal(null)}>
-          <DialogContent className="max-w-lg rounded-3xl p-6 space-y-4">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                <Award className="w-5 h-5 text-teal-500" />
-                {inspectingResult.assessmentTitle || "Clinical Assessment Result"}
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                Completed on {new Date(inspectingResult.completedDate).toLocaleDateString([], {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </DialogDescription>
-            </DialogHeader>
+      {inspectingResult && (() => {
+        const inspectingMatchedTherapy = getRecommendedTherapyForAssessment(inspectingResult);
+        const scorePercentage =
+          inspectingResult.percentage ??
+          Math.round((inspectingResult.score / (inspectingResult.maxScore || 40)) * 100);
 
-            <div className="p-4 rounded-2xl bg-muted/50 border flex items-center justify-between text-xs">
-              <div>
-                <span className="text-muted-foreground text-[10px] block">Recorded Score</span>
-                <span className="text-xl font-bold text-foreground">
-                  {inspectingResult.score} / {inspectingResult.maxScore || 40} ({inspectingResult.percentage ?? Math.round((inspectingResult.score / (inspectingResult.maxScore || 40)) * 100)}%)
-                </span>
+        const getSevColor = (sev: string) => {
+          const lower = (sev || "").toLowerCase();
+          if (lower.includes("severe") || lower.includes("high") || lower.includes("crisis")) {
+            return "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30";
+          }
+          if (lower.includes("moderately severe")) {
+            return "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30";
+          }
+          if (lower.includes("moderate") || lower.includes("medium")) {
+            return "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30";
+          }
+          if (lower.includes("mild")) {
+            return "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-500/30";
+          }
+          return "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30";
+        };
+
+        return (
+          <Dialog open={activeModal === "resultDetail"} onOpenChange={() => setActiveModal(null)}>
+            <DialogContent className="max-w-xl max-h-[88vh] overflow-y-auto rounded-3xl p-6 sm:p-7 space-y-5">
+              <DialogHeader>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                    <Award className="w-5 h-5 text-primary" />
+                    {inspectingResult.assessmentTitle || "Clinical Assessment Result"}
+                  </DialogTitle>
+                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${getSevColor(inspectingResult.severityLevel)}`}>
+                    {inspectingResult.severityLevel} Level
+                  </span>
+                </div>
+                <DialogDescription className="text-xs">
+                  Completed on{" "}
+                  {new Date(inspectingResult.completedDate).toLocaleDateString([], {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}{" "}
+                  {inspectingResult.assessmentCategory && `• Domain: ${inspectingResult.assessmentCategory}`}
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Score & Telemetry Strip */}
+              <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-muted/40 border border-border/80 text-xs">
+                <div>
+                  <span className="text-muted-foreground text-[11px] block font-medium">Recorded Score</span>
+                  <span className="text-2xl font-extrabold text-foreground tracking-tight">
+                    {inspectingResult.score}{" "}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      / {inspectingResult.maxScore || 40}
+                    </span>
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-muted-foreground text-[11px] block font-medium">Calculated Ratio</span>
+                  <span className="text-2xl font-extrabold text-primary tracking-tight">
+                    {scorePercentage}%
+                  </span>
+                </div>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary">
-                {inspectingResult.severityLevel} Level
-              </span>
-            </div>
 
-            {inspectingResult.clinicalSummary && (
-              <div className="p-4 rounded-2xl border space-y-1 text-xs">
-                <span className="font-bold text-foreground block">Clinical Summary Impression</span>
-                <p className="text-muted-foreground leading-relaxed">
-                  {inspectingResult.clinicalSummary}
-                </p>
+              {/* Clinical Impression & Findings */}
+              <div className="space-y-3">
+                {inspectingResult.identifiedProblem && (
+                  <div className="p-3.5 rounded-2xl bg-card border border-border/80 space-y-1">
+                    <span className="font-bold text-[11px] text-primary flex items-center gap-1.5">
+                      <Brain className="w-3.5 h-3.5" /> Identified Construct Pattern
+                    </span>
+                    <p className="text-xs text-foreground font-medium leading-relaxed">
+                      {inspectingResult.identifiedProblem}
+                    </p>
+                  </div>
+                )}
+
+                {inspectingResult.clinicalSummary && (
+                  <div className="p-3.5 rounded-2xl bg-card border border-border/80 space-y-1">
+                    <span className="font-bold text-[11px] text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5" /> Clinical Summary Impression
+                    </span>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {inspectingResult.clinicalSummary}
+                    </p>
+                  </div>
+                )}
+
+                {inspectingResult.suggestedFollowUp && (
+                  <div className="p-3.5 rounded-2xl bg-card border border-border/80 space-y-1">
+                    <span className="font-bold text-[11px] text-muted-foreground flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5" /> Recommended Clinical Action
+                    </span>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {inspectingResult.suggestedFollowUp}
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
 
-            {inspectingResult.suggestedFollowUp && (
-              <div className="p-4 rounded-2xl border space-y-1 text-xs">
-                <span className="font-bold text-foreground block">Recommended Action</span>
-                <p className="text-muted-foreground leading-relaxed">
-                  {inspectingResult.suggestedFollowUp}
-                </p>
+              {/* Clinically Matched Therapy Program Block */}
+              {inspectingMatchedTherapy && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-card to-primary/[0.04] border-2 border-primary/25 space-y-3.5 shadow-2xs">
+                  <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-border/60">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                      Recommended Therapy Program
+                    </span>
+                    <span className="text-[10px] font-mono uppercase tracking-wide px-2 py-0.5 rounded bg-muted font-bold text-muted-foreground border">
+                      {inspectingMatchedTherapy.modality}
+                    </span>
+                  </div>
+
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 text-2xl flex items-center justify-center shrink-0">
+                      {inspectingMatchedTherapy.emoji}
+                    </div>
+                    <div className="space-y-1 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm font-bold text-foreground">
+                          {inspectingMatchedTherapy.programTitle}
+                        </h4>
+                        <span className="text-[10px] font-semibold text-muted-foreground px-2 py-0.5 rounded-full bg-muted border border-border/60">
+                          {inspectingMatchedTherapy.difficultyLevel} Level
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        {inspectingMatchedTherapy.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/15 text-[11px] text-foreground/90 leading-relaxed">
+                    <strong className="text-primary block font-semibold mb-0.5">Clinical Matching Indication:</strong>
+                    {inspectingMatchedTherapy.matchReason}
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {inspectingMatchedTherapy.therapeuticGoals.map((goal, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[10px] font-medium bg-background text-foreground border border-border/80"
+                      >
+                        <CheckCircle2 className="w-3 h-3 text-primary shrink-0" /> {goal}
+                      </span>
+                    ))}
+                  </div>
+
+                  <Button asChild size="sm" className="w-full rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs">
+                    <Link
+                      href={`/patient/therapy?program=${encodeURIComponent(
+                        inspectingMatchedTherapy.programTitle
+                      )}`}
+                    >
+                      Begin {inspectingMatchedTherapy.programTitle}
+                      <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                    </Link>
+                  </Button>
+                </div>
+              )}
+
+              {/* Action Buttons Footer */}
+              <div className="flex flex-wrap items-center justify-between pt-3 border-t border-border/60 gap-2.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveModal(null)}
+                  className="rounded-full text-xs"
+                >
+                  Close
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  {inspectingResult.requiresFollowUp && (
+                    <Button asChild variant="outline" size="sm" className="rounded-full text-xs">
+                      <Link href="/patient/appointments">
+                        <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                        Book Consultation
+                      </Link>
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setActiveModal(null);
+                      handleStart(inspectingResult.assessmentId);
+                    }}
+                    className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                    Retake Assessment
+                  </Button>
+                </div>
               </div>
-            )}
-
-            <div className="flex items-center justify-between pt-2 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveModal(null)}
-                className="rounded-full text-xs"
-              >
-                Close
-              </Button>
-
-              <Button
-                size="sm"
-                onClick={() => {
-                  setActiveModal(null);
-                  handleStart(inspectingResult.assessmentId);
-                }}
-                className="rounded-full bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold"
-              >
-                Retake Assessment
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </div>
   );
 }

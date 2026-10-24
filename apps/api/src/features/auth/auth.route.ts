@@ -26,20 +26,31 @@ authRouter.get('/me', async (c) => {
 
   const { user } = session;
 
-  let [patientProfile, doctorProfile, researcherProfile] = await Promise.all([
-    db.query.patientProfiles.findFirst({
-      where: eq(patientProfiles.userId, user.id),
-      columns: { id: true },
-    }),
-    db.query.doctorProfiles.findFirst({
-      where: eq(doctorProfiles.userId, user.id),
-      columns: { id: true },
-    }),
-    db.query.researcherProfiles.findFirst({
-      where: eq(researcherProfiles.userId, user.id),
-      columns: { id: true },
-    }),
-  ]);
+  let patientProfile: { id: string } | null = null;
+  let doctorProfile: { id: string } | null = null;
+  let researcherProfile: { id: string; isActive?: boolean } | null = null;
+
+  try {
+    const results = await Promise.allSettled([
+      db.query.patientProfiles.findFirst({
+        where: eq(patientProfiles.userId, user.id),
+        columns: { id: true },
+      }),
+      db.query.doctorProfiles.findFirst({
+        where: eq(doctorProfiles.userId, user.id),
+        columns: { id: true },
+      }),
+      db.query.researcherProfiles.findFirst({
+        where: eq(researcherProfiles.userId, user.id),
+        columns: { id: true, isActive: true },
+      }),
+    ]);
+    if (results[0].status === 'fulfilled') patientProfile = results[0].value || null;
+    if (results[1].status === 'fulfilled') doctorProfile = results[1].value || null;
+    if (results[2].status === 'fulfilled') researcherProfile = results[2].value || null;
+  } catch (err) {
+    logger.error({ err }, 'Error querying profiles in /api/auth/me');
+  }
 
   if (!doctorProfile && (user.role === 'doctor' || user.role === 'super_admin')) {
     const [created] = await db
@@ -54,6 +65,14 @@ authRouter.get('/me', async (c) => {
     if (created) doctorProfile = created;
   }
 
+  if (doctorProfile && user.role !== 'doctor' && user.role !== 'admin' && user.role !== 'super_admin') {
+    await db
+      .update(users)
+      .set({ role: 'doctor' })
+      .where(eq(users.id, user.id));
+    user.role = 'doctor';
+  }
+
   if (!patientProfile && (user.role === 'user' || user.role === 'patient' || user.role === 'doctor' || user.role === 'super_admin')) {
     const [created] = await db
       .insert(patientProfiles)
@@ -65,9 +84,22 @@ authRouter.get('/me', async (c) => {
     if (created) patientProfile = created;
   }
 
+  if (!researcherProfile && (user.role === 'user' || user.role === 'patient' || user.role === 'researcher' || user.role === 'super_admin')) {
+    const [createdRes] = await db
+      .insert(researcherProfiles)
+      .values({
+        userId: user.id,
+        institution: 'Independent Research',
+        researchField: 'Mental Health & Clinical Studies',
+      })
+      .onConflictDoNothing()
+      .returning({ id: researcherProfiles.id });
+    if (createdRes) researcherProfile = { id: createdRes.id, isActive: true };
+  }
+
   const isDoc = !!doctorProfile || user.role === 'doctor' || user.role === 'super_admin';
   const isPat = !!patientProfile || user.role === 'user' || user.role === 'patient' || user.role === 'super_admin';
-  const isRes = !!researcherProfile || user.role === 'researcher' || user.role === 'super_admin';
+  const isRes = (!!researcherProfile && researcherProfile.isActive !== false) || user.role === 'researcher' || user.role === 'super_admin';
 
   return c.json({
     ...session,
@@ -119,7 +151,7 @@ authRouter.post('/setup-profiles', async (c) => {
       })
       .onConflictDoNothing();
 
-    // Researcher profile is provisioned for users who opt in to research features.
+    // Researcher profile is provisioned with default disabled status
     await db
       .insert(researcherProfiles)
       .values({
@@ -132,6 +164,7 @@ authRouter.post('/setup-profiles', async (c) => {
           typeof body.researchField === 'string'
             ? body.researchField
             : 'Mental Health & Clinical Studies',
+        isActive: false,
       })
       .onConflictDoNothing();
 
@@ -155,6 +188,11 @@ authRouter.post('/setup-profiles', async (c) => {
               : null,
         })
         .onConflictDoNothing();
+
+      await db
+        .update(users)
+        .set({ role: 'doctor' })
+        .where(eq(users.id, userId));
     }
 
     // Provision demographic profile record (Table 2)
@@ -176,6 +214,7 @@ authRouter.post('/setup-profiles', async (c) => {
         moodTrackingEnabled: true,
         anonymousMode: false,
         notificationEnabled: true,
+        researcherModeEnabled: false,
       })
       .onConflictDoNothing();
 

@@ -40,6 +40,18 @@ export type CreateGroupPayload = {
   avatarEmoji?: string;
   anonymousAllowed?: boolean;
   requiresApproval?: boolean;
+  isHidden?: boolean;
+  isInviteOnly?: boolean;
+};
+
+export type UpdateGroupSettingsPayload = {
+  groupName?: string;
+  topic?: string;
+  description?: string;
+  avatarEmoji?: string;
+  requiresApproval?: boolean;
+  isHidden?: boolean;
+  isInviteOnly?: boolean;
 };
 
 export type SendMessagePayload = {
@@ -127,6 +139,7 @@ export const CommunityService = {
 
         return {
           ...group,
+          inviteCode: isGroupAdmin || memberStatus === 'Active' ? group.inviteCode : null,
           isMember: memberStatus === 'Active',
           isPending: memberStatus === 'Pending',
           membershipStatus: memberStatus,
@@ -146,11 +159,20 @@ export const CommunityService = {
       }),
     );
 
-    return enhanced;
+    // Filter out hidden groups unless user is system admin, creator, or active/pending member
+    const visibleGroups = enhanced.filter((group) => {
+      if (!group.isHidden) return true;
+      if (isSystemAdmin) return true;
+      if (group.creatorId === userId) return true;
+      return group.isMember || group.isPending;
+    });
+
+    return visibleGroups;
   },
 
   /**
-   * Get single group details with current user's membership and admin capabilities
+   * Get single group details with current user's membership and admin capabilities.
+   * If group is hidden, denies access to non-members unless admin/creator.
    */
   async getGroupById(groupId: string, userId: string, userRole?: string) {
     const group = await db.query.communityGroups.findFirst({
@@ -178,6 +200,14 @@ export const CommunityService = {
     }
 
     const isGroupAdmin = isSystemAdmin || isCreator || membership?.role === 'admin';
+    const memberStatus = membership?.memberStatus ?? null;
+    const isMember = memberStatus === 'Active';
+    const isPending = memberStatus === 'Pending';
+
+    // If group is hidden, deny non-members
+    if (group.isHidden && !isSystemAdmin && !isCreator && !isMember && !isPending) {
+      return null;
+    }
 
     const members = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -203,12 +233,11 @@ export const CommunityService = {
       pendingRequestsCount = pending?.count ?? 0;
     }
 
-    const memberStatus = membership?.memberStatus ?? null;
-
     return {
       ...group,
-      isMember: memberStatus === 'Active',
-      isPending: memberStatus === 'Pending',
+      inviteCode: isGroupAdmin || isMember ? group.inviteCode : null,
+      isMember,
+      isPending,
       membershipStatus: memberStatus,
       isGroupAdmin,
       pendingRequestsCount,
@@ -219,9 +248,76 @@ export const CommunityService = {
   },
 
   /**
+   * Preview a group by its invite code (used for invite links and codes)
+   */
+  async getGroupByInviteCode(inviteCode: string, userId: string, userRole?: string) {
+    const cleanCode = inviteCode.trim().toUpperCase();
+    if (!cleanCode) return null;
+
+    const group = await db.query.communityGroups.findFirst({
+      where: sql`UPPER(${communityGroups.inviteCode}) = ${cleanCode}`,
+    });
+    if (!group) return null;
+
+    const isSystemAdmin = userRole === 'admin' || userRole === 'super_admin';
+    const isCreator = group.creatorId === userId;
+
+    let membership = await db.query.communityGroupMembers.findFirst({
+      where: and(
+        eq(communityGroupMembers.groupId, group.id),
+        eq(communityGroupMembers.userId, userId),
+      ),
+    });
+
+    if (isCreator && membership && membership.role !== 'admin') {
+      await db
+        .update(communityGroupMembers)
+        .set({ role: 'admin' })
+        .where(eq(communityGroupMembers.id, membership.id));
+      membership = { ...membership, role: 'admin' };
+    }
+
+    const isGroupAdmin = isSystemAdmin || isCreator || membership?.role === 'admin';
+    const memberStatus = membership?.memberStatus ?? null;
+
+    const members = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(communityGroupMembers)
+      .where(
+        and(
+          eq(communityGroupMembers.groupId, group.id),
+          eq(communityGroupMembers.memberStatus, 'Active'),
+        ),
+      );
+
+    return {
+      id: group.id,
+      groupName: group.groupName,
+      topic: group.topic,
+      description: group.description,
+      avatarEmoji: group.avatarEmoji,
+      requiresApproval: group.requiresApproval,
+      isHidden: group.isHidden,
+      isInviteOnly: group.isInviteOnly,
+      inviteCode: cleanCode,
+      isMember: memberStatus === 'Active',
+      isPending: memberStatus === 'Pending',
+      membershipStatus: memberStatus,
+      isGroupAdmin,
+      myAnonymousName: membership?.anonymousName ?? null,
+      myAvatarColor: membership?.avatarColor ?? null,
+      memberCount: members[0]?.count ?? 0,
+    };
+  },
+
+  /**
    * Create a chat group and auto-join the creator as active group admin
    */
   async createGroup(userId: string, payload: CreateGroupPayload) {
+    const isHidden = payload.isHidden ?? false;
+    const isInviteOnly = payload.isInviteOnly ?? (isHidden ? true : false);
+    const inviteCode = crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+
     const [group] = await db
       .insert(communityGroups)
       .values({
@@ -231,6 +327,9 @@ export const CommunityService = {
         avatarEmoji: payload.avatarEmoji ?? '💬',
         anonymousAllowed: payload.anonymousAllowed ?? true,
         requiresApproval: payload.requiresApproval ?? false,
+        isHidden,
+        isInviteOnly,
+        inviteCode,
         creatorId: userId,
       })
       .returning();
@@ -264,15 +363,125 @@ export const CommunityService = {
   },
 
   /**
+   * Update chat group settings (e.g. toggle hidden, invite-only, approval, name, topic)
+   */
+  async updateGroupSettings(
+    groupId: string,
+    userId: string,
+    payload: UpdateGroupSettingsPayload,
+    userRole?: string,
+  ) {
+    const group = await db.query.communityGroups.findFirst({
+      where: eq(communityGroups.id, groupId),
+    });
+    if (!group) {
+      return { error: 'not_found' as const, message: 'Chat group not found.' };
+    }
+
+    const isSystemAdmin = userRole === 'admin' || userRole === 'super_admin';
+    const isCreator = group.creatorId === userId;
+
+    const myMembership = await db.query.communityGroupMembers.findFirst({
+      where: and(
+        eq(communityGroupMembers.groupId, groupId),
+        eq(communityGroupMembers.userId, userId),
+      ),
+    });
+
+    const isGroupAdmin = isSystemAdmin || isCreator || myMembership?.role === 'admin';
+    if (!isGroupAdmin) {
+      return { error: 'forbidden' as const, message: 'Only group admins can update room settings.' };
+    }
+
+    const updates: Partial<typeof communityGroups.$inferInsert> = {};
+    if (payload.groupName !== undefined) updates.groupName = payload.groupName.trim();
+    if (payload.topic !== undefined) updates.topic = payload.topic.trim();
+    if (payload.description !== undefined) updates.description = payload.description.trim() || null;
+    if (payload.avatarEmoji !== undefined) updates.avatarEmoji = payload.avatarEmoji;
+    if (payload.requiresApproval !== undefined) updates.requiresApproval = payload.requiresApproval;
+    if (payload.isHidden !== undefined) updates.isHidden = payload.isHidden;
+    if (payload.isInviteOnly !== undefined) updates.isInviteOnly = payload.isInviteOnly;
+
+    // If setting to hidden without specifying isInviteOnly, keep group invite-only
+    if (payload.isHidden === true && payload.isInviteOnly === undefined && !group.isInviteOnly) {
+      updates.isInviteOnly = true;
+    }
+
+    const [updated] = await db
+      .update(communityGroups)
+      .set(updates)
+      .where(eq(communityGroups.id, groupId))
+      .returning();
+
+    return {
+      success: true,
+      message: 'Group settings updated successfully.',
+      group: updated,
+    };
+  },
+
+  /**
+   * Regenerate invite code for the group
+   */
+  async regenerateInviteCode(groupId: string, userId: string, userRole?: string) {
+    const group = await db.query.communityGroups.findFirst({
+      where: eq(communityGroups.id, groupId),
+    });
+    if (!group) {
+      return { error: 'not_found' as const, message: 'Chat group not found.' };
+    }
+
+    const isSystemAdmin = userRole === 'admin' || userRole === 'super_admin';
+    const isCreator = group.creatorId === userId;
+
+    const myMembership = await db.query.communityGroupMembers.findFirst({
+      where: and(
+        eq(communityGroupMembers.groupId, groupId),
+        eq(communityGroupMembers.userId, userId),
+      ),
+    });
+
+    const isGroupAdmin = isSystemAdmin || isCreator || myMembership?.role === 'admin';
+    if (!isGroupAdmin) {
+      return { error: 'forbidden' as const, message: 'Only group admins can regenerate the invite code.' };
+    }
+
+    const newInviteCode = crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+
+    const [updated] = await db
+      .update(communityGroups)
+      .set({ inviteCode: newInviteCode })
+      .where(eq(communityGroups.id, groupId))
+      .returning();
+
+    return {
+      success: true,
+      message: 'Invite code regenerated successfully.',
+      inviteCode: updated.inviteCode,
+    };
+  },
+
+  /**
    * Join or request to join a chat group.
+   * If group is invite-only, a matching invite code must be provided (unless creator/admin).
    * If group requires approval, user status becomes 'Pending'.
    * If not, user status becomes 'Active'.
    */
-  async joinGroup(groupId: string, userId: string, customName?: string, customColor?: string) {
+  async joinGroup(
+    groupId: string,
+    userId: string,
+    customName?: string,
+    customColor?: string,
+    inviteCode?: string,
+    userRole?: string,
+  ) {
     const group = await db.query.communityGroups.findFirst({
       where: eq(communityGroups.id, groupId),
     });
     if (!group) return null;
+
+    const isSystemAdmin = userRole === 'admin' || userRole === 'super_admin';
+    const isCreator = group.creatorId === userId;
 
     const existing = await db.query.communityGroupMembers.findFirst({
       where: and(
@@ -281,7 +490,23 @@ export const CommunityService = {
       ),
     });
 
-    const isCreator = group.creatorId === userId;
+    const isExistingActive = existing && (existing.memberStatus === 'Active' || existing.memberStatus === 'Pending');
+
+    // Enforce invite-only rule if not creator, not admin, and not already an active/pending member
+    if (group.isInviteOnly && !isCreator && !isSystemAdmin && !isExistingActive) {
+      const codeMatches =
+        inviteCode &&
+        group.inviteCode &&
+        inviteCode.trim().toUpperCase() === group.inviteCode.trim().toUpperCase();
+
+      if (!codeMatches) {
+        return {
+          error: 'forbidden' as const,
+          message: 'This group is invite-only. A valid invite code or invitation link is required to join.',
+        };
+      }
+    }
+
     const targetStatus = group.requiresApproval && !isCreator ? 'Pending' : 'Active';
 
     if (existing) {
@@ -325,6 +550,31 @@ export const CommunityService = {
       })
       .returning();
     return member;
+  },
+
+  /**
+   * Join a chat group directly using an invite code
+   */
+  async joinGroupByCode(
+    inviteCode: string,
+    userId: string,
+    customName?: string,
+    customColor?: string,
+    userRole?: string,
+  ) {
+    const cleanCode = inviteCode.trim().toUpperCase();
+    if (!cleanCode) {
+      return { error: 'bad_request' as const, message: 'Invite code is required.' };
+    }
+
+    const group = await db.query.communityGroups.findFirst({
+      where: sql`UPPER(${communityGroups.inviteCode}) = ${cleanCode}`,
+    });
+    if (!group) {
+      return { error: 'not_found' as const, message: 'Invalid or expired invite code.' };
+    }
+
+    return this.joinGroup(group.id, userId, customName, customColor, cleanCode, userRole);
   },
 
   /**
@@ -706,8 +956,12 @@ export const CommunityService = {
 
     const isSystemAdmin = userRole === 'admin' || userRole === 'super_admin';
 
-    // If group requires approval, verify active membership
-    if (group.requiresApproval && !isSystemAdmin && group.creatorId !== userId) {
+    // If group requires approval, is invite-only, or is hidden, verify active membership
+    if (
+      (group.requiresApproval || group.isInviteOnly || group.isHidden) &&
+      !isSystemAdmin &&
+      group.creatorId !== userId
+    ) {
       const membership = await db.query.communityGroupMembers.findFirst({
         where: and(
           eq(communityGroupMembers.groupId, groupId),
@@ -733,7 +987,7 @@ export const CommunityService = {
 
   /**
    * Send a chat message into the group.
-   * Auto-joins the user if the group is open, or enforces active status if approval is required.
+   * Auto-joins the user if the group is open, or enforces active status if approval/invite is required.
    */
   async sendMessage(groupId: string, userId: string, payload: SendMessagePayload, userRole?: string) {
     const group = await db.query.communityGroups.findFirst({
@@ -751,24 +1005,36 @@ export const CommunityService = {
 
     const isSystemAdmin = userRole === 'admin' || userRole === 'super_admin';
 
-    // If group requires approval, check status
-    if (group.requiresApproval && !isSystemAdmin && group.creatorId !== userId) {
+    // If group requires approval, is invite-only, or is hidden, enforce active membership
+    if (
+      (group.requiresApproval || group.isInviteOnly || group.isHidden) &&
+      !isSystemAdmin &&
+      group.creatorId !== userId
+    ) {
       if (!membership || membership.memberStatus !== 'Active') {
+        const reason = group.isInviteOnly
+          ? 'This group is invite-only. You must join via invite code before sending messages.'
+          : group.isHidden
+          ? 'This group is hidden. You must be an active member to send messages.'
+          : 'This group requires administrator approval. Your membership is pending or unapproved.';
         return {
           forbidden: true,
-          reason: 'This group requires administrator approval. Your membership is pending or unapproved.',
+          reason,
         };
       }
     }
 
     if (!membership || membership.memberStatus !== 'Active') {
-      membership = await this.joinGroup(groupId, userId);
+      const joinRes = await this.joinGroup(groupId, userId, undefined, undefined, undefined, userRole);
+      if (joinRes && 'id' in joinRes) {
+        membership = joinRes;
+      }
     }
 
     if (!membership || membership.memberStatus !== 'Active') {
       return {
         forbidden: true,
-        reason: 'Membership is pending approval.',
+        reason: 'Membership is pending approval or an invite code is required.',
       };
     }
 
