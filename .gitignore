@@ -23,3 +23,6 @@ yarn-error.log*
 
 Structure/
 .neon
+
+packages/db/src/seeds/
+packages/db/src/seed*.ts
