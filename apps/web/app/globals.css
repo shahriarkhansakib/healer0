@@ -320,10 +320,12 @@
     background: rgba(148, 163, 184, 0.45);
   }
   
+  html {
+    scrollbar-gutter: stable;
+  }
+
   html, body {
-    height: 100%;
-    /* Zero Layout Shift via Scrollbar Locking */
-    overflow: hidden;
+    min-height: 100%;
   }
   
   body {
