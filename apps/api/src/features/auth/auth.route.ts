@@ -85,16 +85,18 @@ authRouter.get('/me', async (c) => {
   }
 
   if (!researcherProfile && (user.role === 'user' || user.role === 'patient' || user.role === 'researcher' || user.role === 'super_admin')) {
+    const isActuallyResearcher = user.role === 'researcher' || user.role === 'super_admin';
     const [createdRes] = await db
       .insert(researcherProfiles)
       .values({
         userId: user.id,
         institution: 'Independent Research',
         researchField: 'Mental Health & Clinical Studies',
+        isActive: isActuallyResearcher,
       })
       .onConflictDoNothing()
       .returning({ id: researcherProfiles.id });
-    if (createdRes) researcherProfile = { id: createdRes.id, isActive: true };
+    if (createdRes) researcherProfile = { id: createdRes.id, isActive: isActuallyResearcher };
   }
 
   const isDoc = !!doctorProfile || user.role === 'doctor' || user.role === 'super_admin';
