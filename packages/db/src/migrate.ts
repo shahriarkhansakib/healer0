@@ -99,6 +99,46 @@ async function runMigration() {
 
     await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "doctor_id" text;`);
     await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "doctor_notes" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "cancellation_reason" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "cancelled_by" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "reschedule_count" integer DEFAULT 0 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "decline_reason" text;`);
+
+    // Therapy programs columns
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "session_count" integer DEFAULT 8 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "duration_weeks" integer DEFAULT 8 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "daily_minutes" integer DEFAULT 25 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "emoji" text DEFAULT '🌿' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "therapy_programs" ADD COLUMN IF NOT EXISTS "gradient_style" text DEFAULT 'emerald' NOT NULL;`);
+
+    // Assessment columns
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "code" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "timeframe" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "scoring_config" jsonb;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessments" ADD COLUMN IF NOT EXISTS "official_reference_bands" jsonb;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "question_code" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "options" jsonb;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_questions" ADD COLUMN IF NOT EXISTS "option_e" text;`);
+
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "max_score" integer DEFAULT 27;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "identified_problem" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "clinical_summary" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "suggested_follow_up" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "requires_follow_up" boolean DEFAULT false;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "crisis_alert" boolean DEFAULT false;`);
+    await sqlClient.unsafe(`ALTER TABLE "assessment_results" ADD COLUMN IF NOT EXISTS "answers" jsonb;`);
+
+    // Research enhancements
+    await sqlClient.unsafe(`ALTER TABLE "research_analytics" ADD COLUMN IF NOT EXISTS "result_summary" text DEFAULT '' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "research_participants" ADD COLUMN IF NOT EXISTS "user_id" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "research_projects" ADD COLUMN IF NOT EXISTS "project_title" text DEFAULT 'Untitled Project' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "research_surveys" ADD COLUMN IF NOT EXISTS "form_url" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "research_surveys" ADD COLUMN IF NOT EXISTS "embed_url" text;`);
+    await sqlClient.unsafe(`ALTER TABLE "research_surveys" ADD COLUMN IF NOT EXISTS "total_questions" integer DEFAULT 0 NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "research_surveys" ADD COLUMN IF NOT EXISTS "status" text DEFAULT 'Published' NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "research_surveys" ADD COLUMN IF NOT EXISTS "created_date" timestamp DEFAULT now() NOT NULL;`);
+    await sqlClient.unsafe(`ALTER TABLE "survey_questions" ADD COLUMN IF NOT EXISTS "order_index" integer DEFAULT 1 NOT NULL;`);
     try {
       await sqlClient.unsafe(`ALTER TABLE "appointments" ALTER COLUMN "psychologist_id" DROP NOT NULL;`);
     } catch {}

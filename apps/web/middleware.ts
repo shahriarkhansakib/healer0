@@ -27,6 +27,8 @@ export async function middleware(req: NextRequest) {
     });
     if (res.ok) {
       data = await res.json().catch(() => null);
+    } else if (res.status !== 401) {
+      console.error(`Middleware /api/auth/me returned HTTP ${res.status}: ${await res.text().catch(() => '')}`);
     }
   } catch (err) {
     console.error('Middleware fetch /api/auth/me failed:', err);
